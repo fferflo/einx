@@ -176,6 +176,7 @@ def solve(expressions, values):
 
 
     # Solve
+    equations = list(set(equations))
     axis_values = sympy.solve(equations, set=True)
     if axis_values == []:
         axis_values = {}
