@@ -2,6 +2,8 @@ import functools, os, collections
 import numpy as np
 
 def _hash(x):
+    if isinstance(x, np.ndarray):
+        x = x.reshape([-1]).tolist()
     if isinstance(x, list) or isinstance(x, tuple):
         h = 91724
         for v in x:
