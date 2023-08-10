@@ -135,7 +135,7 @@ def make_torch_backend():
     class torch:
         @staticmethod
         def to_tensor(tensor):
-            if isinstance(tensor, np.ndarray):
+            if isinstance(tensor, np.ndarray) or torch_.is_tensor(tensor):
                 return tensor
             else:
                 return torch_.asarray(tensor)
@@ -169,8 +169,8 @@ def make_torch_backend():
         greater_equal = torch_.greater_equal
         equal = torch_.equal
         not_equal = torch_.not_equal
-        maximum = torch_.maximum
-        minimum = torch_.minimum
+        maximum = lambda a, b: torch_.maximum(torch.to_tensor(a), torch.to_tensor(b))
+        minimum = lambda a, b: torch_.minimum(torch.to_tensor(a), torch.to_tensor(b)) # TODO: add support for python scalars everywhere
 
         sum = torch_.sum
         mean = torch_.mean
