@@ -135,7 +135,6 @@ def solve(expressions, shapes, depths):
                 shapes[i] = [shapes[i][0]] + [None] * missing_depth + list(shapes[i][1:])
 
 
-
     equations = []
 
     # Create Sympy symbols
@@ -200,17 +199,20 @@ def solve(expressions, shapes, depths):
                         equations.append(sympy.Eq(sympy_expr_expansion[key], int(shape[i])))
 
     # Solve
-    expansion_values = sympy.solve(equations, set=True)
-    if expansion_values == []:
+    if all(eq.is_Boolean and bool(eq) for eq in equations):
         expansion_values = {}
-    elif isinstance(expansion_values, tuple) and len(expansion_values) == 2:
-        variables, solutions = expansion_values
-        if len(solutions) != 1:
-            raise ValueError("Failed to solve ellipsis expansion")
-        solutions = next(iter(solutions))
-        expansion_values = {str(k): v for k, v in zip(variables, solutions) if v.is_number}
     else:
-        raise ValueError("Failed to solve ellipsis expansion")
+        expansion_values = sympy.solve(equations, set=True)
+        if expansion_values == []:
+            expansion_values = {}
+        elif isinstance(expansion_values, tuple) and len(expansion_values) == 2:
+            variables, solutions = expansion_values
+            if len(solutions) != 1:
+                raise ValueError("Failed to solve ellipsis expansion")
+            solutions = next(iter(solutions))
+            expansion_values = {str(k): v for k, v in zip(variables, solutions) if v.is_number}
+        else:
+            raise ValueError("Failed to solve ellipsis expansion")
 
     # Extract root shapes
     shapes = []
