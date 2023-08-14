@@ -1,8 +1,6 @@
 # *einx* - einsum, einmean, eindot, einadd, ...
 
-> Einstein-notation represents tensor shapes as named expressions that allow for an elegant phrasing of tensor operations.
-
-einx is a library for *__tensor operations in Einstein-inspired notation__* that is *__inspired by [einops](https://github.com/arogozhnikov/einops)__*, and offers extended features like a concise notation, implicit tensor shapes, arbitrary composition of expressions, additional tensor operations, lazy tensor construction, a [SymPy](https://www.sympy.org/en/index.html)-based solver and more.
+einx is a library for **tensor operations in Einstein-inspired notation** that is **inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html)**, and offers extended features like a concise notation, implicit tensor shapes, arbitrary composition of expressions, additional tensor operations, lazy tensor construction, a [SymPy](https://www.sympy.org/en/index.html)-based solver and more.
 
 - *Seamless integration* with tensor frameworks like Numpy, PyTorch, Tensorflow, Jax.
 - *Zero-overhead* when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html). (See [Performance](#performance))
@@ -51,16 +49,22 @@ patch_embed  = einx.{torch|flax|...}.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=6
 
 ### Overview
 
-1. [Short Introduction](#short-introduction)
-2. [Long Introduction](#long-introduction)
+1. [Installation](#installation)
+2. [Short Introduction](#short-introduction)
+3. [Long Introduction](#long-introduction)
     1. [Basics](#basics)
     2. [Ellipses](#ellipses)
     3. [Brief notation](#brief-notation)
     4. [Compatibility with tensor frameworks](#compatibility-with-tensor-frameworks)
     5. [Compatibility with einops expressions](#compatibility-with-einops-expressions)
     6. [Lazy tensor construction](#lazy-tensor-construction)
-    7. [Deep learning modules](#deep-learning-modules)
-3. [Examples: einx <> einops](#examples-einx-einops)
+4. [Examples: einx-einops](#examples-einx-einops)
+
+## Installation
+
+```python
+pip install git+https://github.com/fferflo/einx.git
+```
 
 ## Short Introduction
 
@@ -370,7 +374,7 @@ Performance of einx deep learning modules compared with native/ canonical versio
 
 </details>
 
-## Examples: einx <> einops
+## Examples: einx-einops
 
 ```python
 # ---------------- EINX --------------------   -------------------------- EINOPS -----------------------------
