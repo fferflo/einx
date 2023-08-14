@@ -3,7 +3,7 @@ import numpy as np
 
 class Condition:
     def __init__(self, expr: str, value=None, shape=None, depth=None):
-        self.expr = expr.strip()
+        self.expr = expr
 
         self.value = np.asarray(value) if not value is None else None
         self.shape = np.asarray(shape) if not shape is None else None
@@ -15,12 +15,15 @@ class Condition:
             elif np.any(self.shape != self.value.shape):
                 raise ValueError(f"Got conflicting value.shape {value.shape} and shape {shape} for expression {expr}")
 
+    def __repr__(self):
+        return f"{self.expr} = {self.value} (shape={self.shape} at depth={self.depth})"
+
     def __hash__(self):
         return hash((self.expr, self.value, self.shape, self.depth))
 
 def solve(conditions, verbose=False):
     if any(not isinstance(c, Condition) for c in conditions):
-        raise ValueError("All arguments must be of instance Condition")
+        raise ValueError("All arguments must be of type Condition")
 
     expressions = [t.expr for t in conditions]
     values = [t.value for t in conditions]
@@ -32,7 +35,7 @@ def solve(conditions, verbose=False):
         for expr, value, shape, depth in zip(expressions, values, shapes, depths):
             print(f"    {expr} = {value} (shape={shape} at depth={depth})")
 
-    expressions = [stage1.parse(expr) for expr in expressions]
+    expressions = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in expressions]
 
     if verbose:
         print("Stage1:")

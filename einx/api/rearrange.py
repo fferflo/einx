@@ -29,6 +29,15 @@ def _parse(description, tensor_shape, **kwargs):
     if "," in expr_in or "," in expr_out:
         raise ValueError("Expected single input and output description")
 
+    # Drop unnecessary parameters
+    exprs = [stage1.parse(expr) for expr in [expr_in, expr_out]]
+    def is_necessary_parameter(k):
+        for expr in exprs:
+            if any(var.name == k for var in expr.variables):
+                return True
+        return False
+    parameters = {k: v for k, v in parameters.items() if is_necessary_parameter(k)}
+
     exprs = solve(
            [Condition(expr=expr_in, value=tensor_shape, depth=0)] \
          + [Condition(expr=expr_out, value=output_shape, shape=(output_ndims,) if not output_ndims is None else None, depth=0)] \

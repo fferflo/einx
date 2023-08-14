@@ -54,6 +54,15 @@ def _parse(description, *tensor_shapes, conditions=[], output_shape=None, output
 
         expr_out = None
 
+    # Drop unnecessary parameters
+    exprs = [stage1.parse(expr) if not expr_out is None else None for expr in exprs_in + [expr_out]]
+    def is_necessary_parameter(k):
+        for expr in exprs:
+            if not expr is None and any(var.name == k for var in expr.variables):
+                return True
+        return False
+    parameters = {k: v for k, v in parameters.items() if is_necessary_parameter(k)}
+
     exprs = solve(
            [Condition(expr=expr, value=tensor_shape, depth=0) for expr, tensor_shape in zip(exprs_in, tensor_shapes)] \
          + ([Condition(expr=expr_out, value=output_shape, shape=(output_ndims,) if not output_ndims is None else None, depth=0)] if not expr_out is None else []) \

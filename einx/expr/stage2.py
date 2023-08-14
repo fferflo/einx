@@ -8,6 +8,9 @@ class Node:
         self.ellipsis_indices = ellipsis_indices
         self.name = name if not name is None else f"__{self.__class__.__name__}__{id(self)}"
 
+    def __repr__(self):
+        return str(self)
+
 class Variable(Node):
     def __init__(self, unexpanded_variable, ellipsis_indices):
         name = unexpanded_variable.name
@@ -134,7 +137,6 @@ def solve(expressions, shapes, depths):
             if missing_depth > 0:
                 shapes[i] = [shapes[i][0]] + [None] * missing_depth + list(shapes[i][1:])
 
-
     equations = []
 
     # Create Sympy symbols
@@ -142,7 +144,7 @@ def solve(expressions, shapes, depths):
     for expr in expressions:
         for ellipsis in expr.traverse():
             if isinstance(ellipsis, stage1.Ellipsis):
-                sympy_ellipsis_expansion[ellipsis.name] = sympy.Symbol(f"__ellipsisexpansion__{ellipsis.name}", integer=True)
+                sympy_ellipsis_expansion[ellipsis.expansion_id] = sympy.Symbol(f"__ellipsisexpansion__{ellipsis.expansion_id}", integer=True)
 
     sympy_expr_expansion = {}
     for expr in expressions:
@@ -172,7 +174,7 @@ def solve(expressions, shapes, depths):
             assert expr_depth[expr.name] >= len(expr.ellipses)
             for i, ellipsis in enumerate(expr.ellipses):
                 key = (expr.name, expr_depth[expr.name] - len(expr.ellipses) + i)
-                equations.append(sympy.Eq(sympy_expr_expansion[key], sympy_ellipsis_expansion[ellipsis.name]))
+                equations.append(sympy.Eq(sympy_expr_expansion[key], sympy_ellipsis_expansion[ellipsis.expansion_id]))
 
     # Root expression expansions
     def get_expansion(expr):
@@ -181,7 +183,7 @@ def solve(expressions, shapes, depths):
         elif isinstance(expr, stage1.Variable) or (isinstance(expr, stage1.Group) and expr.front == "("):
             return 1
         elif isinstance(expr, stage1.Ellipsis):
-            return sympy_ellipsis_expansion[expr.name]
+            return sympy_ellipsis_expansion[expr.expansion_id]
         else:
             assert False
     for expr, shape in zip(expressions, shapes):
@@ -210,7 +212,7 @@ def solve(expressions, shapes, depths):
             if len(solutions) != 1:
                 raise ValueError("Failed to solve ellipsis expansion")
             solutions = next(iter(solutions))
-            expansion_values = {str(k): v for k, v in zip(variables, solutions) if v.is_number}
+            expansion_values = {str(k): int(v) for k, v in zip(variables, solutions) if v.is_number}
         else:
             raise ValueError("Failed to solve ellipsis expansion")
 
@@ -234,15 +236,15 @@ def solve(expressions, shapes, depths):
 
             # Child num
             for child in root.children:
-                if isinstance(child, stage1.Ellipsis) and not f"__ellipsisexpansion__{child.name}" in expansion_values:
-                    raise ValueError(f"Failed to determine expansion of ellipsis {child.name}")
+                if isinstance(child, stage1.Ellipsis) and not f"__ellipsisexpansion__{child.expansion_id}" in expansion_values:
+                    raise ValueError(f"Failed to determine expansion of ellipsis {child.expansion_id}")
             def get_expansion(expr):
                 if isinstance(expr, stage1.Root) or (isinstance(expr, stage1.Group) and expr.front != "("):
                     return sum(get_expansion(c) for c in expr.children)
                 elif isinstance(expr, stage1.Variable) or (isinstance(expr, stage1.Group) and expr.front == "("):
                     return 1
                 elif isinstance(expr, stage1.Ellipsis):
-                    return expansion_values[f"__ellipsisexpansion__{expr.name}"]
+                    return expansion_values[f"__ellipsisexpansion__{expr.expansion_id}"]
                 else:
                     assert False
             child_num = get_expansion(root)
@@ -263,7 +265,7 @@ def solve(expressions, shapes, depths):
                 raise ValueError(f"Expanded variable name {v.name} was already defined as unexpanded variable")
             return v
         elif isinstance(expr, stage1.Ellipsis):
-            sympy_name = f"__ellipsisexpansion__{expr.name}"
+            sympy_name = f"__ellipsisexpansion__{expr.expansion_id}"
             if sympy_name in expansion_values:
                 inner = [replace(expr.inner, ellipsis_indices=ellipsis_indices + [i]) for i in range(expansion_values[sympy_name])]
             else:
@@ -285,5 +287,8 @@ def solve(expressions, shapes, depths):
             return replace(expr, ellipsis_indices=ellipsis_indices)
 
     expressions = [Root(init_depth(expr.children, remaining_shape=shape[1:], ellipsis_indices=[])) for expr, shape in zip(expressions, shapes)]
+
+    for expr, shape in zip(expressions, shapes):
+        assert len(expr.expanded_children) == shape[-1], f"{expr} {shape}"
 
     return expressions, shapes, depths

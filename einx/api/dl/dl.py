@@ -1,6 +1,5 @@
 import einx
-import jax
-import jax.numpy as jnp
+
 def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True, var=True, scale=None, bias=None, fastvar=True):
     if moving_average is None:
         moving_average = lambda f, name: f()
@@ -33,7 +32,7 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
     if not inv_std is None:
         x = einx.multiply(f"{expr_in}, {expr_out}", x, inv_std)
 
-    # TODO: need optimizer like opt_einsum that can optimize expressions like: (x - mean) * scale * inv_std + bias
+    # TODO: need optimizer like opt_einsum that can optimize elementwise expressions like: (x - mean) * scale * inv_std + bias
 
     if not scale is None:
         x = einx.multiply(params, x, scale)
@@ -42,15 +41,15 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
 
     return x
 
-def linear(x, expr, weight, bias=None):
-    (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.api.util.get_shape(x), einx.api.util.get_shape(weight))
+def linear(x, expr, weight, bias=None, **kwargs):
+    (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.api.util.get_shape(x), einx.api.util.get_shape(weight), **kwargs)
 
-    x = einx.dot(expr, x, weight)
+    x = einx.dot(expr, x, weight, **kwargs)
 
     if not bias is None:
         def remove(n):
             return isinstance(n, einx.expr.stage3.Variable) and not any(n == v for v in expr_in2.traverse())
         expr_bias = einx.expr.stage3.remove(expr_afterdot, remove, drop_empty_groups=True)
-        x = einx.add(f"{expr_afterdot}, {expr_bias}", x, bias)
+        x = einx.op.add([einx.op.Tensor(x, expr_afterdot), einx.op.Tensor(bias, expr_bias)]).value
 
     return x

@@ -3,6 +3,7 @@ import einx
 from . import util
 from functools import partial
 
+_any = any
 _op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min"]
 
 @einx.lru_cache
@@ -28,6 +29,15 @@ def _parse(description, tensor_shape, conditions=[], output_shape=None, output_n
         if "," in expr_in or "," in expr_out:
             raise ValueError("Expected single input and output description")
 
+        # Drop unnecessary parameters
+        exprs = [stage1.parse(expr) for expr in [expr_in, expr_out]]
+        def is_necessary_parameter(k):
+            for expr in exprs:
+                if _any(var.name == k for var in expr.variables):
+                    return True
+            return False
+        parameters = {k: v for k, v in parameters.items() if is_necessary_parameter(k)}
+
         exprs = solve(
                [Condition(expr=expr_in, value=tensor_shape, depth=0)] \
              + [Condition(expr=expr_out, value=output_shape, shape=(output_ndims,) if not output_ndims is None else None, depth=0)] \
@@ -35,6 +45,15 @@ def _parse(description, tensor_shape, conditions=[], output_shape=None, output_n
              + list(conditions)
         )[:2]
     else:
+        # Drop unnecessary parameters
+        exprs = [stage1.parse(expr) for expr in [description]]
+        def is_necessary_parameter(k):
+            for expr in exprs:
+                if _any(var.name == k for var in expr.variables):
+                    return True
+            return False
+        parameters = {k: v for k, v in parameters.items() if is_necessary_parameter(k)}
+
         expr_in = solve(
                [Condition(expr=description, value=tensor_shape, depth=0)] \
              + [Condition(expr=k, value=[v]) for k, v in parameters.items()] \

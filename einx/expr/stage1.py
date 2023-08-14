@@ -52,10 +52,11 @@ class Variable(Node):
         return hash(str(self))
 
 class Ellipsis(Node):
-    def __init__(self, inner, ellipses):
+    def __init__(self, inner, ellipses, expansion_id):
         Node.__init__(self, ellipses)
         self.inner = inner
         self.inner.parent = self
+        self.expansion_id = id(self) if expansion_id is None else expansion_id
 
     def __str__(self):
         return str(self.inner) + "..."
@@ -66,7 +67,7 @@ class Ellipsis(Node):
             yield x
 
     def copy(self):
-        return Ellipsis(self.inner, self.ellipses)
+        return Ellipsis(self.inner, self.ellipses, self.expansion_id)
 
     def __eq__(self, other):
         return other.__class__ == Ellipsis and self.inner == other.inner
@@ -166,6 +167,8 @@ class Root(Group):
         return hash(str(self))
 
 def parse(expression):
+    if isinstance(expression, Root):
+        return expression
     root = Root(_parse(expression, ellipses=[]))
 
     # Check that ellipsis depths match
@@ -176,14 +179,6 @@ def parse(expression):
     for k in variable_rank:
         if len(variable_rank[k]) > 1:
             raise ValueError(f"Got conflicting ellipsis depths for parameter {k}")
-
-    # Check that no variable name is used twice
-    counts = defaultdict(lambda: 0)
-    for variable in root.traverse():
-        if isinstance(variable, Variable):
-            counts[variable.name] += 1
-    if any(c > 1 for c in counts.values()):
-        raise ValueError(f"Cannot use the same variable name more than once per expression: {[k for k, v in counts.items() if v > 1]}")
 
     return root
 
@@ -258,7 +253,7 @@ def _parse(expression, ellipses):
                     inner = [Variable(name=einx.anonymous_ellipsis_name, ellipses=ellipses + [ellipsis])]
                 else:
                     raise ValueError("Anonymous ellipsis is not allowed")
-            ellipsis.__init__(inner[0], ellipses=ellipses)
+            ellipsis.__init__(inner[0], ellipses=ellipses, expansion_id=None)
             children = [ellipsis]
         else:
             for front, back in _parentheses:
@@ -325,7 +320,7 @@ def remove(expr, pred):
             if len(inner) == 0:
                 return []
             assert len(inner) == 1
-            ellipsis.__init__(inner[0], ellipses=ellipses)
+            ellipsis.__init__(inner[0], ellipses=ellipses, expansion_id=expr.expansion_id)
             return [ellipsis]
         elif isinstance(expr, Group):
             return [Group(traverse(expr.children, ellipses=ellipses), ellipses, expr.front, expr.back)]
@@ -355,7 +350,7 @@ def prune_group(expr, pred):
                 else:
                     return []
             assert len(inner) == 1
-            ellipsis.__init__(inner[0], ellipses=ellipses)
+            ellipsis.__init__(inner[0], ellipses=ellipses, expansion_id=expr.expansion_id)
             return [ellipsis]
         elif isinstance(expr, Group):
             children = traverse(expr.children, ellipses=ellipses)
@@ -389,7 +384,7 @@ def make_choice(expr, pred, index, num_choices):
                 else:
                     return []
             assert len(inner) == 1
-            ellipsis.__init__(inner[0], ellipses=ellipses)
+            ellipsis.__init__(inner[0], ellipses=ellipses, expansion_id=expr.expansion_id)
             return [ellipsis]
         elif isinstance(expr, Group):
             return [Group(traverse(expr.children, ellipses=ellipses), ellipses, expr.front, expr.back)]
@@ -404,3 +399,11 @@ def make_choice(expr, pred, index, num_choices):
             assert False
 
     return Root(traverse(expr.children, ellipses=[]))
+
+def concatenate(exprs):
+    children = []
+    for expr in exprs:
+        if not isinstance(expr, Root):
+            raise ValueError("Can only concatenate Root expressions")
+        children.extend(expr.copy().children)
+    return Root(children)

@@ -110,8 +110,12 @@ def test_shape_dot(backend):
     assert einx.dot("b s... [c1|c2]", x, backend.zeros, c2=32).shape == (4, 128, 128, 32)
     assert einx.dot("b [s...|s2] c", x, backend.zeros, s2=32).shape == (4, 32, 16)
 
-    w = backend.zeros((2, 2, 16, 32), "float32")
+    w = backend.zeros((2, 2, 16, 1, 1, 32), "float32")
     assert einx.dot("b (s [s2|])... [c1|c2]", x, w, s2=2, c2=32).shape == (4, 64, 64, 32)
+
+    w = lambda shape: backend.zeros(shape, "float32")
+    assert einx.dot("b [(s s2)|s]... [c1|c2]", x, w, s2=4, c2=64).shape == (4, 32, 32, 64)
+    assert einx.dot("b (s [s2|])... [c1|c2]", x, w, s2=4, c2=64).shape == (4, 32, 32, 64)
 
 @pytest.mark.parametrize("backend", einx.backend.backends)
 def test_shape_reduce(backend):

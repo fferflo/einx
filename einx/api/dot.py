@@ -28,19 +28,17 @@ def _parse(description, *tensor_shapes, conditions=[], output_shape=None, output
         expr_in = expr
         expr_in = stage1.prune_group(expr_in, lambda n: n.front == "[" and len(n.children) == 1 and isinstance(n.children[0], stage1.Choice) and n.children[0].separator == "|")
         expr_in = stage1.make_choice(expr_in, lambda n: n.separator == "|", 0, 2)
-        expr_in = str(expr_in)
 
         expr_out = expr
         expr_out = stage1.prune_group(expr_out, lambda n: n.front == "[" and len(n.children) == 1 and isinstance(n.children[0], stage1.Choice) and n.children[0].separator == "|")
         expr_out = stage1.make_choice(expr_out, lambda n: n.separator == "|", 1, 2)
-        expr_out = str(expr_out)
 
-        description = [expr_in, expr_out]
-
-    if len(description) > 2:
-        raise ValueError("Operation can contain at most one '->'")
-    exprs_in, expr_out = description
-    exprs_in = exprs_in.split(",")
+        exprs_in = [expr_in]
+    else:
+        if len(description) > 2:
+            raise ValueError("Operation can contain at most one '->'")
+        exprs_in, expr_out = description
+        exprs_in = exprs_in.split(",")
 
     if len(exprs_in) == 1:
         # input1 -> output, determine input2 implicitly
@@ -69,14 +67,23 @@ def _parse(description, *tensor_shapes, conditions=[], output_shape=None, output
         expr_in1 = stage1.prune_group(expr_in1, lambda n: n.front == "[")
         expr_in2_1 = stage1.remove(expr_in1, lambda n: isinstance(n, stage1.Variable) and n not in vars_in2)
         expr_in2_2 = stage1.remove(expr_out, lambda n: isinstance(n, stage1.Variable) and (n not in right_batch_vars))
-        expr_in2 = f"{expr_in2_1} {expr_in2_2}"
+        expr_in2 = stage1.concatenate([expr_in2_1, expr_in2_2])
 
-        exprs_in = [str(expr_in1), str(expr_in2)]
+        exprs_in = [expr_in1, expr_in2]
         expr_out = str(expr_out)
 
     if len(exprs_in) != len(tensor_shapes):
         raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensor_shapes)}")
     exprs = exprs_in + [expr_out]
+
+    # Drop unnecessary parameters
+    exprs = [stage1.parse(expr) for expr in exprs]
+    def is_necessary_parameter(k):
+        for expr in exprs:
+            if any(var.name == k for var in expr.variables):
+                return True
+        return False
+    parameters = {k: v for k, v in parameters.items() if is_necessary_parameter(k)}
 
     exprs = solve(
            [Condition(expr=expr, value=tensor_shape, depth=0) for expr, tensor_shape in zip(exprs_in, tensor_shapes)] \

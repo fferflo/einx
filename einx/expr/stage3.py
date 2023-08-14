@@ -8,6 +8,9 @@ class Node:
         self.ellipsis_indices = ellipsis_indices
         self.name = name if not name is None else f"__{self.__class__.__name__}__{id(self)}"
 
+    def __repr__(self):
+        return str(self)
+
     @property
     def variables(self):
         return [x for x in self.traverse() if isinstance(x, Variable)]
@@ -28,7 +31,7 @@ class Variable(Node):
         yield self
 
     def __eq__(self, other):
-        return other.__class__ == Variable and str(self) == str(other)
+        return other.__class__ == Variable and str(self) == str(other) and self.value == other.value
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -69,7 +72,7 @@ class Ellipsis(Node):
                 yield y
 
     def __eq__(self, other):
-        return other.__class__ == Ellipsis and str(self) == str(other)
+        return other.__class__ == Ellipsis and self.inner == other.inner
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -106,7 +109,7 @@ class Group(Node):
         return expand(self.unexpanded_children)
 
     def __eq__(self, other):
-        return other.__class__ == Group and str(self) == str(other)
+        return other.__class__ == Group and self.front == other.front and self.back == other.back and self.unexpanded_children == other.unexpanded_children
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -128,6 +131,9 @@ class Root(Group):
 
     def __hash__(self):
         return hash(str(self))
+
+    def __eq__(self, other):
+        return other.__class__ == Root and self.unexpanded_children == other.unexpanded_children
 
     shape = property(lambda self: tuple(c.value for c in self.expanded_children))
 
@@ -185,7 +191,7 @@ def solve(expressions, values):
         if len(solutions) != 1:
             raise ValueError("Failed to solve axis values")
         solutions = next(iter(solutions))
-        axis_values = {str(k): v for k, v in zip(variables, solutions) if v.is_number}
+        axis_values = {str(k): int(v) for k, v in zip(variables, solutions) if v.is_number}
     else:
         raise ValueError("Failed to solve axis")
 
@@ -309,3 +315,24 @@ def prune_group(expr, pred):
 
     unexpanded_children = traverse(expr.unexpanded_children)
     return Root(unexpanded_children, value(unexpanded_children))
+
+def cache_hash(expr):
+    from . import cse
+    if isinstance(expr, list):
+        h = 878123
+        for expr in expr:
+            h += cache_hash(expr)
+            h *= 978123
+        return h
+    elif isinstance(expr, Variable):
+        return (hash(expr.name) if not expr.name.startswith("__constantdim") else 81273) + 981723 * hash(expr.value)
+    elif isinstance(expr, Ellipsis):
+        return 7911131823 + cache_hash(expr.inner)
+    elif isinstance(expr, Group):
+        return 9888734 + cache_hash(expr.unexpanded_children) + hash(expr.front) + hash(expr.back)
+    elif isinstance(expr, Root):
+        return 234 + cache_hash(expr.unexpanded_children)
+    elif isinstance(expr, cse.CommonSubexpression):
+        return 123 + cache_hash(expr.children)
+    else:
+        assert False, type(expr)

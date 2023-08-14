@@ -1,9 +1,14 @@
-import functools, os, collections
+import functools, os, collections, sys
+from einx.expr import stage3
 import numpy as np
 
 def _hash(x):
     if isinstance(x, np.ndarray):
         x = x.reshape([-1]).tolist()
+    if "torch" in sys.modules:
+        import torch
+        if isinstance(x, torch.Size):
+            x = list(x)
     if isinstance(x, list) or isinstance(x, tuple):
         h = 91724
         for v in x:
@@ -16,11 +21,13 @@ def _hash(x):
             h += _hash(v)
             h *= 9583
         return h
+    elif isinstance(x, stage3.Root):
+        return stage3.cache_hash(x)
     else:
         return hash(x)
 
 def lru_cache(inner):
-    cache_size = int(os.environ.get("EINX_CACHE_SIZE", 1))
+    cache_size = int(os.environ.get("EINX_CACHE_SIZE", 1024))
     print_cache_miss = str(os.environ.get("EINX_PRINT_CACHE_MISS", "false")).lower() in ["true", "yes", "1"]
     if cache_size > 0:
         cache = collections.OrderedDict()
