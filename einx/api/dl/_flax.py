@@ -65,10 +65,11 @@ class Linear(nn.Module):
     bias: bool = True
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, **kwargs):
         return einx.dl.linear(
             x,
             self.expr,
             bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, "float32") if self.bias else None,
             weight=lambda shape: self.param("weight", nn.initializers.lecun_normal(), shape, "float32"),
+            **kwargs,
         )

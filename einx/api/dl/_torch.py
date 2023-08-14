@@ -1,5 +1,6 @@
 import torch, einx, math
 from functools import partial
+import numpy as np
 
 class Parameter(torch.nn.parameter.UninitializedParameter):
     def __init__(self, init):
@@ -72,7 +73,7 @@ class Norm(torch.nn.Module):
         )
 
 class Linear(torch.nn.Module):
-    def __init__(self, expr, bias=True):
+    def __init__(self, expr, bias=True, **kwargs):
         super().__init__()
 
         def init_weight(x):
@@ -80,13 +81,14 @@ class Linear(torch.nn.Module):
         self.weight = Parameter(init_weight)
         if bias:
             def init_bias(x):
-                u = 1.0 / math.sqrt(self.weight.shape[0])
+                u = 1.0 / math.sqrt(np.prod(x.shape))
                 torch.nn.init.uniform_(x, -u, u)
             self.bias = Parameter(init_bias)
         else:
             self.bias = None
 
         self.expr = expr
+        self.kwargs = kwargs
 
-    def forward(self, x):
-        return einx.dl.linear(x, self.expr, self.weight, self.bias)
+    def forward(self, x, **kwargs):
+        return einx.dl.linear(x, self.expr, self.weight, self.bias, **self.kwargs, **kwargs)
