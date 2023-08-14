@@ -21,6 +21,7 @@ def _hash(x):
 
 def lru_cache(inner):
     cache_size = int(os.environ.get("EINX_CACHE_SIZE", 1))
+    print_cache_miss = str(os.environ.get("EINX_PRINT_CACHE_MISS", "false")).lower() in ["true", "yes", "1"]
     if cache_size > 0:
         cache = collections.OrderedDict()
         def outer(*args, **kwargs):
@@ -37,7 +38,8 @@ def lru_cache(inner):
                 cache[h] = candidates
                 if len(cache) > cache_size:
                     cache.popitem(False)
-            # print("Cache miss")
+            if print_cache_miss:
+                print(f"einx: Cache miss on {inner.__name__} with args={args} kwargs={kwargs} hash={hash(inner)} cache_size={len(cache)}")
             value = inner(*args, **kwargs)
             candidates.append(((args, kwargs), value))
             return value
