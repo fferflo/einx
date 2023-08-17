@@ -2,6 +2,7 @@ from .elementwise import *
 from .reduce import *
 from .dot import *
 from .rearrange import *
+from .xmap import *
 from . import dl
 
 def __getattr__(key):

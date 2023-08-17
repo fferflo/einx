@@ -104,7 +104,8 @@ def mark_common_subexpressions(expressions, verbose=False):
 
     # Remove singleton variables
     def is_singleton(expr):
-        return isinstance(expr, list) and len(expr) == 1 and isinstance(expr[0], stage3.Variable)
+        return isinstance(expr, list) and len(expr) == 1 and (isinstance(expr[0], stage3.Variable) or \
+            (isinstance(expr[0], stage3.Group) and expr[0].front == "[" and is_singleton(expr[0].expanded_children)))
     common_subexpressions = [exprs for exprs in common_subexpressions if not is_singleton(exprs[0])]
 
     if verbose:
@@ -112,13 +113,15 @@ def mark_common_subexpressions(expressions, verbose=False):
         for v in common_subexpressions:
             print(f"    {[' '.join([str(y) for y in x]) for x in v]}")
 
-    # Remove subexpressions of root if value is known
-    def parent_is_root(expr_list):
-        return any(isinstance(expr.parent, stage3.Root) for expr in expr_list)
-    def all_values_known(expr_list):
-        return all(not expr.value is None for expr in expr_list)
+    # Remove subexpressions at root level
+    def is_at_root_level(expr):
+        if isinstance(expr, list):
+            return any(is_at_root_level(expr) for expr in expr)
+        parent_is_root = isinstance(expr.parent, stage3.Root)
+        parent_is_axisgroup = isinstance(expr.parent, stage3.Group) and expr.parent.front == "("
+        return parent_is_root or (not parent_is_axisgroup and is_at_root_level(expr.parent))
     def remove(expr_lists):
-        return any(parent_is_root(expr_list) for expr_list in expr_lists) and all(all_values_known(expr_list) for expr_list in expr_lists)
+        return any(is_at_root_level(expr_list) for expr_list in expr_lists)
     common_subexpressions = [exprs for exprs in common_subexpressions if not remove(exprs)]
 
     if verbose:

@@ -160,6 +160,8 @@ def test_shape_elementwise(backend):
     with pytest.raises(ValueError):
         einx.add("a a, a -> a a", x, y)
     assert einx.add("a b, a b", x, backend.zeros).shape == (10, 10)
+    assert einx.add("a, a", y, y).shape == (10,)
+    assert einx.add("[a]", y, y).shape == (10,)
 
     # TODO: make this work
     # x = backend.zeros((2, 3), "float32")
@@ -172,6 +174,10 @@ def test_shape_elementwise(backend):
     x = backend.zeros((16, 128, 196, 64), "float32")
     y = backend.zeros((16, 4, 16), "float32")
     assert einx.add("b h w (g c), b (g) c", x, y).shape == (16, 128, 196, 64)
+
+    x = backend.zeros((10, 20), "float32")
+    y = backend.zeros((10, 20, 30), "float32")
+    assert einx.add("a b, a b c -> a b c", x, y).shape == (10, 20, 30)
 
 @pytest.mark.parametrize("backend", einx.backend.backends)
 def test_anonymous_ellipsis_success(backend):
@@ -187,3 +193,56 @@ def test_anonymous_ellipsis_success(backend):
 
     with pytest.raises(ValueError):
         einx.rearrange("b ... -> ... b", x) # Fails
+
+@pytest.mark.parametrize("backend", einx.backend.backends)
+def test_shape_vmap(backend):
+    x = backend.zeros((13,), "float32")
+    assert einx.vmap("b -> b [3]", x, op=lambda x: x + backend.zeros((3,))).shape == (13, 3)
+
+    with pytest.raises(ValueError):
+        einx.vmap("b -> [b] 3", x, op=lambda x: x + backend.zeros((3,)))
+    with pytest.raises(ValueError):
+        einx.vmap("b -> b 3", x, op=lambda x: x + backend.ones((3,)))
+
+    x = backend.zeros((4, 13, 2), "float32")
+    y = backend.zeros((13, 4, 5, 5), "float32")
+    def f(x, y):
+        assert x.shape == (4, 2)
+        assert y.shape == (4, 5)
+        x = x[:, 0] + y[:, 0]
+        return einx.rearrange("a -> a 15", x)
+    assert einx.vmap("[a] b [e], b [a] c [d] -> [a] b [g] c", x, y, op=f, g=15).shape == (4, 13, 15, 5)
+    assert einx.vmap("[a] b [e], b [a] c [d] -> [a] b ([g] c)", x, y, op=f, g=15).shape == (4, 13, 15 * 5)
+    with pytest.raises(ValueError):
+        einx.vmap("[a] b [e], b [a] c [d] -> [g] b [a] c", x, y, op=f, g=15)
+    
+    with pytest.raises(ValueError):
+        def f(x, y):
+            assert x.shape == (4, 2)
+            assert y.shape == (4, 5)
+            x = x[:, 0] + y[:, 0]
+            return einx.rearrange("a -> a 16", x)
+        einx.vmap("[a] b [e], b [a] c [d] -> [a] b [g] c", x, y, op=f, g=15)
+
+    x = backend.zeros((4, 16), "float32")
+    y = backend.zeros((16, 32), "float32")
+    assert einx.vmap("b [c1], [c1] c2 -> b c2", x, y, op=backend.dot).shape == (4, 32)
+
+    x = backend.zeros((4,), "float32")
+    y = backend.zeros((16, 32), "float32")
+    assert einx.vmap("a, b c -> a b c", x, y, op=backend.add).shape == (4, 16, 32)
+
+    def func(x): # c -> 2
+        return backend.stack([backend.mean(x), backend.max(x)])
+    x = backend.zeros((16, 64, 3,), "float32")
+    assert einx.vmap("b [c] a -> a b [2]", x, op=func).shape == (3, 16, 2)
+
+    def func(x, y): # c, d -> 2
+        return backend.stack([backend.mean(x), backend.max(y)])
+    x = backend.zeros((16, 64), "float32") # b c
+    y = backend.zeros((16, 72), "float32") # b d
+    assert einx.vmap("b [c], b [d] -> b [2]", x, y, op=func).shape == (16, 2)
+
+    x = backend.zeros((16, 64, 3), "float32") # b1 c b2
+    y = backend.zeros((3, 72), "float32") # b2 d
+    assert einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=func).shape == (3, 2, 16)

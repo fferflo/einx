@@ -21,9 +21,11 @@ class Condition:
     def __hash__(self):
         return hash((self.expr, self.value, self.shape, self.depth))
 
-def solve(conditions, verbose=False):
+def solve(conditions, stages=3, verbose=False):
     if any(not isinstance(c, Condition) for c in conditions):
         raise ValueError("All arguments must be of type Condition")
+    if not stages in [1, 2, 3]:
+        raise ValueError("stages must be 1, 2 or 3")
 
     expressions = [t.expr for t in conditions]
     values = [t.value for t in conditions]
@@ -42,6 +44,9 @@ def solve(conditions, verbose=False):
         for expr, value, shape, depth in zip(expressions, values, shapes, depths):
             print(f"    {expr} = {value} (shape={shape} at depth={depth})")
 
+    if stages == 1:
+        return expressions
+
     expressions, shapes, depths = stage2.solve(expressions, shapes, depths)
     def broadcast(value, shape):
         value = np.asarray(value)
@@ -55,6 +60,9 @@ def solve(conditions, verbose=False):
         print("Stage2:")
         for expr, value in zip(expressions, values):
             print(f"    {expr} = {value}")
+
+    if stages == 2:
+        return expressions
 
     expressions, values = stage3.solve(expressions, values)
 

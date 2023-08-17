@@ -311,7 +311,7 @@ def prune_group(expr, pred):
             else:
                 return [Group(unexpanded_children, expr.value, expr.ellipsis_indices, expr.front, expr.back)]
         else:
-            assert False
+            assert False, f"{type(expr)} {expr}"
 
     unexpanded_children = traverse(expr.unexpanded_children)
     return Root(unexpanded_children, value(unexpanded_children))

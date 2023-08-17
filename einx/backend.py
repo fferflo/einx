@@ -15,6 +15,9 @@ def to_tuple(x):
     else:
         raise ValueError(f"Cannot convert {type(x)} to tuple")
 
+def not_implemented(*args, **kwargs):
+    raise NotImplementedError()
+
 class numpy:
     @staticmethod
     def to_tensor(tensor):
@@ -30,6 +33,8 @@ class numpy:
     einsum = partial(np.einsum, optimize="optimal")
     dot = np.dot
     swapaxes = np.swapaxes
+
+    stack = np.stack
 
     zeros = np.zeros
     ones = np.ones
@@ -65,6 +70,27 @@ class numpy:
 
     sqrt = np.sqrt
     rsqrt = lambda x: 1.0 / np.sqrt(x)
+    square = np.square
+
+    allclose = np.allclose
+
+    def vmap(op, in_axes, out_axes):
+        def inner(*args):
+            if len(args) != len(in_axes):
+                raise ValueError(f"Expected {len(in_axes)} arguments, got {len(args)}")
+            value = set(arg.shape[axis] for arg, axis in zip(args, in_axes) if not axis is None)
+            if len(value) != 1:
+                raise ValueError(f"Expected all arguments to have same size along vmap axis, got {value}")
+            value = value.pop()
+            xs = []
+            for i in range(value):
+                x = op(*[arg[(slice(None),) * axis + (i,)] if not axis is None else arg for arg, axis in zip(args, in_axes)])
+                xs.append(x)
+            x = np.stack(xs, axis=out_axes)
+            return x
+        return inner
+
+    pmap = not_implemented
 
 backends.append(numpy)
 
@@ -74,10 +100,7 @@ def make_jax_backend():
     class jax:
         @staticmethod
         def to_tensor(tensor):
-            if not isinstance(tensor, jnp.ndarray) and isinstance(tensor, np.ndarray):
-                return tensor
-            else:
-                return jnp.asarray(tensor)
+            return jnp.asarray(tensor)
 
         tensor = jnp.ndarray
         name = "jax"
@@ -89,6 +112,8 @@ def make_jax_backend():
         einsum = partial(jnp.einsum, optimize="optimal")
         dot = jnp.dot
         swapaxes = jnp.swapaxes
+
+        stack = jnp.stack
 
         zeros = jnp.zeros
         ones = jnp.ones
@@ -126,6 +151,11 @@ def make_jax_backend():
         rsqrt = jax_.lax.rsqrt
         square = jnp.square
 
+        allclose = jnp.allclose
+
+        vmap = jax_.vmap
+        pmap = jax_.pmap
+
     return jax
 backend_factories["jax"] = make_jax_backend
 
@@ -135,10 +165,7 @@ def make_torch_backend():
     class torch:
         @staticmethod
         def to_tensor(tensor):
-            if isinstance(tensor, np.ndarray) or torch_.is_tensor(tensor):
-                return tensor
-            else:
-                return torch_.asarray(tensor)
+            return torch_.asarray(tensor)
 
         tensor = torch_.Tensor
         name = "torch"
@@ -150,6 +177,8 @@ def make_torch_backend():
         einsum = torch_.einsum
         dot = torch_.matmul
         swapaxes = torch_.swapaxes
+
+        stack = torch_.stack
 
         zeros = lambda shape, dtype="float32": torch_.zeros(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
         ones = lambda shape, dtype="float32": torch_.ones(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
@@ -187,6 +216,11 @@ def make_torch_backend():
         rsqrt = torch_.rsqrt
         square = torch_.square
 
+        allclose = torch_.allclose
+
+        vmap = lambda op, in_axes, out_axes: torch_.vmap(op, in_dims=in_axes, out_dims=out_axes)
+        pmap = not_implemented
+
     _dynamo.allow_in_graph(einx.dot)
     _dynamo.allow_in_graph(einx.rearrange)
     _dynamo.allow_in_graph(einx.elementwise)
@@ -206,13 +240,10 @@ def make_tensorflow_backend():
     class tensorflow:
         @staticmethod
         def to_tensor(tensor):
-            if isinstance(tensor, np.ndarray):
-                return tensor
-            else:
-                tensor = tf.convert_to_tensor(tensor)
-                if any(s is None for s in tensor.shape):
-                    raise ValueError("Tensorflow tensors with dynamic shape are not supported")
-                return tensor
+            tensor = tf.convert_to_tensor(tensor)
+            if any(s is None for s in tensor.shape):
+                raise ValueError("Tensorflow tensors with dynamic shape are not supported")
+            return tensor
 
         tensor = tf.Tensor
         name = "tensorflow"
@@ -224,6 +255,8 @@ def make_tensorflow_backend():
         einsum = partial(tf.einsum, optimize="optimal")
         dot = tnp.dot
         swapaxes = tnp.swapaxes
+
+        stack = tnp.stack
 
         zeros = lambda shape, dtype="float32": tf.zeros(shape, dtype=dtype)
         ones = lambda shape, dtype="float32": tf.ones(shape, dtype=dtype)
@@ -260,6 +293,39 @@ def make_tensorflow_backend():
         sqrt = tf.math.sqrt
         rsqrt = tf.math.rsqrt
         square = tnp.square
+
+        allclose = tnp.allclose
+
+        def vmap(op, in_axes, out_axes):
+            def inner(*args):
+                # TODO: suboptimal implementation of vmap in tensorflow that pulls the vmapped axis to the front and calls tf.vectorized_map
+                if len(args) != len(in_axes):
+                    raise ValueError(f"Expected {len(in_axes)} arguments, got {len(args)}")
+                value = set(arg.shape[axis] for arg, axis in zip(args, in_axes) if not axis is None)
+                if len(value) != 1:
+                    raise ValueError(f"Expected all arguments to have same size along vmap axis, got {value}")
+                value = value.pop()
+                
+                # Move vmapped axes to front
+                xs = []
+                for arg, axis in zip(args, in_axes):
+                    if not axis is None:
+                        if axis != 0:
+                            perm = [axis] + [a for a in range(len(arg.shape)) if a != axis]
+                            arg = tf.transpose(arg, perm=perm)
+                    else:
+                        arg = arg[tf.newaxis]
+                    xs.append(arg)
+
+                x = tf.vectorized_map(lambda xs: op(*xs), xs)
+
+                # Move vmapped axis to out_axes
+                perm = [(a + 1 if a < out_axes else (0 if a == out_axes else a)) for a in range(len(x.shape))]
+                x = tf.transpose(x, perm=perm)
+
+                return x
+            return inner
+        pmap = not_implemented
 
     return tensorflow
 backend_factories["tensorflow"] = make_tensorflow_backend

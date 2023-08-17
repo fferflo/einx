@@ -30,6 +30,9 @@ x = (x - mean) * torch.rsqrt(var + epsilon)     # Layer norm: Normalize mean-var
 
 w = torch.nn.parameter.UninitializedParameter() # Lazily construct weight
 einx.dot("b... [c1|c2]", x, w, c2=32)           # Lazily construct weight: Calls w.materialize(shape)
+
+einx.vmap("b [s...] c -> b c", x, op=np.mean)   # Global mean-pooling using vectorized map
+einx.vmap("a, b c -> a b c", x, y, op=np.add)   # Element-wise addition using vectorized map
 ```
 
 ```python
@@ -54,10 +57,11 @@ patch_embed  = einx.{torch|flax|...}.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=6
 3. [Long Introduction](#long-introduction)
     1. [Basics](#basics)
     2. [Ellipses](#ellipses)
-    3. [Brief notation](#brief-notation)
-    4. [Compatibility with tensor frameworks](#compatibility-with-tensor-frameworks)
-    5. [Compatibility with einops expressions](#compatibility-with-einops-expressions)
-    6. [Lazy tensor construction](#lazy-tensor-construction)
+    3. [Brief notation](#brief-notation-1)
+    4. [Vectorized map](#vectorized-map-1)
+    5. [Compatibility with tensor frameworks](#compatibility-with-tensor-frameworks)
+    6. [Compatibility with einops expressions](#compatibility-with-einops-expressions)
+    7. [Lazy tensor construction](#lazy-tensor-construction-1)
 4. [Examples: einx-einops](#examples-einx-einops)
 
 ## Installation
@@ -75,7 +79,7 @@ einx.{rearrange|reduce|dot|elementwise}
 ```
 Top-level overloads following [Numpy](https://numpy.org/doc/stable/reference/routines.math.html) naming:
 ```python
-einx.{sum|prod|mean|any|all|max|min|...}         # specialize einx.reduce
+einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}         # specialize einx.reduce
 einx.{add|multiply|logical_and|where|equal|...}  # specialize einx.elementwise
 ```
 
@@ -106,6 +110,13 @@ einx.dot("b... [c1|c2]", x, w) # Same as above
 ```
 :warning: **This will likely be changed in a future version** :warning:
 
+#### Vectorized map
+
+Map a function over batched inputs (see e.g. [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html)):
+```python
+einx.vmap("b [s...] c -> b c", x, op=np.mean) # np.mean is called on tensor with shape "s..." and repeated over b and c
+```
+
 #### Lazy tensor construction
 
 Construct a tensor lazily after the shape has been determined:
@@ -120,6 +131,8 @@ einx.dot("b... [c1|c2]", x, weight, c2=32) # Calls weight.materialize()
 ```
 
 ## Long Introduction
+
+If you are new to Einstein-notation, see [this great einops tutorial](https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb) for an introduction and many useful examples.
 
 ### Basics
 
@@ -143,17 +156,18 @@ The following general operations are supported:
 * `einx.reduce`: Reduction operations along axes like `np.sum`, `np.mean`, `np.any` (similar to `einops.reduce`)
 * `einx.dot`: General tensor dot-products (similar to `einops.einsum`)
 * `einx.elementwise`: Element-wise operations like `np.add`, `np.multiply` or `np.where` (no `einops` equivalent)
+* `einx.vmap`: Apply a function over batched inputs (no `einops` equivalent)
 
-Additionally, many tensor operations are provided as top-level functions in the `einx.*` namespace following [Numpy](https://numpy.org/doc/stable/reference/routines.math.html) naming:
+Additionally, many specializations are provided as top-level functions in the `einx.*` namespace following [Numpy](https://numpy.org/doc/stable/reference/routines.math.html) naming:
 
-* Reduction operations: `einx.sum`, `einx.mean`, `einx.any`, `einx.count_nonzero`, ...
-* Element-wise operations: `einx.add`, `einx.multiply`, `einx.where`, ...
+* Reduction operations: `einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`
+* Element-wise operations: `einx.{add|multiply|logical_and|where|equal|...}`
 
 einx solves expression shapes using symbolic equations with [SymPy](https://www.sympy.org/en/index.html).
 
 ### Ellipses
 
-An ellipsis is used to repeat the expression that appears directly in front of it. For example, the following operations are equivalent:
+An ellipsis is used to repeat the expression that appears directly in front of it. The number of repetitions is determined from the shapes of the passed arguments. For example, the following operations are equivalent:
 
 ```python
 einx.rearrange("b c h w  -> b h w  c", x)
@@ -176,7 +190,7 @@ This facilitates writing dimension-agnostic code even for more complex operation
 
 ### Brief notation
 
-To improve the readability of Einstein-inspired notation, einx adds optional brief notations for the different types of operations.
+To improve the readability of Einstein-inspired notation, einx adds optional brief notations for different types of operations.
 
 #### Reduction
 
@@ -233,6 +247,44 @@ einx.dot("b [c1|c2]", x, y) # Same as: b c1 -> b c2
 ```
 
 The left choice represents the first input tensor and the right choice represents the output tensor. The second input tensor's shape is then determined implicitly as shown above.
+
+### Vectorized map
+
+A vectorized map can be used to apply a function over a batch of inputs. For example, consider the following function that computes the mean and max over two tensors:
+
+```python
+def func(x, y): # c, d -> 2
+    return np.stack([np.mean(x), np.max(y)])
+```
+
+The function can be applied over a batch of inputs without modifying the original source code using `einx.vmap`:
+
+```python
+einx.vmap("b [c], b [d] -> b [2]", x, y, op=func)
+```
+
+Here, `[]`-brackets indicate the axes that `func` is applied on, while all other axes are considered batch axes. `einx.vmap` also accepts multiple batch axes in arbitrary order:
+
+```python
+einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=func) # Second input is repeated for b1
+```
+
+Other `einx` functions also support batch axes that can similarly be expressed using `einx.vmap`, for example:
+
+```python
+einx.mean("a b [c]", x)
+einx.vmap("a b [c] -> a b", x, op=np.mean)
+
+einx.add("a b, b", x, y)
+einx.vmap("a b, b -> a b", x, y, op=np.add)
+
+einx.dot("a b, b c -> a c", x, y)
+einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
+```
+
+While using the option without `einx.vmap` is often faster, `einx.vmap` also allows vectorizing functions that do not support batch axes (e.g. [`map_coordinates`](https://jax.readthedocs.io/en/latest/_autosummary/jax.scipy.ndimage.map_coordinates.html)).
+
+`einx.vmap` is implemented using optimized backend methods (e.g. [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html), [`torch.vmap`](https://pytorch.org/docs/stable/generated/torch.vmap.html), [`tf.vectorized_map`](https://www.tensorflow.org/api_docs/python/tf/vectorized_map)).
 
 ### Compatibility with tensor frameworks
 
@@ -396,11 +448,14 @@ einx.dot("b [s...|s2] c", x, w)                einops.einsum(x, w, "b h w c, h w
 einx.dot("b... (g [c1|c2])", x, w)             # Shape rearrangement not supported in einops.einsum
 
 # Add bias
-einx.add("b... [c]", x, b)                     # No element-wise operations
+einx.add("b... [c]", x, b)                     # Element-wise operations not supported
 
 # Layer scale
-einx.multiply("b... [c]", x, scale)            # No element-wise operations
+einx.multiply("b... [c]", x, scale)            # Element-wise operations not supported
 
 # Elimination of common sub-expressions
 einx.rearrange("(a b) c -> c (a b)", x)        # Fails, since values for {a, b} cannot be inferred
+
+# Vectorized map
+einx.vmap("b [s...] c -> b c", x, op=my_func)  # Vectorized map not supported
 ```
