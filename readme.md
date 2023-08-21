@@ -276,7 +276,7 @@ einx.mean("a b [c]", x)
 einx.vmap("a b [c] -> a b", x, op=np.mean)
 
 einx.add("a b, b", x, y)
-einx.vmap("a b, b -> a b", x, y, op=np.add)
+einx.vmap("a b, b -> a b", x, y, op=np.add) # Function applied on scalars
 
 einx.dot("a b, b c -> a c", x, y)
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
