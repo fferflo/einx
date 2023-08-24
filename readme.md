@@ -1,6 +1,6 @@
-# *einx* - einsum, einmean, eindot, einadd, ...
+# *einx* - Tensor Operations in Einstein-inspired Notation
 
-einx is a library for **tensor operations in Einstein-inspired notation** that is **inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html)**, and offers extended features like a concise notation, implicit tensor shapes, arbitrary composition of expressions, additional tensor operations, lazy tensor construction, a [SymPy](https://www.sympy.org/en/index.html)-based solver and more.
+einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
 - *Seamless integration* with tensor frameworks like Numpy, PyTorch, Tensorflow, Jax.
 - *Zero-overhead* when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html). (See [Performance](#performance))
@@ -75,12 +75,12 @@ pip install git+https://github.com/fferflo/einx.git
 #### Main functions
 
 ```python
-einx.{rearrange|reduce|dot|elementwise}
+einx.{rearrange|reduce|dot|elementwise|vmap}
 ```
 Top-level overloads following [Numpy](https://numpy.org/doc/stable/reference/routines.math.html) naming:
 ```python
-einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}         # specialize einx.reduce
-einx.{add|multiply|logical_and|where|equal|...}  # specialize einx.elementwise
+einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}   # specialize einx.reduce
+einx.{add|multiply|logical_and|where|equal|...}          # specialize einx.elementwise
 ```
 
 #### Expressions
@@ -150,13 +150,13 @@ x = einx.rearrange("batch channels height width -> batch height width channels",
 x = einx.reduce("b (h h2) (w w2) c -> b h w c", x, h2=2, w2=2, op=np.mean)
 ```
 
-The following general operations are supported:
+The following main abstractions are supported:
 
 * `einx.rearrange`: Permute axes and insert new broadcasted axes (similar to `einops.rearrange` and `einops.repeat`)
 * `einx.reduce`: Reduction operations along axes like `np.sum`, `np.mean`, `np.any` (similar to `einops.reduce`)
 * `einx.dot`: General tensor dot-products (similar to `einops.einsum`)
-* `einx.elementwise`: Element-wise operations like `np.add`, `np.multiply` or `np.where` (no `einops` equivalent)
-* `einx.vmap`: Apply a function over batched inputs (no `einops` equivalent)
+* `einx.elementwise`: Element-wise operations like `np.add`, `np.multiply` or `np.where`
+* `einx.vmap`: Apply a function over batched inputs
 
 Additionally, many specializations are provided as top-level functions in the `einx.*` namespace following [Numpy](https://numpy.org/doc/stable/reference/routines.math.html) naming:
 
@@ -263,7 +263,7 @@ The function can be applied over a batch of inputs without modifying the origina
 einx.vmap("b [c], b [d] -> b [2]", x, y, op=func)
 ```
 
-Here, `[]`-brackets indicate the axes that `func` is applied on, while all other axes are considered batch axes. `einx.vmap` also accepts multiple batch axes in arbitrary order:
+Here, `[]`-brackets indicate the axes that `func` is applied over, while all other axes are considered batch axes. `einx.vmap` also accepts multiple batch axes in arbitrary order:
 
 ```python
 einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=func) # Second input is repeated for b1
@@ -276,7 +276,7 @@ einx.mean("a b [c]", x)
 einx.vmap("a b [c] -> a b", x, op=np.mean)
 
 einx.add("a b, b", x, y)
-einx.vmap("a b, b -> a b", x, y, op=np.add) # Function applied on scalars
+einx.vmap("a b, b -> a b", x, y, op=np.add) # Function is applied on scalars
 
 einx.dot("a b, b c -> a c", x, y)
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
@@ -332,7 +332,7 @@ einx currently includes equivalent operations for `einops.rearrange`, `einops.re
 Instead of passing tensors, all operations also accept tensor factories (e.g. a function `lambda shape: tensor`) that are called to create the corresponding tensor when the shape is resolved.
 
 ```python
-einx.dot("b s... [c1|c2]", x, np.ones, c2=32)
+einx.dot("b s... [c1|c2]", x, np.ones, c2=32) # Second input is constructed using np.ones
 ```
 
 This can for example be used to determine the shape of weight tensors when implementing deep learning modules. For example, the following represents a linear layer in PyTorch:
