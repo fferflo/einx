@@ -10,29 +10,31 @@ If you are new to Einstein-notation, see [this great einops tutorial](https://nb
 
 :warning: **This library is currently experimental and may undergo breaking changes.** :warning:
 
+[Go to Overview](#overview)
+
 ### Examples (tl;dr)
 
 ```python
-einx.mean("b [s...] c", x)                      # Global mean-pooling (dimension-agnostic)
-einx.sum("b (s [s2])... c", x, s2=2)            # Sum-pooling with kernel_size=stride=2 (dimension-agnostic)
+einx.mean("b [s...] c", x)                        # Global mean-pooling (dimension-agnostic)
+einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2 (dimension-agnostic)
 
-einx.dot("b... [c1|c2]", x, w)                  # Linear layer: x * w
-einx.add("b... [c]", x, b)                      # Linear layer: x + b
+einx.dot("b... [c1|c2]", x, w)                    # Linear layer: x * w
+einx.add("b... [c]", x, b)                        # Linear layer: x + b
 
-einx.dot("b... ( g  [c1|c2])", x, w)            # Grouped linear layer w/o bias: Same weights per group
-einx.dot("b... ([g] [c1|c2])", x, w)            # Grouped linear layer w/o bias: Different weights per group
+einx.dot("b... ( g  [c1|c2])", x, w)              # Grouped linear layer w/o bias: Same weights per group
+einx.dot("b... ([g] [c1|c2])", x, w)              # Grouped linear layer w/o bias: Different weights per group
 
-einx.dot("b [s...|s2] c", x, w)                 # Spatial mixing as in MLP-mixer (dimension-agnostic)
+einx.dot("b [s...|s2] c", x, w)                   # Spatial mixing as in MLP-mixer (dimension-agnostic)
 
-mean = einx.mean("b... [c]", x, keepdims=True)  # Layer norm: Normalize mean-variance
-var = einx.var("b... [c]", x, keepdims=True)    # Layer norm: Normalize mean-variance
-x = (x - mean) * torch.rsqrt(var + epsilon)     # Layer norm: Normalize mean-variance
+mean = einx.mean("b... [c]", x, keepdims=True)    # Layer norm: Normalize mean-variance
+var = einx.var("b... [c]", x, keepdims=True)      # Layer norm: Normalize mean-variance
+x = (x - mean) * torch.rsqrt(var + epsilon)       # Layer norm: Normalize mean-variance
 
-w = torch.nn.parameter.UninitializedParameter() # Lazily construct weight
-einx.dot("b... [c1|c2]", x, w, c2=32)           # Lazily construct weight: Calls w.materialize(shape)
+w = torch.nn.parameter.UninitializedParameter()   # Lazily construct weight
+einx.dot("b... [c1|c2]", x, w, c2=32)             # Lazily construct weight: Calls w.materialize(shape)
 
-einx.vmap("b [s...] c -> b c", x, op=np.mean)   # Global mean-pooling using vectorized map
-einx.vmap("a, b c -> a b c", x, y, op=np.add)   # Element-wise addition using vectorized map
+einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling using vectorized map
+einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vectorized map
 ```
 
 ```python
@@ -53,16 +55,14 @@ patch_embed  = einx.{torch|flax|...}.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=6
 ### Overview
 
 1. [Installation](#installation)
-2. [Short Introduction](#short-introduction)
-3. [Long Introduction](#long-introduction)
-    1. [Basics](#basics)
-    2. [Ellipses](#ellipses)
-    3. [Brief notation](#brief-notation-1)
-    4. [Vectorized map](#vectorized-map-1)
-    5. [Compatibility with tensor frameworks](#compatibility-with-tensor-frameworks)
-    6. [Compatibility with einops expressions](#compatibility-with-einops-expressions)
-    7. [Lazy tensor construction](#lazy-tensor-construction-1)
-4. [Examples: einx-einops](#examples-einx-einops)
+2. [Basics](#basics)
+3. [Ellipses](#ellipses)
+4. [Brief notation](#brief-notation)
+5. [Vectorized map](#vectorized-map)
+6. [Compatibility with tensor frameworks](#compatibility-with-tensor-frameworks)
+7. [Compatibility with einops expressions](#compatibility-with-einops-expressions)
+8. [Lazy tensor construction](#lazy-tensor-construction)
+9. [Examples: einx-einops](#examples-einx-einops)
 
 ## Installation
 
@@ -70,67 +70,7 @@ patch_embed  = einx.{torch|flax|...}.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=6
 pip install git+https://github.com/fferflo/einx.git
 ```
 
-## Short Introduction
-
-#### Main functions
-
-```python
-einx.{rearrange|reduce|dot|elementwise|vmap}
-```
-Top-level overloads following [Numpy](https://numpy.org/doc/stable/reference/routines.math.html) naming:
-```python
-einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}   # specialize einx.reduce
-einx.{add|multiply|logical_and|where|equal|...}          # specialize einx.elementwise
-```
-
-#### Expressions
-
-Ellipses and axis groups are composable:
-```python
-einx.rearrange("b (s s2)... c -> b s... s2... c", x, s2=4) # Create 4x4 patches
-```
-
-#### Brief notation
-
-Denote reduced axes in `einx.reduce` with `[]`-brackets, e.g.:
-```python
-einx.mean("b [s...] c", x) # Same as: b s... c -> b c
-```
-
-Denote 2nd input shape in `einx.elementwise` with `[]`-brackets, e.g.:
-```python
-einx.add("b... [c]", x, b) # Same as: b... c, c -> b... c
-```
-
-Implicitly determine shape in `einx.dot`, combine expressions with `[|]`-brackets, e.g.:
-```python
-einx.dot("b... c1, c1 c2 -> b... c2", x, w)
-einx.dot("b... c1 -> b... c2", x, w) # Same as above
-einx.dot("b... [c1|c2]", x, w) # Same as above
-```
-:warning: **This will likely be changed in a future version** :warning:
-
-#### Vectorized map
-
-Map a function over batched inputs (see e.g. [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html)):
-```python
-einx.vmap("b [s...] c -> b c", x, op=np.mean) # np.mean is called on tensor with shape "s..." and repeated over b and c
-```
-
-#### Lazy tensor construction
-
-Construct a tensor lazily after the shape has been determined:
-```python
-einx.dot("b... [c1|c2]", x, np.zeros, c2=32)
-```
-
-Determine weight shapes in deep learning frameworks:
-```python
-weight = torch.nn.parameter.UninitializedParameter()
-einx.dot("b... [c1|c2]", x, weight, c2=32) # Calls weight.materialize()
-```
-
-## Long Introduction
+## Introduction
 
 If you are new to Einstein-notation, see [this great einops tutorial](https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb) for an introduction and many useful examples.
 
@@ -150,7 +90,7 @@ x = einx.rearrange("batch channels height width -> batch height width channels",
 x = einx.reduce("b (h h2) (w w2) c -> b h w c", x, h2=2, w2=2, op=np.mean)
 ```
 
-The following main abstractions are supported:
+The following main abstractions are provided:
 
 * `einx.rearrange`: Permute axes and insert new broadcasted axes (similar to `einops.rearrange` and `einops.repeat`)
 * `einx.reduce`: Reduction operations along axes like `np.sum`, `np.mean`, `np.any` (similar to `einops.reduce`)
