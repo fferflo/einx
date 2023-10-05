@@ -22,7 +22,7 @@ einx.dot("b... [c1|c2]", x, w)                    # Linear layer: x * w
 einx.add("b... [c]", x, b)                        # Linear layer: x + b
 
 einx.dot("b... ( g  [c1|c2])", x, w)              # Grouped linear layer w/o bias: Same weights per group
-einx.dot("b... ([g] [c1|c2])", x, w)              # Grouped linear layer w/o bias: Different weights per group
+einx.dot("b... ([g c1|g c2])", x, w)              # Grouped linear layer w/o bias: Different weights per group
 
 einx.dot("b [s...|s2] c", x, w)                   # Spatial mixing as in MLP-mixer (dimension-agnostic)
 
