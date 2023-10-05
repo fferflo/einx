@@ -3,12 +3,6 @@ from einx.expr import stage3
 import numpy as np
 
 def _hash(x):
-    if isinstance(x, np.ndarray):
-        x = x.reshape([-1]).tolist()
-    if "torch" in sys.modules:
-        import torch
-        if isinstance(x, torch.Size):
-            x = list(x)
     if isinstance(x, list) or isinstance(x, tuple):
         h = 91724
         for v in x:
@@ -33,6 +27,17 @@ def lru_cache(inner):
         lock = threading.Lock()
         cache = collections.OrderedDict()
         def outer(*args, **kwargs):
+            def prepare(x):
+                if isinstance(x, np.ndarray):
+                    x = x.reshape([-1]).tolist()
+                if "torch" in sys.modules:
+                    import torch
+                    if isinstance(x, torch.Size):
+                        x = list(x)
+                return x
+            args = list(prepare(x) for x in args)
+            kwargs = {k: prepare(v) for k, v in kwargs.items()}
+
             h = _hash((args, kwargs))
             with lock:
                 if h in cache:
