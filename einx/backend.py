@@ -165,7 +165,10 @@ def make_torch_backend():
     class torch:
         @staticmethod
         def to_tensor(tensor):
-            return torch_.asarray(tensor)
+            if torch_.is_tensor(tensor):
+                return tensor
+            else:
+                return torch_.asarray(tensor)
 
         tensor = torch_.Tensor
         name = "torch"
