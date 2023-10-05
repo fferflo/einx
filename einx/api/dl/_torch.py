@@ -76,12 +76,19 @@ class Linear(torch.nn.Module):
     def __init__(self, expr, bias=True, **kwargs):
         super().__init__()
 
+
         def init_weight(x):
-            torch.nn.init.kaiming_uniform_(x, a=math.sqrt(5))
+            # TODO: Add proper handling of multiple input+output axes and transposed axes
+            # torch.nn.init.kaiming_uniform_(x, a=math.sqrt(5))
+            fan = np.prod(x.shape[:-1])
+            scale = 1.0 / max(1.0, fan)
+            bound = np.sqrt(3.0 * scale)
+            torch.nn.init.uniform_(x, -bound, bound)
         self.weight = Parameter(init_weight)
         if bias:
             def init_bias(x):
-                u = 1.0 / math.sqrt(np.prod(x.shape))
+                fan = np.prod(self.weight.shape[:-1])
+                u = 1.0 / math.sqrt(fan)
                 torch.nn.init.uniform_(x, -u, u)
             self.bias = Parameter(init_bias)
         else:
