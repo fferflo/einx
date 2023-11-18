@@ -16,7 +16,7 @@ class Tensor:
     def __init__(self, value, expr, backend=None):
         self.value = _instantiate(value, expr)
         self.expr = expr
-        self.backend = backend if not backend is None else einx.backend.get([backend])
+        self.backend = backend if not backend is None else einx.backend.get([self.value])
 
     @property
     def dtype(self):
