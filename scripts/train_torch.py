@@ -1,11 +1,11 @@
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
 
-import torch, einx, os
-import torchvision
+import torch, einx, os, torchvision, time
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim
+import einx.nn.torch as einn
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -28,11 +28,11 @@ class Net(nn.Module):
         super().__init__()
         blocks = []
         for c in [1024, 512, 256]:
-            blocks.append(einx.torch.Linear("b [...|c]", c=c))
-            blocks.append(einx.torch.Norm("b [c]"))
+            blocks.append(einn.Linear("b [...|c]", c=c))
+            blocks.append(einn.Norm("b [c]"))
             blocks.append(nn.GELU())
-            blocks.append(nn.Dropout(p=0.1))
-        blocks.append(einx.torch.Linear("b [...|c]", c=10))
+            blocks.append(nn.Dropout(p=0.2))
+        blocks.append(einn.Linear("b [...|c]", c=10))
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x):
@@ -45,14 +45,15 @@ inputs, labels = next(iter(trainloader))
 net(inputs)
 
 # Just-in-time compile
-# TODO: currently fails due to https://github.com/pytorch/pytorch/issues/104946
-# net = torch.compile(net)
+net = torch.compile(net)
 
 optimizer = optim.Adam(net.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()
 
 print("Starting training")
 for epoch in range(100):
+    t0 = time.time()
+
     # Train
     net.train()
     for i, data in enumerate(trainloader, 0):
@@ -78,4 +79,4 @@ for epoch in range(100):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    print(f"Test accuracy after {epoch + 1:5d} epoch: ", float(correct) / total)
+    print(f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)")

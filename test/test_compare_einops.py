@@ -16,7 +16,8 @@ if importlib.util.find_spec("einops"):
         assert_equal(einx.mean("b [s...] c", x), einops.reduce(x, "b ... c -> b c", reduction="mean"))
         assert_equal(einx.mean("b ... c -> b c", x), einops.reduce(x, "b ... c -> b c", reduction="mean"))
 
-        assert_equal(einx.mean("b [s...] c", x, keepdims=True), einops.reduce(x, "b h w c -> b 1 1 c", reduction="mean"))
+        assert_equal(einx.mean("b [s...] c", x, keepdims=True), einops.reduce(x, "b h w c -> b 1 c", reduction="mean"))
+        assert_equal(einx.mean("b [s]... c", x, keepdims=True), einops.reduce(x, "b h w c -> b 1 1 c", reduction="mean"))
         assert_equal(einx.mean("b h w c -> b 1 1 c", x), einops.reduce(x, "b h w c -> b 1 1 c", reduction="mean"))
 
         assert_equal(einx.sum("b (s [s2])... c", x, s2=2), einops.reduce(x, "b (h h2) (w w2) c -> b h w c", reduction="sum", h2=2, w2=2))

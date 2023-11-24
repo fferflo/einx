@@ -1,66 +1,150 @@
 import einx
+from . import util
 import numpy as np
-from .tensor import Tensor
 from functools import partial
 
-@einx.lru_cache
-def _make_op(expr_in, expr_out):
-    isolated_axes = einx.expr.get_isolated_axes([expr_in, expr_out])
-    if len(isolated_axes[0]) == 0:
-        raise ValueError("No axes are reduced")
+_op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min"]
+_all = all # Is overwritten below
+_any = any
 
-    ops = []
+@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
+    if backend is None:
+        backend = einx.backend.get(tensors_in)
+    if op is None:
+        raise TypeError("op cannot be None")
+    if isinstance(op, str):
+        op = getattr(backend, op)
+    else:
+        op = partial(backend.reduce, op=op)
+    if len(exprs_in) != len(tensors_in):
+        raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
+    if _any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_out for expr in root.all()):
+        raise ValueError(f"Marker '{expr}' in output expression is not allowed")
 
-    # Reshape nested input to flat input
-    shape = tuple(einx.expr.get_flattened_shape(expr_in))
-    if tuple(expr_in.shape) != shape:
-        ops.append(lambda x, backend, op, shape=shape: backend.reshape(x, shape))
+    # Call tensor factories
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
+
+    # Flatten expressions
+    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
+    exprs_out_flat = util.flatten(exprs_out)
+    assert _all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
+    assert _all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
+    if len(exprs_in) != len(exprs_out_flat):
+        raise ValueError("Got different number of input and output expressions (after flattening)")
 
     # Reduce input dimensions
-    axis = tuple(j for j, v in enumerate(einx.expr.get_flattened_axes(expr_in)) if v in isolated_axes[0])
-    assert len(axis) > 0
-    ops.append(lambda x, backend, op, axis=axis: op(x, axis))
-    shape = tuple(s for j, s in enumerate(shape) if j not in axis)
+    exprs_in2 = []
+    tensors_in2 = []
+    any_reduced = False
+    for expr_in, tensor_in in zip(exprs_in, tensors_in):
+        # Find reduced axes
+        reduced_axis_indices = tuple(i for i, axis in enumerate(expr_in) if einx.expr.stage3.is_marked(axis))
+        any_reduced = any_reduced or len(reduced_axis_indices) > 0
+        if len(reduced_axis_indices) > 0:
+            # Apply reduction
+            tensor_in = op(tensor_in, axis=reduced_axis_indices)
+            expr_in = einx.expr.stage3.remove(expr_in, lambda expr: isinstance(expr, einx.expr.stage3.Marker))
+        exprs_in2.append(expr_in)
+        tensors_in2.append(tensor_in)
+    exprs_in = exprs_in2
+    tensors_in = tensors_in2
+    if not any_reduced:
+        raise ValueError("No (non-trivial) axes are reduced")
 
-    # Transpose to flat output
-    in_variables = [v for v in einx.expr.get_flattened_axes(expr_in) if not v in isolated_axes[0]]
-    out_variables = [v for v in einx.expr.get_flattened_axes(expr_out) if not v in isolated_axes[1]]
-    assert len(in_variables) == len(shape)
-    assert len(out_variables) == len(shape)
-    perm = [in_variables.index(out_variable) for out_variable in out_variables]
-    if perm != list(range(len(perm))):
-        shape = [shape[i] for i in perm]
-        ops.append(lambda x, backend, op, perm=perm: backend.transpose(x, perm))
+    # Order inputs to align with output expressions
+    indices = util.assignment(exprs_in, exprs_out_flat)
+    exprs_in = [exprs_in[i] for i in indices]
+    tensors_in = [tensors_in[i] for i in indices]
 
-    # Expand and broadcast missing output dimensions
-    if len(isolated_axes[1]) > 0:
-        shape = tuple(1 if v in isolated_axes[1] else v.value for v in einx.expr.get_flattened_axes(expr_out))
-        ops.append(lambda x, backend, op, shape=shape: backend.reshape(x, shape))
-        broadcast_shape = tuple(einx.expr.get_flattened_shape(expr_out))
-        if np.any(shape != broadcast_shape):
-            ops.append(lambda x, backend, op, shape=broadcast_shape: backend.broadcast_to(x, shape))
-        shape = broadcast_shape
+    # Transpose and broadcast missing output dimensions
+    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out) for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
 
-    # Reshape flat output to nested output
-    if shape != expr_out.shape:
-        ops.append(lambda x, backend, op, shape=expr_out.shape: backend.reshape(x, shape))
+    # Unflatten output expressions
+    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend)
 
-    def tensor_op(x, op, backend, ops=ops):
-        for op_step in ops:
-            x = op_step(x, backend, op)
-        return x
-    return tensor_op
+    return tensors, exprs_out
 
-def reduce(tensor_in, expr_out, op, backend=None):
-    if op is None:
-        raise ValueError("op cannot be None")
-    if isinstance(op, str):
-        op = vars(tensor_in.backend)[op]
-    if backend is None:
-        backend = tensor_in.backend
-    tensor_op = _make_op(tensor_in.expr, expr_out)
-    value_out = tensor_op(tensor_in.value, op=op, backend=backend)
-    return Tensor(value_out, expr_out, backend=backend)
+def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
+    if isinstance(description, tuple):
+        if len(description) != 2:
+            raise ValueError("Expected tuple of length 2")
+        for k in parameters:
+            if k in description[1]:
+                raise ValueError(f"Parameter '{k}' is given twice")
+        parameters.update(description[1])
+        description = description[0]
+    if not isinstance(description, str):
+        raise ValueError("First argument must be an operation string")
+
+    if "->" in description:
+        if not keepdims is None:
+            raise ValueError("keepdims cannot be given when using '->'")
+        description = description.split("->")
+        if len(description) != 2:
+            raise ValueError("Operation cannot contain more than one '->'")
+
+        exprs_in, exprs_out = description
+        exprs_in = exprs_in.split(",")
+        exprs_out = exprs_out.split(",")
+        exprs = exprs_in + exprs_out
+        if len(exprs_in) != len(tensors_shapes):
+            raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_shapes)}")
+
+        exprs = einx.expr.solve(
+                [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+              + [einx.expr.Condition(expr=expr_out, depth=0) for expr_out in exprs_out] \
+              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+            cse=cse,
+        )[:len(exprs_in) + len(exprs_out)]
+        exprs_in, exprs_out = exprs[:len(exprs_in)], exprs[len(exprs_in):]
+
+        # If no axes are marked for reduction in exprs_in, mark all axes that don't appear in exprs_out
+        if not _any(einx.expr.stage3.is_marked(axis) for expr_in in exprs_in for axis in expr_in.all()):
+            axes_names_out = set(axis.name for expr in exprs_out for axis in expr.all() if isinstance(axis, einx.expr.stage3.Axis))
+            exprs_in = [einx.expr.stage3.mark(expr, lambda expr: isinstance(expr, einx.expr.stage3.Axis) and expr.name not in axes_names_out) for expr in exprs_in]
+
+    else:
+        exprs_in = description.split(",")
+        if len(exprs_in) != 1:
+            raise ValueError("Operation with implicit output shape cannot contain more than one input expression")
+        if len(exprs_in) != len(tensors_shapes):
+            raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_shapes)}")
+
+        exprs_in = einx.expr.solve(
+                [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+            cse=cse,
+        )[:len(exprs_in)]
+
+        if not _any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_in for expr in root.all()):
+            raise ValueError("No axes were marked for reduction")
+
+        # Determine output expressions by removing markers from input expressions
+        def replace(expr):
+            if isinstance(expr, einx.expr.stage3.Marker):
+                if keepdims:
+                    return [einx.expr.stage3.Axis(None, 1)]
+                else:
+                    return []
+        exprs_out = [einx.expr.stage3.replace(expr_in, replace) for expr_in in exprs_in]
+
+    return exprs_in, exprs_out
+
+@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+def reduce_stage0(description, *tensors, op, keepdims=None, backend=None, cse=True, **parameters):
+    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], keepdims=keepdims, cse=cse, **parameters)
+    tensors, exprs_out = reduce_stage3(exprs_in, tensors, exprs_out, op=op, backend=backend)
+    return tensors[0] if len(exprs_out) == 1 else tensors
+
+def reduce(arg0, *args, **kwargs):
+    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
+        return reduce_stage0(arg0, *args, **kwargs)
+    else:
+        return reduce_stage3(arg0, *args, **kwargs)
+reduce._op_names = _op_names
+reduce.parse = parse
+
 
 def _make(name):
     def func(*args, **kwargs):

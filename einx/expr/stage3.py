@@ -1,338 +1,440 @@
-from . import stage2
+from . import stage2, solver
 import numpy as np
-import sympy, math
+from functools import partial
 
-class Node:
-    def __init__(self, value, ellipsis_indices, name=None):
-        self.value = int(value) if not value is None else None
-        self.ellipsis_indices = ellipsis_indices
-        self.name = name if not name is None else f"__{self.__class__.__name__}__{id(self)}"
-
-    def __repr__(self):
-        return str(self)
-
-    @property
-    def variables(self):
-        return [x for x in self.traverse() if isinstance(x, Variable)]
-
-class Variable(Node):
-    def __init__(self, name, value, ellipsis_indices):
-        if name is None:
-            name = f"__constantdim{id(self)}({value})"
-        Node.__init__(self, value, ellipsis_indices, name=name)
-
-    def __str__(self):
-        return str(self.name)
-
-    def expand(self):
-        return [self]
-
-    def traverse(self):
-        yield self
-
-    def __eq__(self, other):
-        return other.__class__ == Variable and str(self) == str(other) and self.value == other.value
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash(str(self))
-
-    def copy(self):
-        return Variable(self.name, self.value, self.ellipsis_indices)
-
-class Ellipsis(Node):
-    def __init__(self, inner, value, ellipsis_indices):
-        Node.__init__(self, value, ellipsis_indices)
-        self.inner = inner
-        if self.is_expanded:
-            for child in self.inner:
-                child.parent = self
-        else:
-            self.inner.parent = self
-
-    @property
-    def is_expanded(self):
-        return isinstance(self.inner, list)
-
-    def __str__(self):
-        if self.is_expanded:
-            return " ".join([str(x) for x in self.inner])
-        else:
-            return str(self.inner) + "..."
-
-    def expand(self):
-        return expand(self.inner)
-
-    def traverse(self):
-        yield self
-        for x in [self.inner] if not self.is_expanded else self.inner:
-            for y in x.traverse():
-                yield y
-
-    def __eq__(self, other):
-        return other.__class__ == Ellipsis and self.inner == other.inner
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash(str(self))
-
-    def copy(self):
-        return Ellipsis(copy(self.inner), self.value, self.ellipsis_indices)
-
-class Group(Node):
-    def __init__(self, unexpanded_children, value, ellipsis_indices, front, back):
-        Node.__init__(self, value, ellipsis_indices)
-        self.unexpanded_children = unexpanded_children
-        for child in self.unexpanded_children:
-            child.parent = self
-        self.front = front
-        self.back = back
-
-    def __str__(self):
-        return self.front + " ".join([str(c) for c in self.unexpanded_children]) + self.back
-
-    def traverse(self):
-        yield self
-        for x in self.unexpanded_children:
-            for y in x.traverse():
-                yield y
-
-    def expand(self):
-        return [self]
-
-    @property
-    def expanded_children(self):
-        return expand(self.unexpanded_children)
-
-    def __eq__(self, other):
-        return other.__class__ == Group and self.front == other.front and self.back == other.back and self.unexpanded_children == other.unexpanded_children
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __hash__(self):
-        return hash(str(self))
-
-    def copy(self):
-        return Group(copy(self.unexpanded_children), self.value, self.ellipsis_indices, self.front, self.back)
-
-class Root(Group):
-    def __init__(self, unexpanded_children, value):
-        Group.__init__(self, unexpanded_children, value, ellipsis_indices=[], front="", back="")
-        assert not value is None
+class Expression:
+    def __init__(self, value):
+        if not isinstance(value, (int, np.int64, np.int32, np.int16, np.int8)):
+            raise TypeError(f"Expected int, got {type(value)}")
+        self.value = int(value)
         self.parent = None
 
-    def copy(self):
-        return Root(copy(self.unexpanded_children), self.value)
+    @property
+    def shape(self):
+        return tuple(x.value for x in self)
 
-    def __hash__(self):
-        return hash(str(self))
+class Composition(Expression):
+    def __init__(self, inner):
+        Expression.__init__(self, inner.value)
+        self.inner = inner
+        inner.parent = self
+
+    def __str__(self):
+        return f"({self.inner})"
+
+    def __len__(self):
+        return 1
+
+    def __iter__(self):
+        yield self
+
+    def __deepcopy__(self):
+        return Composition(self.inner.__deepcopy__())
 
     def __eq__(self, other):
-        return other.__class__ == Root and self.unexpanded_children == other.unexpanded_children
+        return isinstance(other, Composition) and self.inner == other.inner
 
-    shape = property(lambda self: tuple(c.value for c in self.expanded_children))
+    def __hash__(self):
+        return 8716123 + hash(self.inner)
+
+    def all(self):
+        yield self
+        yield from self.inner.all()
+
+class List(Expression):
+    def maybe(l, *args, **kwargs):
+        if not isinstance(l, list):
+            raise TypeError(f"Expected list, got {type(l)}")
+        if len(l) == 1:
+            return l[0]
+        else:
+            return List(l, *args, **kwargs)
+
+    def __init__(self, children):
+        Expression.__init__(self, np.prod([c.value for c in children]).astype(int))
+        self.children = children
+        for c in children:
+            if isinstance(c, List):
+                raise ValueError("List cannot have another List as direct child")
+            c.parent = self
+
+    def __str__(self):
+        return " ".join([str(c) for c in self.children])
+
+    def __len__(self):
+        return sum(len(c) for c in self.children)
+
+    def __iter__(self):
+        for c in self.children:
+            yield from c
+
+    def __deepcopy__(self):
+        return List([c.__deepcopy__() for c in self.children])
+
+    def __eq__(self, other):
+        return isinstance(other, List) and self.children == other.children
+
+    def __hash__(self):
+        return 6563 + hash(tuple(self.children))
+
+    def all(self):
+        yield self
+        for c in self.children:
+            yield from c.all()
+
+class Axis(Expression):
+    def __init__(self, name, value):
+        Expression.__init__(self, value)
+        self.name = name if not name is None else f"unnamed.{id(self)}"
+
+    def __repr__(self):
+        return f"Axis({self.name}, {self.value})"
+
+    def __str__(self):
+        return self.name if not self.is_unnamed else str(self.value)
+
+    def __len__(self):
+        return 1
+
+    def __iter__(self):
+        yield self
+
+    def __deepcopy__(self):
+        return Axis(self.name, self.value)
+
+    def __eq__(self, other):
+        if not isinstance(other, Axis):
+            return False
+        if self.is_unnamed != other.is_unnamed:
+            return False
+        if self.value != other.value:
+            return False
+        if self.is_unnamed:
+            return True
+        else:
+            return self.name == other.name
+
+    def __hash__(self):
+        return 9817234 + (hash(self.name) if not self.is_unnamed else 0) + hash(self.value)
+
+    def all(self):
+        yield self
+
+    @property
+    def is_unnamed(self):
+        return self.name.startswith("unnamed.")
+
+class Concatenation(Expression):
+    @staticmethod
+    def maybe(l, *args, **kwargs):
+        if not isinstance(l, list):
+            raise TypeError(f"Expected list, got {type(l)}")
+        if len(l) == 1:
+            return l[0]
+        else:
+            return Concatenation(l, *args, **kwargs)
+
+    def __init__(self, children):
+        if len(children) == 0:
+            raise ValueError("Concatenation must have at least one child")
+        Expression.__init__(self, np.sum([c.value for c in children]).astype("int32"))
+        self.children = children
+        for c in children:
+            if len(c) != 1:
+                raise ValueError(f"Concatenation can only be used on expressions of length 1, but got expression '{c}'")
+            c.parent = self
+
+    def __str__(self):
+        return "+".join([str(c) for c in self.children])
+
+    def __len__(self):
+        return 1
+
+    def __iter__(self):
+        yield self
+
+    def __deepcopy__(self):
+        return Concatenation([c.__deepcopy__() for c in self.children])
+
+    def __eq__(self, other):
+        return isinstance(other, Concatenation) and self.children == other.children
+
+    def __hash__(self):
+        return 123 + hash(tuple(self.children))
+
+    def all(self):
+        yield self
+        for c in self.children:
+            yield from c.all()
+
+class Marker(Expression):
+    def __init__(self, inner):
+        if len(inner) == 0:
+            raise ValueError("Marker cannot have empty list as child")
+        Expression.__init__(self, inner.value)
+        self.inner = inner
+        inner.parent = self
+
+    def __str__(self):
+        return f"[{self.inner}]"
+
+    def __len__(self):
+        return len(self.inner)
+
+    def __iter__(self):
+        yield from self.inner
+
+    def __deepcopy__(self):
+        return Marker(self.inner.__deepcopy__())
+
+    def __eq__(self, other):
+        return isinstance(other, Marker) and self.inner == other.inner
+
+    def __hash__(self):
+        return 6433236 + hash(self.inner)
+
+    def all(self):
+        yield self
+        yield from self.inner.all()
+
+
+
+class SolveError(Exception):
+    def __init__(self, message):
+        self.message = message
 
 def solve(expressions, values):
-    if any(not isinstance(expr, stage2.Root) for expr in expressions):
-        raise ValueError("Can only expand stage2.Root expressions")
+    if any(not isinstance(expr, stage2.Expression) for expr in expressions):
+        raise ValueError("Can only expand stage2.Expression")
     if len(values) != len(expressions):
         raise ValueError("Number of expressions and values must be equal")
-    values = [(np.asarray(value).reshape([-1]) if not value is None else None) for value in values]
+    values = [(np.asarray(value) if not value is None else None) for value in values]
 
     equations = []
-    sympy_expr_value = {expr.name: sympy.Symbol(f"{expr.name}", integer=True) for root in expressions for expr in root.traverse()}
 
-    # Node relations
+    symbolic_expr_values = {}
     for root in expressions:
-        for expr in root.traverse():
-            if isinstance(expr, stage2.Group):
-                equations.append(sympy.Eq(
-                    math.prod([sympy_expr_value[c.name] for c in expr.unexpanded_children]),
-                    sympy_expr_value[expr.name],
+        for expr in root.all():
+            symbolic_expr_values[id(expr)] = solver.Variable(str(id(expr)))
+
+    # Add equations: Relations between expressions and their children
+    for root in expressions:
+        for expr in root.all():
+            if isinstance(expr, stage2.List):
+                equations.append((
+                    solver.Product([symbolic_expr_values[id(c)] for c in expr.children]),
+                    symbolic_expr_values[id(expr)],
                 ))
-            elif isinstance(expr, stage2.Ellipsis):
-                if expr.is_expanded:
-                    equations.append(sympy.Eq(
-                        math.prod([sympy_expr_value[c.name] for c in expr.inner]),
-                        sympy_expr_value[expr.name],
-                    ))
-                else:
-                    equations.append(sympy.Eq(
-                        sympy_expr_value[expr.inner.name],
-                        sympy_expr_value[expr.name],
-                    ))
+            elif isinstance(expr, stage2.Concatenation):
+                equations.append((
+                    solver.Sum([symbolic_expr_values[id(c)] for c in expr.children]),
+                    symbolic_expr_values[id(expr)],
+                ))
+            elif isinstance(expr, stage2.Marker) or isinstance(expr, stage2.Composition):
+                equations.append((
+                    symbolic_expr_values[id(expr)],
+                    symbolic_expr_values[id(expr.inner)],
+                ))
 
-    # Root values
-    for i, (expr, value) in enumerate(zip(expressions, values)):
+    # Add equations: Root values
+    for i, (root, value) in enumerate(zip(expressions, values)):
         if not value is None:
-            assert len(value) == len(expr.expanded_children)
-            for child, v in zip(expr.expanded_children, value):
-                equations.append(sympy.Eq(sympy_expr_value[child.name], int(v)))
+            assert len(value) == len(root)
+            for expr, value in zip(root, value):
+                equations.append((
+                    symbolic_expr_values[id(expr)],
+                    int(value),
+                ))
 
-    # Constants
-    for expr in expressions:
-        for expr in expr.traverse():
-            if isinstance(expr, stage2.Variable) and not expr.value is None:
-                equations.append(sympy.Eq(sympy_expr_value[expr.name], int(expr.value)))
+    # Add equations: Unnamed axes
+    for root in expressions:
+        for expr in root.all():
+            if isinstance(expr, stage2.UnnamedAxis):
+                equations.append((
+                    symbolic_expr_values[id(expr)],
+                    int(expr.value),
+                ))
 
+    # Add equations: Multiple occurrences of the same named axis must have the same value
+    sympy_axis_values = {}
+    for root in expressions:
+        for axis in root.all():
+            if isinstance(axis, stage2.NamedAxis):
+                if not axis.name in sympy_axis_values:
+                    sympy_axis_values[axis.name] = solver.Variable(axis.name)
+                equations.append((
+                    symbolic_expr_values[id(axis)],
+                    sympy_axis_values[axis.name],
+                ))
 
     # Solve
-    equations = list(set(equations))
-    axis_values = sympy.solve(equations, set=True)
-    if axis_values == []:
-        axis_values = {}
-    elif isinstance(axis_values, tuple) and len(axis_values) == 2:
-        variables, solutions = axis_values
-        if len(solutions) != 1:
-            raise ValueError("Failed to solve axis values")
-        solutions = next(iter(solutions))
-        axis_values = {str(k): int(v) for k, v in zip(variables, solutions) if v.is_number}
-    else:
-        raise ValueError("Failed to solve axis")
+    axis_values = solver.solve(equations)
+    axis_values = {int(k): int(v) for k, v in axis_values.items() if not str(k) in sympy_axis_values}
 
-    required_exprs = [expr for root in expressions for expr in root.expanded_children]
-    failed_exprs = [expr for expr in required_exprs if not expr.name in axis_values]
+    required_exprs = [expr for root in expressions for expr in root]
+    failed_exprs = [expr for expr in required_exprs if not id(expr) in axis_values]
     if len(failed_exprs) > 0:
-        raise ValueError(f"Failed to solve for axis values. Could not determine value for expressions: {[str(expr) for expr in failed_exprs]}")
+        raise SolveError(f"Failed to solve axis values. Could not determine value for expressions: {set([str(expr) for expr in failed_exprs])}")
 
-    # Extract root values
-    values = [np.asarray([axis_values[child.name] for child in expr.expanded_children]) for expr in expressions]
-
-    # Modify expressions
-    def replace(expr):
-        if isinstance(expr, list):
-            return [replace(expr) for expr in expr]
-        elif isinstance(expr, stage2.Variable):
-            return Variable(expr.name, axis_values[expr.name] if expr.name in axis_values else None, ellipsis_indices=expr.ellipsis_indices)
-        elif isinstance(expr, stage2.Ellipsis):
-            inner = replace(expr.inner)
-            return Ellipsis(inner, axis_values[expr.name] if expr.name in axis_values else None, ellipsis_indices=expr.ellipsis_indices)
-        elif isinstance(expr, stage2.Group):
-            unexpanded_children = replace(expr.unexpanded_children)
-            return Group(unexpanded_children, axis_values[expr.name] if expr.name in axis_values else None, ellipsis_indices=expr.ellipsis_indices, front=expr.front, back=expr.back)
+    # Map stage2 expressions to stage3 expressions
+    def map(expr):
+        if isinstance(expr, stage2.NamedAxis):
+            if not id(expr) in axis_values:
+                raise SolveError(f"Failed to solve value of axis '{str(expr)}'")
+            return Axis(expr.name, axis_values[id(expr)])
+        elif isinstance(expr, stage2.UnnamedAxis):
+            assert id(expr) in axis_values
+            return Axis(None, axis_values[id(expr)])
+        elif isinstance(expr, stage2.List):
+            return List([map(child) for child in expr.children])
+        elif isinstance(expr, stage2.Concatenation):
+            return Concatenation([map(child) for child in expr.children])
+        elif isinstance(expr, stage2.Marker):
+            return Marker(map(expr.inner))
+        elif isinstance(expr, stage2.Composition):
+            return Composition(map(expr.inner))
         else:
-            assert False
-    expressions = [Root(replace(expr.unexpanded_children), axis_values[expr.name]) for expr in expressions]
+            assert False, type(expr)
+    expressions = [map(root) for root in expressions]
 
-    return expressions, values
+    return expressions
 
 
 
-def expand(expr):
-    result = []
-    if isinstance(expr, list):
-        for expr in expr:
-            result.extend(expand(expr))
-    else:
-        result.extend(expr.expand())
-    return result
 
-def copy(expr):
-    if isinstance(expr, list):
-        result = []
-        for expr in expr:
-            result.append(copy(expr))
-        return result
-    else:
-        return expr.copy()
-    return result
 
-def value(expr):
-    if isinstance(expr, list):
-        values = [value(c) for c in expr]
-        if all(not v is None for v in values):
-            return math.prod(values)
-        elif "parent" in dir(expr[0]) and isinstance(expr[0].parent, Group) and not expr[0].parent.value is None:
-            v = expr[0].parent.value
-            for c in expr[0].parent.unexpanded_children:
-                if not c in expr:
-                    if c.value is None:
-                        break
-                    v //= c.value
+def expr_map(f):
+    def outer(expr, *args, **kwargs):
+        # Wrap the user function to return a list of expressions
+        def f2(expr):
+            t = f(expr, *args, **kwargs)
+            if t is None:
+                return None, expr_map.CONTINUE
+            expr, signal = t
+
+            if isinstance(expr, list) or expr is None:
+                return expr, signal
+            if isinstance(expr, List):
+                return expr.children, signal
+            elif isinstance(expr, Expression):
+                return [expr], signal
             else:
-                return v
-        return None
-    else:
-        return expr.value
+                raise TypeError(f"Invalid return type {type(expr)}")
+        return List.maybe(_expr_map(expr, f2))
+    return outer
 
-def remove(expr, pred, keepdims=False, drop_empty_groups=False):
-    def traverse(expr):
-        if isinstance(expr, list):
-            result = []
-            for expr in expr:
-                result.extend(traverse(expr))
-            return result
+expr_map.CONTINUE = 1
+expr_map.COPY_AND_STOP = 2
+expr_map.REPLACE_AND_STOP = 3
+expr_map.REPLACE_AND_CONTINUE = 4
+
+def _expr_map(expr, f):
+    exprs, signal = f(expr)
+    if signal == expr_map.REPLACE_AND_STOP:
+        assert isinstance(exprs, list)
+        return exprs
+    elif signal == expr_map.COPY_AND_STOP:
+        return [expr.__deepcopy__()]
+    elif signal == expr_map.REPLACE_AND_CONTINUE:
+        return [c for expr in exprs for c in _expr_map(expr, f)]
+
+    if isinstance(expr, Axis):
+        return [expr.__deepcopy__()]
+    elif isinstance(expr, Composition):
+        return [Composition(List.maybe(_expr_map(expr.inner, f)))]
+    elif isinstance(expr, List):
+        return [c2 for c1 in expr.children for c2 in _expr_map(c1, f)]
+    elif isinstance(expr, Concatenation):
+        children = [List.maybe(_expr_map(c, f)) for c in expr.children]
+        children = [c if len(c) > 0 else Axis(None, 1) for c in children]
+        return [Concatenation(children)]
+    elif isinstance(expr, Marker):
+        x = _expr_map(expr.inner, f)
+        if len(x) == 0:
+            # Drop empty marker
+            return []
+        else:
+            return [Marker(List.maybe(x))]
+    else:
+        raise TypeError(f"Invalid expression type {type(expr)}")
+
+
+
+@expr_map
+def decompose(expr):
+    if isinstance(expr, Composition):
+        return expr.inner, expr_map.REPLACE_AND_CONTINUE
+    elif isinstance(expr, Concatenation):
+        return None, expr_map.COPY_AND_STOP
+
+@expr_map
+def demark(expr):
+    if isinstance(expr, Marker):
+        return expr.inner, expr_map.REPLACE_AND_CONTINUE
+
+@expr_map
+def replace(expr, f):
+    expr = f(expr)
+    if not expr is None:
+        return expr, expr_map.REPLACE_AND_STOP
+
+@expr_map
+def remove(expr, pred):
+    if pred(expr):
+        return [], expr_map.REPLACE_AND_STOP
+
+def remove_unnamed_trivial_axes(expr):
+    def is_concat_child(expr): # Do not remove direct children of concatenations
+        return not expr.parent is None and (isinstance(expr.parent, Concatenation) or (isinstance(expr.parent, Marker) and is_concat_child(expr.parent)))
+    return remove(expr, lambda expr: isinstance(expr, Axis) and expr.is_unnamed and expr.value == 1 and not is_concat_child(expr))
+
+@expr_map
+def mark(expr, pred):
+    if not isinstance(expr, Marker) and (expr.parent is None or not isinstance(expr.parent, Marker)) and pred(expr):
+        return Marker(expr.__deepcopy__()), expr_map.REPLACE_AND_CONTINUE
+
+def any_parent_is(expr, pred, include_self=True):
+    if not include_self:
+        if expr.parent is None:
+            return False
+        expr = expr.parent
+    while not expr is None:
         if pred(expr):
-            if keepdims:
-                return [Variable(None, 1, ellipsis_indices=expr.ellipsis_indices)]
-            else:
-                return []
-        if isinstance(expr, Variable):
-            return [expr.copy()]
-        elif isinstance(expr, Ellipsis):
-            inner = traverse(expr.inner)
-            return [Ellipsis(inner, value(inner), ellipsis_indices=expr.ellipsis_indices)]
-        elif isinstance(expr, Group):
-            unexpanded_children = traverse(expr.unexpanded_children)
-            if len(unexpanded_children) == 0 and len(expr.unexpanded_children) > 0 and drop_empty_groups:
-                return []
-            else:
-                return [Group(unexpanded_children, value(unexpanded_children), expr.ellipsis_indices, expr.front, expr.back)]
-        else:
-            assert False
+            return True
+        expr = expr.parent
+    return False
 
-    unexpanded_children = traverse(expr.unexpanded_children)
-    v = value(unexpanded_children)
-    if v is None:
-        raise ValueError("Failed to remove subexpression, resulting axis value could not be determined")
-    return Root(unexpanded_children, v)
+def is_marked(expr):
+    return any_parent_is(expr, lambda expr: isinstance(expr, Marker))
 
-def prune_group(expr, pred):
-    def traverse(expr):
-        if isinstance(expr, list):
-            result = []
-            for expr in expr:
-                result.extend(traverse(expr))
-            return result
-        if isinstance(expr, Variable):
-            return [expr.copy()]
-        elif isinstance(expr, Ellipsis):
-            inner = traverse(expr.inner)
-            return [Ellipsis(inner, expr.value, ellipsis_indices=expr.ellipsis_indices)]
-        elif isinstance(expr, Group):
-            unexpanded_children = traverse(expr.unexpanded_children)
-            if pred(expr):
-                return unexpanded_children
-            else:
-                return [Group(unexpanded_children, expr.value, expr.ellipsis_indices, expr.front, expr.back)]
-        else:
-            assert False, f"{type(expr)} {expr}"
+def is_at_root(expr):
+    return not any_parent_is(expr, lambda expr: isinstance(expr, Composition))
 
-    unexpanded_children = traverse(expr.unexpanded_children)
-    return Root(unexpanded_children, value(unexpanded_children))
+def is_flat(expr):
+    return all(not isinstance(expr, Composition) and not isinstance(expr, Concatenation) for expr in expr.all())
 
-def cache_hash(expr):
-    from . import cse
-    if isinstance(expr, list):
-        h = 878123
-        for expr in expr:
-            h += cache_hash(expr)
-            h *= 978123
-        return h
-    elif isinstance(expr, Variable):
-        return (hash(expr.name) if not expr.name.startswith("__constantdim") else 81273) + 981723 * hash(expr.value)
-    elif isinstance(expr, Ellipsis):
-        return 7911131823 + cache_hash(expr.inner)
-    elif isinstance(expr, Group):
-        return 9888734 + cache_hash(expr.unexpanded_children) + hash(expr.front) + hash(expr.back)
-    elif isinstance(expr, Root):
-        return 234 + cache_hash(expr.unexpanded_children)
-    elif isinstance(expr, cse.CommonSubexpression):
-        return 123 + cache_hash(expr.children)
+def get_axes(expr):
+    return [expr for expr in expr.all() if isinstance(expr, Axis)]
+
+def get_named_axes(expr):
+    return [expr for expr in expr.all() if isinstance(expr, Axis) and not expr.is_unnamed]
+
+def _get_marked(expr):
+    if isinstance(expr, Axis):
+        return []
+    elif isinstance(expr, Marker):
+        return [expr.inner.__deepcopy__()]
+    elif isinstance(expr, Concatenation):
+        return [Concatenation.maybe([x for c in expr.children for x in _get_marked(c)])]
+    elif isinstance(expr, Composition):
+        return [Composition(List.maybe(_get_marked(expr.inner)))]
+    elif isinstance(expr, List):
+        return [List.maybe([x for c in expr.children for x in _get_marked(c)])]
     else:
-        assert False, type(expr)
+        raise TypeError(f"Invalid expression type {type(expr)}")
+
+def get_marked(expr):
+    return List.maybe(_get_marked(expr))
+
+def get_unmarked(expr):
+    return remove(expr, lambda expr: not einx.expr.stage3.is_marked(expr))

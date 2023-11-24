@@ -33,7 +33,7 @@ class Norm(hk.Module):
                 return vars(self)[name].average
 
     def __call__(self, x, is_training=None):
-        return einx.dl.meanvar_norm(
+        return einx.nn.meanvar_norm(
             x,
             self.stats,
             self.params,
@@ -52,7 +52,7 @@ class Linear(hk.Module):
         self.bias = bias
 
     def __call__(self, x):
-        return einx.dl.linear(
+        return einx.nn.linear(
             x,
             self.expr,
             bias=lambda shape: hk.get_parameter(name="bias", shape=shape, dtype="float32", init=hk.initializers.Constant(0.0)) if self.bias else None,

@@ -2,11 +2,12 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
 
 from flax import linen as nn
-import torch, einx, os, jax, optax
+import torch, einx, os, jax, optax, time
 import torchvision
 import torchvision.transforms as transforms
 import jax.numpy as jnp
 from flax.training import train_state
+import einx.nn.flax as einn
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -34,11 +35,11 @@ class Net(nn.Module):
     @nn.compact
     def __call__(self, x, training):
         for c in [1024, 512, 256]:
-            x = einx.flax.Linear("b [...|c]")(x, c=c)
-            x = einx.flax.Norm("b [c]")(x)
+            x = einn.Linear("b [...|c]")(x, c=c)
+            x = einn.Norm("b [c]")(x)
             x = nn.gelu(x)
             x = nn.Dropout(rate=0.2, deterministic=not training)(x)
-        x = einx.flax.Linear("b [...|c]")(x, c=10)
+        x = einn.Linear("b [...|c]")(x, c=10)
         return x
 
 net = Net()
@@ -74,6 +75,8 @@ def test_step(state, images):
 
 print("Starting training")
 for epoch in range(100):
+    t0 = time.time()
+
     # Train
     for i, data in enumerate(trainloader, 0):
         inputs, labels = data
@@ -90,4 +93,4 @@ for epoch in range(100):
         total += logits.shape[0]
         correct += jnp.sum(jnp.argmax(logits, axis=1) == jnp.asarray(labels))
     
-    print(f"Test accuracy after {epoch + 1:5d} epoch: ", float(correct) / total)
+    print(f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} ({time.time() - t0:.2f}sec)")

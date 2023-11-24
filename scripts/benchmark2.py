@@ -44,7 +44,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
 
     def benchmark_einx(x, bias, scale):
-        return einx.dl.meanvar_norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
+        return einx.nn.meanvar_norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
     def benchmark_idx(x, bias, scale):
         mean = xnp.mean(x, axis=-1, keepdims=True)
         var = xnp.var(x, axis=-1, keepdims=True)
@@ -61,7 +61,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append(("layernorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
 
     def benchmark_einx(x, bias, scale):
-        return einx.dl.meanvar_norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
+        return einx.nn.meanvar_norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
     def benchmark_idx(x, bias, scale):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
         mean = xnp.mean(x, axis=-1, keepdims=True)
@@ -80,7 +80,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append(("layernorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
 
     def benchmark_einx(x, bias, scale):
-        return einx.dl.meanvar_norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
+        return einx.nn.meanvar_norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
     def benchmark_idx(x, bias, scale):
         mean = xnp.mean(x, axis=(1, 2), keepdims=True)
         var = xnp.var(x, axis=(1, 2), keepdims=True)
@@ -97,7 +97,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append(("batchnorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
 
     def benchmark_einx(x, bias, scale):
-        return einx.dl.meanvar_norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
+        return einx.nn.meanvar_norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
     def benchmark_idx(x, bias, scale):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
         mean = xnp.mean(x, axis=(1, 2), keepdims=True)
@@ -116,7 +116,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append(("batchnorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
 
     def benchmark_einx(x, bias, weight):
-        return einx.dl.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
+        return einx.nn.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
     def benchmark_idx(x, bias, weight):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
         x = xnp.dot(x, weight)
@@ -131,9 +131,9 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
     def benchmark_einx(x, w1, b1, w2, b2):
         x0 = x
-        x = einx.dl.linear(x, "b [s...|s2] c", weight=w1, bias=b1)
+        x = einx.nn.linear(x, "b [s...|s2] c", weight=w1, bias=b1)
         x = xnp.where(x < 0, 0, x)
-        x = einx.dl.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
+        x = einx.nn.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
         x = x + x0
         return x
     def benchmark_idx(x, w1, b1, w2, b2):

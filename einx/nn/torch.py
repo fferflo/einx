@@ -60,7 +60,7 @@ class Norm(torch.nn.Module):
             self.moving_average = moving_average
 
     def forward(self, x):
-        return einx.dl.meanvar_norm(
+        return einx.nn.meanvar_norm(
             x,
             self.stats,
             self.params,
@@ -98,4 +98,4 @@ class Linear(torch.nn.Module):
         self.kwargs = kwargs
 
     def forward(self, x, **kwargs):
-        return einx.dl.linear(x, self.expr, self.weight, self.bias, **self.kwargs, **kwargs)
+        return einx.nn.linear(x, self.expr, self.weight, self.bias, **self.kwargs, **kwargs)

@@ -48,7 +48,7 @@ class Norm(nn.Module):
 
     @nn.compact
     def __call__(self, x, is_training=None):
-        return einx.dl.meanvar_norm(
+        return einx.nn.meanvar_norm(
             x,
             self.stats,
             self.params,
@@ -66,7 +66,7 @@ class Linear(nn.Module):
 
     @nn.compact
     def __call__(self, x, **kwargs):
-        return einx.dl.linear(
+        return einx.nn.linear(
             x,
             self.expr,
             bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, "float32") if self.bias else None,

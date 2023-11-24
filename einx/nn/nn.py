@@ -5,6 +5,7 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
         moving_average = lambda f, name: f()
     backend = einx.backend.get([x])
 
+    # Compute mean and variance
     if mean:
         mean = backend.cast(moving_average(lambda: einx.mean(stats, x), name="mean"), x.dtype)
     else:
@@ -26,14 +27,18 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
     else:
         inv_std = None
 
-    expr_in, expr_out = einx.reduce.parse(stats, einx.api.util.get_shape(x))
+    # Normalize mean and variance
+    (expr_in,), (expr_stats,) = einx.reduce.parse(stats, einx.param.get_shape(x))
+    expr_in = einx.expr.stage3.demark(expr_in)
+    expr_stats = einx.expr.stage3.demark(expr_stats)
     if not mean is None:
-        x = einx.subtract(f"{expr_in}, {expr_out}", x, mean)
+        x, _ = einx.subtract([expr_in, expr_stats], [x, mean], expr_in)
     if not inv_std is None:
-        x = einx.multiply(f"{expr_in}, {expr_out}", x, inv_std)
+        x, _ = einx.multiply([expr_in, expr_stats], [x, inv_std], expr_in)
 
     # TODO: need optimizer like opt_einsum that can optimize elementwise expressions like: (x - mean) * scale * inv_std + bias
 
+    # Apply scale and bias
     if not scale is None:
         x = einx.multiply(params, x, scale)
     if not bias is None:
@@ -42,14 +47,20 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
     return x
 
 def linear(x, expr, weight, bias=None, **kwargs):
-    (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.api.util.get_shape(x), einx.api.util.get_shape(weight), **kwargs)
+    (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.param.get_shape(x), einx.param.get_shape(weight), **kwargs)
 
+    # Weight matrix multiplication
     x = einx.dot(expr, x, weight, **kwargs)
 
     if not bias is None:
-        def remove(n):
-            return isinstance(n, einx.expr.stage3.Variable) and not any(n == v for v in expr_in2.traverse())
-        expr_bias = einx.expr.stage3.remove(expr_afterdot, remove, drop_empty_groups=True)
-        x = einx.op.add([einx.op.Tensor(x, expr_afterdot), einx.op.Tensor(bias, expr_bias)]).value
+        # Bias expression includes all axes in output that are also in weight matrix
+        weight_axes_names = set(a.name for a in expr_in2.all() if isinstance(a, einx.expr.stage3.Axis))
+        expr_bias = []
+        for a in expr_afterdot.all():
+            if isinstance(a, einx.expr.stage3.Axis) and a.name in weight_axes_names:
+                expr_bias.append(a.__deepcopy__())
+        expr_bias = einx.expr.stage3.List(expr_bias)
+
+        x, _ = einx.add([expr_afterdot, expr_bias], [x, bias], expr_afterdot)
 
     return x

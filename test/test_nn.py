@@ -3,12 +3,12 @@ import numpy as np
 from functools import partial
 
 if importlib.util.find_spec("torch"):
-    import torch
+    import torch, einx.nn.torch
 
     def test_torch_linear():
         x = torch.zeros((4, 128, 128, 3))
 
-        layer = einx.torch.Linear(("b... [c1|c2]", {"c2": 32}))
+        layer = einx.nn.torch.Linear(("b... [c1|c2]", {"c2": 32}))
         assert layer.forward(x).shape == (4, 128, 128, 32)
         layer = torch.compile(layer)
         assert layer.forward(x).shape == (4, 128, 128, 32)
@@ -17,7 +17,7 @@ if importlib.util.find_spec("torch"):
         x = torch.zeros((4, 128, 128, 32))
         for mean in [True, False]:
             for decay_rate in [None, 0.9]:
-                layer = einx.torch.Norm("b... [c]", mean=mean, decay_rate=decay_rate)
+                layer = einx.nn.torch.Norm("[b...] c", mean=mean, decay_rate=decay_rate)
                 layer.train()
                 assert layer.forward(x).shape == (4, 128, 128, 32)
                 layer.eval()
@@ -31,14 +31,14 @@ if importlib.util.find_spec("torch"):
 if importlib.util.find_spec("haiku"):
     import haiku as hk
     import jax.numpy as jnp
-    import jax
+    import jax, einx.nn.haiku
 
     def test_haiku_linear():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(42)
 
         def model(x):
-            return einx.haiku.Linear(("b... [c1|c2]", {"c2": 32}))(x)
+            return einx.nn.haiku.Linear(("b... [c1|c2]", {"c2": 32}))(x)
         model = hk.transform_with_state(model)
 
         params, state = model.init(rng=rng, x=x)
@@ -53,7 +53,7 @@ if importlib.util.find_spec("haiku"):
         for mean in [True, False]:
             for decay_rate in [None, 0.9]:
                 def model(x, is_training):
-                    return einx.haiku.Norm("b... [c]", mean=mean, decay_rate=decay_rate)(x, is_training)
+                    return einx.nn.haiku.Norm("b... [c]", mean=mean, decay_rate=decay_rate)(x, is_training)
                 model = hk.transform_with_state(model)
 
                 params, state = model.init(rng=rng, x=x, is_training=True)
@@ -66,13 +66,13 @@ if importlib.util.find_spec("haiku"):
 if importlib.util.find_spec("flax"):
     import flax.linen as nn
     import jax.numpy as jnp
-    import jax, flax
+    import jax, flax, einx.nn.flax
 
     def test_flax_linear():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
 
-        model = einx.flax.Linear(("b... [c1|c2]", {"c2": 32}))
+        model = einx.nn.flax.Linear(("b... [c1|c2]", {"c2": 32}))
         
         params = model.init(rng, x)
 
@@ -85,7 +85,7 @@ if importlib.util.find_spec("flax"):
 
         for mean in [True, False]:
             for decay_rate in [None, 0.9]:
-                model = einx.flax.Norm("b... [c]", mean=mean, decay_rate=decay_rate)
+                model = einx.nn.flax.Norm("b... [c]", mean=mean, decay_rate=decay_rate)
 
                 params = model.init(rng, x, is_training=True)
                 state, params = flax.core.pop(params, "params")

@@ -1,4 +1,4 @@
-from . import stage1, stage2, stage3, cse
+from . import stage1, stage2, stage3
 import numpy as np
 
 class Condition:
@@ -16,86 +16,79 @@ class Condition:
                 raise ValueError(f"Got conflicting value.shape {value.shape} and shape {shape} for expression {expr}")
 
     def __repr__(self):
-        return f"{self.expr} = {self.value} (shape={self.shape} at depth={self.depth})"
+        return f"{self.expr} = {self.value.tolist()} (shape={self.shape} at depth={self.depth})"
 
     def __hash__(self):
         return hash((self.expr, self.value, self.shape, self.depth))
 
-def solve(conditions, stages=3, verbose=False):
+def solve(conditions, cse=True, cse_concat=True, verbose=False):
     if any(not isinstance(c, Condition) for c in conditions):
         raise ValueError("All arguments must be of type Condition")
-    if not stages in [1, 2, 3]:
-        raise ValueError("stages must be 1, 2 or 3")
 
     expressions = [t.expr for t in conditions]
     values = [t.value for t in conditions]
     shapes = [t.shape for t in conditions]
     depths = [t.depth for t in conditions]
 
+    def to_str(l): # Print numpy arrays in a single line rather than with line breaks
+        if l is None:
+            return "None"
+        elif isinstance(l, np.ndarray):
+            return str(l.tolist())
+        else:
+            return str(l)
+
     if verbose:
         print("Stage0:")
         for expr, value, shape, depth in zip(expressions, values, shapes, depths):
-            print(f"    {expr} = {value} (shape={shape} at depth={depth})")
+            print(f"    {expr} = {to_str(value)} (shape={to_str(shape)} at depth={depth})")
 
     expressions = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in expressions]
 
     if verbose:
         print("Stage1:")
         for expr, value, shape, depth in zip(expressions, values, shapes, depths):
-            print(f"    {expr} = {value} (shape={shape} at depth={depth})")
+            print(f"    {expr} = {to_str(value)} (shape={to_str(shape)} at depth={depth})")
 
-    if stages == 1:
-        return expressions
+    expressions = stage2.solve(expressions, shapes, depths)
 
-    expressions, shapes, depths = stage2.solve(expressions, shapes, depths)
-    def broadcast(value, shape):
-        value = np.asarray(value)
-        while len(value.shape) < len(shape):
-            value = value[:, np.newaxis]
-        value = np.broadcast_to(value, shape)
+    # Broadcast values to the solved shapes. E.g. for a parameter 'a=2' that is used in an expression '(a...)...' (where each
+    # ellipsis expands twice) this would broadcast to '[[2, 2], [2, 2]]' and return the flattened result.
+    def broadcast(value, oldshape, newshape):
+        if value is None:
+            return None
+        if list(oldshape) == list(newshape):
+            return value
+        value = np.asarray(value).reshape([-1])
+        n_old = np.prod(oldshape) if len(oldshape) > 0 else 1
+        n_new = np.prod(newshape)
+        assert n_new > 0
+        p = n_new // n_old
+        assert n_new % n_old == 0
+        value = value[np.newaxis]
+        value = np.broadcast_to(value, [p, value.shape[1]])
+        value = value.reshape([-1])
         return value
-    values = [(broadcast(value, shape).reshape([-1]) if not value is None else None) for value, shape in zip(values, shapes)]
+    values = [broadcast(value, oldshape, expr.shape) for value, oldshape, expr in zip(values, shapes, expressions)]
 
     if verbose:
         print("Stage2:")
         for expr, value in zip(expressions, values):
-            print(f"    {expr} = {value}")
+            print(f"    {expr} = {to_str(value)}")
 
-    if stages == 2:
-        return expressions
+    if cse:
+        expressions = stage2.cse(expressions, cse_concat=cse_concat)
 
-    expressions, values = stage3.solve(expressions, values)
+        if verbose:
+            print("Stage2.CSE:")
+            for expr, value in zip(expressions, values):
+                print(f"    {expr} = {to_str(value)}")
+
+    expressions = stage3.solve(expressions, values)
 
     if verbose:
         print("Stage3:")
-        for expr, value in zip(expressions, values):
-            print(f"    {expr} = {value}")
+        for expr in expressions:
+            print(f"    {expr} = {to_str(expr.shape)}")
 
     return expressions
-
-def get_flattened_axes(expr):
-    if isinstance(expr, list):
-        result = []
-        for expr in expr:
-            result.extend(get_flattened_axes(expr))
-        return result
-    elif isinstance(expr, stage3.Variable):
-        if expr.value is None:
-            raise ValueError(f"Failed to determine value of variable {expr.name}")
-        return [expr]
-    elif isinstance(expr, stage3.Ellipsis):
-        return get_flattened_axes(expr.inner)
-    elif isinstance(expr, stage3.Group):
-        return get_flattened_axes(expr.unexpanded_children)
-    elif isinstance(expr, cse.CommonSubexpression):
-        if expr.value is None:
-            raise ValueError(f"Failed to determine value of expression '{expr.name}'")
-        return [expr]
-    else:
-        raise ValueError("Invalid type of expr")
-
-def get_flattened_shape(expr):
-    return np.asarray([v.value for v in get_flattened_axes(expr)])
-
-def get_isolated_axes(exprs):
-    return [set(get_flattened_axes(expr)).difference([v for expr2 in exprs for v in get_flattened_axes(expr2) if id(expr2) != id(expr)]) for expr in exprs]
