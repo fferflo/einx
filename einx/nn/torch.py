@@ -10,10 +10,11 @@ class Parameter(torch.nn.parameter.UninitializedParameter):
     def __new__(cls, init):
         return super().__new__(cls)
 
-    def materialize(self, shape):
+    def __call__(self, shape, **kwargs):
         super().materialize(shape)
         with torch.no_grad():
-            self.init(self.data)
+            self.init(self.data, **kwargs)
+        return self
 
 class Buffer(torch.nn.parameter.UninitializedBuffer):
     def __init__(self, init):
@@ -23,10 +24,11 @@ class Buffer(torch.nn.parameter.UninitializedBuffer):
     def __new__(cls, init):
         return super().__new__(cls)
 
-    def materialize(self, shape):
+    def __call__(self, shape, **kwargs):
         super().materialize(shape)
         with torch.no_grad():
-            self.init(self.data)
+            self.init(self.data, **kwargs)
+        return self
 
 
 
@@ -52,7 +54,7 @@ class Norm(torch.nn.Module):
                     x = f()
                     if (isinstance(vars(self)[name], torch.nn.parameter.UninitializedParameter) or isinstance(vars(self)[name], torch.nn.parameter.UninitializedBuffer)) \
                         and not isinstance(vars(self)[name].data, torch._subclasses.FakeTensor):
-                        vars(self)[name].materialize(x.shape)
+                        vars(self)[name](x.shape)
                     vars(self)[name] = decay_rate * vars(self)[name] + (1 - decay_rate) * x
                     return x
                 else:
@@ -76,20 +78,16 @@ class Linear(torch.nn.Module):
     def __init__(self, expr, bias=True, **kwargs):
         super().__init__()
 
-
-        def init_weight(x):
-            # TODO: Add proper handling of multiple input+output axes and transposed axes
-            # torch.nn.init.kaiming_uniform_(x, a=math.sqrt(5))
-            fan = np.prod(x.shape[:-1])
-            scale = 1.0 / max(1.0, fan)
-            bound = np.sqrt(3.0 * scale)
+        self.fan_in = None
+        def init_weight(x, in_axis, out_axis, batch_axis):
+            self.fan_in = np.prod([x.shape[i] for i in in_axis])
+            bound = math.sqrt(3.0) / math.sqrt(self.fan_in)
             torch.nn.init.uniform_(x, -bound, bound)
         self.weight = Parameter(init_weight)
         if bias:
             def init_bias(x):
-                fan = np.prod(self.weight.shape[:-1])
-                u = 1.0 / math.sqrt(fan)
-                torch.nn.init.uniform_(x, -u, u)
+                bound = 1 / math.sqrt(self.fan_in)
+                torch.nn.init.uniform_(x, -bound, bound)
             self.bias = Parameter(init_bias)
         else:
             self.bias = None
@@ -99,3 +97,17 @@ class Linear(torch.nn.Module):
 
     def forward(self, x, **kwargs):
         return einx.nn.linear(x, self.expr, self.weight, self.bias, **self.kwargs, **kwargs)
+
+class Dropout(torch.nn.Module):
+    def __init__(self, expr, drop_rate, **kwargs):
+        super().__init__()
+
+        self.expr = expr
+        self.drop_rate = drop_rate
+        self.kwargs = kwargs
+
+    def forward(self, x, **kwargs):
+        if self.training:
+            return einx.nn.dropout(x, self.expr, drop_rate=self.drop_rate, **self.kwargs, **kwargs)
+        else:
+            return x

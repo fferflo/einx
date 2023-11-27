@@ -38,18 +38,24 @@ einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vectorized map
 ```
 
 ```python
-layernorm    = einx.{torch|flax|...}.Norm("b... [c]")
-instancenorm = einx.{torch|flax|...}.Norm("b [s...] c")
-groupnorm    = einx.{torch|flax|...}.Norm("b [s...] (g [c])")
-batchnorm    = einx.{torch|flax|...}.Norm("[b...] c", decay_rate=0.9)
-rmsnorm      = einx.{torch|flax|...}.Norm("b... [c]", mean=False, bias=False)
+import einx.nn.{torch|flax|haiku} as einn
 
-channel_mix  = einx.{torch|flax|...}.Linear("b... [c1|c2]", c2=64)
-spatial_mix1 = einx.{torch|flax|...}.Linear("b [s...|s2] c", s2=64)
-spatial_mix2 = einx.{torch|flax|...}.Linear("b [s2|s...] c", s=(64, 64))
-patch_embed  = einx.{torch|flax|...}.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=64)
+layernorm       = einn.Norm("b... [c]")
+instancenorm    = einn.Norm("b [s...] c")
+groupnorm       = einn.Norm("b [s...] (g [c])")
+batchnorm       = einn.Norm("[b...] c", decay_rate=0.9)
+rmsnorm         = einn.Norm("b... [c]", mean=False, bias=False)
 
-# See scripts/train_{torch|flax}.py for example trainings on CIFAR10
+channel_mix     = einn.Linear("b... [c1|c2]", c2=64)
+spatial_mix1    = einn.Linear("b [s...|s2] c", s2=64)
+spatial_mix2    = einn.Linear("b [s2|s...] c", s=(64, 64))
+patch_embed     = einn.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=64)
+
+dropout         = einn.Dropout("[...]",       drop_rate=0.2)
+spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
+droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
+
+# See scripts/train_{torch|flax|haiku}.py for example trainings on CIFAR10
 ```
 
 ### Overview
@@ -107,7 +113,7 @@ einx solves expression shapes using symbolic equations with [SymPy](https://www.
 
 ### Ellipses
 
-An ellipsis is used to repeat the expression that appears directly in front of it. The number of repetitions is determined from the shapes of the passed arguments. For example, the following operations are equivalent:
+An ellipsis repeats the expression that appears directly in front of it. The number of repetitions is determined from the shapes of the passed arguments. For example, the following operations are equivalent:
 
 ```python
 einx.rearrange("b c h w  -> b h w  c", x)

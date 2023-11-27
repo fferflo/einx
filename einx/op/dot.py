@@ -15,7 +15,23 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     # TODO: implicitly determine second input expr if it is not given?
 
     # Call tensor factories
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
+    output_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
+    def get_fans(idx):
+        other_input_axis_names = {a.name for i, expr_in in enumerate(exprs_in) for a in expr_in.all() if i != idx and isinstance(a, einx.expr.stage3.Axis)}
+        in_axis = []
+        out_axis = []
+        batch_axis = []
+        for i, child in enumerate(exprs_in[idx]):
+            any_in_other_input = any(isinstance(a, einx.expr.stage3.Axis) and a.name in other_input_axis_names for a in child.all())
+            any_in_output = any(isinstance(a, einx.expr.stage3.Axis) and a.name in output_axis_names for a in child.all())
+            if any_in_other_input and not any_in_output:
+                in_axis.append(i)
+            elif any_in_output and not any_in_other_input:
+                out_axis.append(i)
+            else:
+                batch_axis.append(i)
+        return {"in_axis": tuple(in_axis), "out_axis": tuple(out_axis), "batch_axis": tuple(batch_axis)}
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, **get_fans(i)) for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))]
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)

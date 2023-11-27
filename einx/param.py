@@ -1,5 +1,5 @@
 import numpy as np
-import einx, sys
+import einx, sys, inspect
 
 def get_shape(x):
     try:
@@ -13,26 +13,35 @@ def get_shape(x):
             # Tensor factory
             return None
 
-def instantiate(x, shape, backend):
+def instantiate(x, shape, backend, **kwargs):
     if backend == einx.backend.tracer:
-        return einx.backend.tracer.Op(lambda x, backend: instantiate(x, shape, backend=backend), [x], shape=shape, pass_backend=True)
+        return einx.backend.tracer.Op(lambda x, backend: instantiate(x, shape, backend=backend, **kwargs), [x], shape=shape, pass_backend=True)
     else:
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)
 
-        done = False
         if "torch" in sys.modules:
             import torch
-            if isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
+            if not callable(x) and isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
                 if backend != einx.backend.torch:
                     raise ValueError("Cannot instantiate a torch tensor using a non-torch backend")
-                x.materialize(shape)
-                done = True
+                def x(shape, x=x, **kwargs):
+                    x.materialize(shape)
+                    return x
 
-        if not done:
-            if callable(x):
-                x = x(shape)
-            x = backend.to_tensor(x)
+        if callable(x):
+            try:
+                params = inspect.signature(x).parameters
+                if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+                    pass
+                else:
+                    kwargs = {k: v for k, v in kwargs.items() if k in params}
+            except:
+                kwargs = {}
+            x = x(shape, **kwargs)
+            if x is None:
+                raise ValueError("Tensor factory returned None")
+        x = backend.to_tensor(x)
 
         assert x.shape == shape, f"Shape mismatch: {x.shape} != {shape} for {type(x)}"
         return x

@@ -1,14 +1,13 @@
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
 
-from flax import linen as nn
+import haiku as hk
 import torch, einx, os, jax, optax, time
 import torchvision
 import torchvision.transforms as transforms
 import jax.numpy as jnp
-from flax.training import train_state
-import einx.nn.flax as einn
 from functools import partial
+import einx.nn.haiku as einn
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -32,40 +31,41 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle
 
 
 
-class Net(nn.Module):
-    @nn.compact
+class Net(hk.Module):
     def __call__(self, x, training):
         for c in [1024, 512, 256]:
-            x = einn.Linear("b [...|c]")(x, c=c)
+            x = einn.Linear("b [...|c]", c=c)(x)
             x = einn.Norm("b [c]")(x)
-            x = nn.gelu(x)
+            x = jax.nn.gelu(x)
             x = einn.Dropout("[...]", drop_rate=0.2)(x, training=training)
-        x = einn.Linear("b [...|c]")(x, c=10)
+        x = einn.Linear("b [...|c]", c=10)(x)
         return x
 
-net = Net()
+net = hk.transform(lambda x, training: Net()(x, training))
 inputs, labels = next(iter(trainloader))
-params = net.init(next_rng(), jnp.asarray(inputs), training=False)["params"]
-tx = optax.adam(3e-4)
-state = train_state.TrainState.create(apply_fn=net.apply, params=params, tx=tx)
+params = net.init(rng=next_rng(), x=jnp.asarray(inputs), training=False)
 
+optimizer = optax.adam(3e-4)
+opt_state = optimizer.init(params)
 
-@partial(jax.jit, donate_argnums=(0,))
-def update_step(state, images, labels, rng):
+@partial(jax.jit, donate_argnums=(0, 1))
+def update_step(opt_state, params, images, labels, rng):
     def loss_fn(params):
-        logits = state.apply_fn({"params": params}, images, training=True, rngs={"dropout": rng})
+        logits = net.apply(params, rng, images, training=True)
         one_hot = jax.nn.one_hot(labels, 10)
         loss = jnp.mean(optax.softmax_cross_entropy(logits=logits, labels=one_hot))
         return loss
 
-    grads = jax.grad(loss_fn)(state.params)
-    state = state.apply_gradients(grads=grads)
+    grads = jax.grad(loss_fn)(params)
 
-    return state
+    updates, new_opt_state = optimizer.update(grads, opt_state, params)
+    new_params = optax.apply_updates(params, updates)
+
+    return new_opt_state, new_params
 
 @jax.jit
-def test_step(state, images, labels):
-    logits = state.apply_fn({"params": state.params}, images, training=False)
+def test_step(params, images, labels):
+    logits = net.apply(params, rng, images, training=False)
     accurate = jnp.argmax(logits, axis=1) == jnp.asarray(labels)
     return accurate
 
@@ -78,14 +78,14 @@ for epoch in range(100):
     # Train
     for i, data in enumerate(trainloader, 0):
         inputs, labels = data
-        state = update_step(state, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
+        opt_state, params = update_step(opt_state, params, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
 
     # Test
     correct = 0
     total = 0
     for data in testloader:
         images, labels = data
-        accurate = test_step(state, jnp.asarray(images), jnp.asarray(labels))
+        accurate = test_step(params, jnp.asarray(images), jnp.asarray(labels))
         total += accurate.shape[0]
         correct += jnp.sum(accurate)
     

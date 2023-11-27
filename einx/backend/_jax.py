@@ -68,4 +68,8 @@ def make_jax_backend():
             assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
             return tensor
 
+        class random:
+            def bernoulli(rng, p, shape):
+                return jax_.random.bernoulli(rng, p, shape)
+
     return jax

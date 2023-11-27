@@ -12,22 +12,23 @@ class Norm(nn.Module):
     bias: bool = True
     decay_rate: float = None
     epsilon: float = 1e-5
+    dtype: str = "float32"
 
-    def moving_average(self, f, name, is_training):
+    def moving_average(self, f, name, training):
         if self.decay_rate is None:
             return f()
         else:
-            if is_training is None:
-                raise ValueError("is_training must be specified when decay_rate is not None")
-            if is_training:
+            if training is None:
+                raise ValueError("training must be specified when decay_rate is not None")
+            if training:
                 x = f()
 
                 if name == "mean":
                     assert self.mean
-                    ema = self.variable("stats", "mean", lambda: jnp.zeros(x.shape, "float32"))
+                    ema = self.variable("stats", "mean", lambda: jnp.zeros(x.shape, self.dtype))
                 elif name == "var":
                     assert self.var
-                    ema = self.variable("stats", "var", lambda: jnp.ones(x.shape, "float32"))
+                    ema = self.variable("stats", "var", lambda: jnp.ones(x.shape, self.dtype))
                 else:
                     assert False
 
@@ -47,29 +48,42 @@ class Norm(nn.Module):
                 return ema.value
 
     @nn.compact
-    def __call__(self, x, is_training=None):
+    def __call__(self, x, training=None):
         return einx.nn.meanvar_norm(
             x,
             self.stats,
             self.params,
-            moving_average=partial(self.moving_average, is_training=is_training),
+            moving_average=partial(self.moving_average, training=training),
             mean=self.mean,
             var=self.var,
-            scale=lambda shape: self.param("scale", nn.initializers.ones_init(), shape, "float32") if self.scale else None,
-            bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, "float32") if self.bias else None,
+            scale=lambda shape: self.param("scale", nn.initializers.ones_init(), shape, self.dtype) if self.scale else None,
+            bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype) if self.bias else None,
             epsilon=self.epsilon,
         )
 
 class Linear(nn.Module):
     expr: str
     bias: bool = True
+    dtype: str = "float32"
 
     @nn.compact
     def __call__(self, x, **kwargs):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, "float32") if self.bias else None,
-            weight=lambda shape: self.param("weight", nn.initializers.lecun_normal(), shape, "float32"),
+            bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype) if self.bias else None,
+            weight=lambda shape, in_axis, out_axis, batch_axis: self.param("weight", nn.initializers.lecun_normal(in_axis, out_axis, batch_axis), shape, self.dtype),
             **kwargs,
         )
+
+class Dropout(nn.Module):
+    expr: str
+    drop_rate: float
+    rng_collection: str = "dropout"
+
+    @nn.compact
+    def __call__(self, x, training):
+        if training:
+            return einx.nn.dropout(x, self.expr, drop_rate=self.drop_rate, rng=self.make_rng(self.rng_collection))
+        else:
+            return x

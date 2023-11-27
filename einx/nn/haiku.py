@@ -19,25 +19,25 @@ class Norm(hk.Module):
         self.bias = bias
         self.decay_rate = decay_rate
 
-    def moving_average(self, f, name, is_training):
+    def moving_average(self, f, name, training):
         if self.decay_rate is None:
             return f()
         else:
-            if is_training is None:
-                raise ValueError("is_training must be specified when decay_rate is not None")
-            if is_training:
+            if training is None:
+                raise ValueError("training must be specified when decay_rate is not None")
+            if training:
                 x = f()
                 vars(self)[name](x)
                 return x
             else:
                 return vars(self)[name].average
 
-    def __call__(self, x, is_training=None):
+    def __call__(self, x, training=None):
         return einx.nn.meanvar_norm(
             x,
             self.stats,
             self.params,
-            moving_average=partial(self.moving_average, is_training=is_training),
+            moving_average=partial(self.moving_average, training=training),
             mean=self.mean,
             var=self.var,
             scale=lambda shape: hk.get_parameter(name="scale", shape=shape, dtype="float32", init=hk.initializers.Constant(1.0)) if self.scale else None,
@@ -46,10 +46,11 @@ class Norm(hk.Module):
         )
 
 class Linear(hk.Module):
-    def __init__(self, expr, bias=True, name=None):
+    def __init__(self, expr, bias=True, name=None, **kwargs):
         super().__init__(name=name)
         self.expr = expr
         self.bias = bias
+        self.kwargs = kwargs
 
     def __call__(self, x):
         return einx.nn.linear(
@@ -57,4 +58,22 @@ class Linear(hk.Module):
             self.expr,
             bias=lambda shape: hk.get_parameter(name="bias", shape=shape, dtype="float32", init=hk.initializers.Constant(0.0)) if self.bias else None,
             weight=lambda shape: hk.get_parameter(name="weight", shape=shape, dtype="float32", init=hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal")),
+            **self.kwargs,
         )
+
+class Dropout(hk.Module):
+    def __init__(self, expr, drop_rate, name=None):
+        super().__init__(name=name)
+        self.expr = expr
+        self.drop_rate = drop_rate
+
+    def __call__(self, x, training):
+        if training:
+            return einx.nn.dropout(
+                x,
+                self.expr,
+                drop_rate=self.drop_rate,
+                rng=hk.next_rng_key(),
+            )
+        else:
+            return x

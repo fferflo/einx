@@ -107,7 +107,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
             )[0]
 
             expr_in2 = einx.expr.stage3.get_marked(expr_in1)
-            if not tensor_shapes[1] is None and  expr_in2.shape != tensor_shapes[1]:
+            if not tensor_shapes[1] is None and expr_in2.shape != tensor_shapes[1]:
                 raise einx.expr.stage3.SolveError(f"Failed to solve axis values. Expected shape {expr_in2.shape} for second input tensor, got {tensor_shapes[1]}")
             expr_in1 = einx.expr.stage3.demark(expr_in1)
             exprs_in = [expr_in1, expr_in2]

@@ -31,7 +31,7 @@ class Net(nn.Module):
             blocks.append(einn.Linear("b [...|c]", c=c))
             blocks.append(einn.Norm("b [c]"))
             blocks.append(nn.GELU())
-            blocks.append(nn.Dropout(p=0.2))
+            blocks.append(einn.Dropout("[...]", drop_rate=0.2))
         blocks.append(einn.Linear("b [...|c]", c=10))
         self.blocks = nn.Sequential(*blocks)
 
