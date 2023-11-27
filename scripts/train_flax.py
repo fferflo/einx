@@ -36,11 +36,11 @@ class Net(nn.Module):
     @nn.compact
     def __call__(self, x, training):
         for c in [1024, 512, 256]:
-            x = einn.Linear("b [...|c]")(x, c=c)
+            x = einn.Linear("b [...|c]", c=c)(x)
             x = einn.Norm("b [c]")(x)
             x = nn.gelu(x)
             x = einn.Dropout("[...]", drop_rate=0.2)(x, training=training)
-        x = einn.Linear("b [...|c]")(x, c=10)
+        x = einn.Linear("b [...|c]", c=10)(x)
         return x
 
 net = Net()

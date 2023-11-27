@@ -42,7 +42,7 @@ import einx.nn.{torch|flax|haiku} as einn
 
 layernorm       = einn.Norm("b... [c]")
 instancenorm    = einn.Norm("b [s...] c")
-groupnorm       = einn.Norm("b [s...] (g [c])")
+groupnorm       = einn.Norm("b [s...] (g [c])", g=8)
 batchnorm       = einn.Norm("[b...] c", decay_rate=0.9)
 rmsnorm         = einn.Norm("b... [c]", mean=False, bias=False)
 

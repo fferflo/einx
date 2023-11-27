@@ -3,7 +3,9 @@ import einx
 from functools import partial
 import jax.numpy as jnp
 
-class Norm(nn.Module):
+# Using _ prefix on classes and a separater constructor, since dataclass/nn.Module does not support **kwargs parameter.
+
+class _Norm(nn.Module):
     stats: str
     params: str = "b... [c]"
     mean: bool = True
@@ -13,6 +15,7 @@ class Norm(nn.Module):
     decay_rate: float = None
     epsilon: float = 1e-5
     dtype: str = "float32"
+    kwargs: dict = None
 
     def moving_average(self, f, name, training):
         if self.decay_rate is None:
@@ -59,31 +62,49 @@ class Norm(nn.Module):
             scale=lambda shape: self.param("scale", nn.initializers.ones_init(), shape, self.dtype) if self.scale else None,
             bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype) if self.bias else None,
             epsilon=self.epsilon,
+            **(self.kwargs if not self.kwargs is None else {}),
         )
 
-class Linear(nn.Module):
+def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, dtype="float32", **kwargs):
+    return _Norm(stats, params=params, mean=mean, var=var, scale=scale, bias=bias, decay_rate=decay_rate, epsilon=epsilon, dtype=dtype, kwargs=kwargs)
+
+class _Linear(nn.Module):
     expr: str
     bias: bool = True
     dtype: str = "float32"
+    kwargs: dict = None
 
     @nn.compact
-    def __call__(self, x, **kwargs):
+    def __call__(self, x):
         return einx.nn.linear(
             x,
             self.expr,
             bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype) if self.bias else None,
             weight=lambda shape, in_axis, out_axis, batch_axis: self.param("weight", nn.initializers.lecun_normal(in_axis, out_axis, batch_axis), shape, self.dtype),
-            **kwargs,
+            **(self.kwargs if not self.kwargs is None else {}),
         )
 
-class Dropout(nn.Module):
+def Linear(expr, bias=True, dtype="float32", **kwargs):
+    return _Linear(expr, bias=bias, dtype=dtype, kwargs=kwargs)
+
+class _Dropout(nn.Module):
     expr: str
     drop_rate: float
     rng_collection: str = "dropout"
+    kwargs: dict = None
 
     @nn.compact
     def __call__(self, x, training):
         if training:
-            return einx.nn.dropout(x, self.expr, drop_rate=self.drop_rate, rng=self.make_rng(self.rng_collection))
+            return einx.nn.dropout(
+                x,
+                self.expr,
+                drop_rate=self.drop_rate,
+                rng=self.make_rng(self.rng_collection),
+                **(self.kwargs if not self.kwargs is None else {}),
+            )
         else:
             return x
+
+def Dropout(expr, drop_rate, rng_collection="dropout", **kwargs):
+    return _Dropout(expr, drop_rate, rng_collection=rng_collection, kwargs=kwargs)

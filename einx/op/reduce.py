@@ -66,16 +66,7 @@ def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
     return tensors, exprs_out
 
 def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
-    if isinstance(description, tuple):
-        if len(description) != 2:
-            raise ValueError("Expected tuple of length 2")
-        for k in parameters:
-            if k in description[1]:
-                raise ValueError(f"Parameter '{k}' is given twice")
-        parameters.update(description[1])
-        description = description[0]
-    if not isinstance(description, str):
-        raise ValueError("First argument must be an operation string")
+    description, parameters = einx.expr.util._clean_description_and_parameters(description, parameters)
 
     if "->" in description:
         if not keepdims is None:

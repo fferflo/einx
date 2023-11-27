@@ -36,16 +36,7 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     return tensors, exprs_out
 
 def parse(description, *tensor_shapes, cse=True, **parameters):
-    if isinstance(description, tuple):
-        if len(description) != 2:
-            raise ValueError("Expected tuple of length 2")
-        for k in parameters:
-            if k in description[1]:
-                raise ValueError(f"Parameter '{k}' is given twice")
-        parameters.update(description[1])
-        description = description[0]
-    if not isinstance(description, str):
-        raise ValueError("First argument must be an operation string")
+    description, parameters = einx.expr.util._clean_description_and_parameters(description, parameters)
 
     description = description.split("->")
     if len(description) != 2:

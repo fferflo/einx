@@ -1,34 +1,34 @@
 import einx
 
-def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True, var=True, scale=None, bias=None, fastvar=True):
+def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True, var=True, scale=None, bias=None, fastvar=True, **kwargs):
     if moving_average is None:
         moving_average = lambda f, name: f()
     backend = einx.backend.get([x])
 
     # Compute mean and variance
     if mean:
-        mean = backend.cast(moving_average(lambda: einx.mean(stats, x), name="mean"), x.dtype)
+        mean = backend.cast(moving_average(lambda: einx.mean(stats, x, **kwargs), name="mean"), x.dtype)
     else:
         mean = None
     if var:
         if mean is None:
-            var = lambda: einx.mean(stats, backend.square(x))
+            var = lambda: einx.mean(stats, backend.square(x), **kwargs)
         else:
             if fastvar:
                 def var():
-                    mean_of_squares = einx.mean(stats, backend.square(x))
+                    mean_of_squares = einx.mean(stats, backend.square(x), **kwargs)
                     var = mean_of_squares - backend.square(mean)
                     var = backend.maximum(var, 0)
                     return var
             else:
-                var = lambda: einx.var(stats, x)
+                var = lambda: einx.var(stats, x, **kwargs)
         var = backend.cast(moving_average(var, name="var"), x.dtype)
         inv_std = backend.rsqrt(var + epsilon)
     else:
         inv_std = None
 
     # Normalize mean and variance
-    (expr_in,), (expr_stats,) = einx.reduce.parse(stats, einx.param.get_shape(x))
+    (expr_in,), (expr_stats,) = einx.reduce.parse(stats, einx.param.get_shape(x), **kwargs)
     expr_in = einx.expr.stage3.demark(expr_in)
     expr_stats = einx.expr.stage3.demark(expr_stats)
     if not mean is None:
@@ -40,9 +40,9 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
 
     # Apply scale and bias
     if not scale is None:
-        x = einx.multiply(params, x, scale)
+        x = einx.multiply(params, x, scale, **kwargs)
     if not bias is None:
-        x = einx.add(params, x, bias)
+        x = einx.add(params, x, bias, **kwargs)
 
     return x
 

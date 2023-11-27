@@ -62,10 +62,11 @@ class Linear(hk.Module):
         )
 
 class Dropout(hk.Module):
-    def __init__(self, expr, drop_rate, name=None):
+    def __init__(self, expr, drop_rate, name=None, **kwargs):
         super().__init__(name=name)
         self.expr = expr
         self.drop_rate = drop_rate
+        self.kwargs = kwargs
 
     def __call__(self, x, training):
         if training:
@@ -74,6 +75,7 @@ class Dropout(hk.Module):
                 self.expr,
                 drop_rate=self.drop_rate,
                 rng=hk.next_rng_key(),
+                **self.kwargs,
             )
         else:
             return x
