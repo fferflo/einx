@@ -15,6 +15,8 @@ If you are new to Einstein-notation, see [this great einops tutorial](https://nb
 ### Examples (tl;dr)
 
 ```python
+import einx
+
 einx.mean("b [s...] c", x)                        # Global mean-pooling (dimension-agnostic)
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2 (dimension-agnostic)
 
@@ -35,6 +37,10 @@ einx.dot("b... [c1|c2]", x, w, c2=32)             # Lazily construct weight: Cal
 
 einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling using vectorized map
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vectorized map
+
+einx.rearrange("a, b -> (a + b)", x, y)           # Concatenate
+einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
+einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
 ```
 
 ```python
@@ -98,7 +104,7 @@ x = einx.reduce("b (h h2) (w w2) c -> b h w c", x, h2=2, w2=2, op=np.mean)
 
 The following main abstractions are provided:
 
-* `einx.rearrange`: Permute axes and insert new broadcasted axes (similar to `einops.rearrange` and `einops.repeat`)
+* `einx.rearrange`: Permute axes, insert new broadcasted axes, concatenate and split tensors (similar to `einops.{rearrange|repeat|pack|unpack}`)
 * `einx.reduce`: Reduction operations along axes like `np.sum`, `np.mean`, `np.any` (similar to `einops.reduce`)
 * `einx.dot`: General tensor dot-products (similar to `einops.einsum`)
 * `einx.elementwise`: Element-wise operations like `np.add`, `np.multiply` or `np.where`
@@ -303,74 +309,6 @@ This uses [PyTorch's lazy modules](https://pytorch.org/docs/stable/generated/tor
 ## Performance
 
 When using just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html), the einx functions for parsing and executing expressions are only run during initialization and result in zero overhead after the code is compiled. To reduce the overhead in eager mode, einx caches parsed operations and reuses them if the input expressions and shapes match. The size of the cache per function can be adjusted by setting the environment variable `EINX_CACHE_SIZE` before `import einx`. The environment variable `EINX_PRINT_CACHE_MISS=true` can be set to indicate when cache misses occur.
-
-### Benchmark: Overhead
-
-Overhead of simple operations in einx and einops compared to index-based notation, benchmarked with [scripts/benchmark1.py](scripts/benchmark1.py):
-
-<details>
-<summary><i>Benchmark on RTX A6000 and Intel(R) Xeon(R) Gold 6254 CPU @ 3.10GHz</i></summary>
-
-```
-| Method                     |   einx overhead (us) | einops overhead (us)   | einx (ms)        | einops (ms)      | index-based (ms)   |
-|----------------------------|----------------------|------------------------|------------------|------------------|--------------------|
-| numpy rearrange            |           25.277     | 2.963005875547727      | 0.028 +-   0.000 | 0.006 +-   0.000 | 0.003 +-   0.000   |
-| numpy spatial_mean         |           49.045     | 9.344632116456722      | 1.462 +-   0.009 | 1.422 +-   0.007 | 1.413 +-   0.006   |
-| numpy channel_mean         |           46.2927    | 7.380074200530893      | 1.360 +-   0.021 | 1.321 +-   0.021 | 1.314 +-   0.021   |
-| numpy spatial_add          |           81.1689    |                        | 0.759 +-   0.011 |                  | 0.678 +-   0.010   |
-| numpy channel_add          |           78.8445    |                        | 0.736 +-   0.009 |                  | 0.657 +-   0.008   |
-| numpy matmul               |           57.7192    | 70.28647139668463      | 0.155 +-   0.003 | 0.168 +-   0.003 | 0.098 +-   0.002   |
-| torch-eager rearrange      |           37.5321    | 6.753067175547281      | 0.055 +-   0.001 | 0.024 +-   0.000 | 0.017 +-   0.000   |
-| torch-eager spatial_mean   |           37.8233    | 15.910295148690484     | 1.605 +-   0.002 | 1.583 +-   0.002 | 1.567 +-   0.002   |
-| torch-eager channel_mean   |           38.9183    | 10.35996495435637      | 1.709 +-   0.004 | 1.681 +-   0.004 | 1.670 +-   0.004   |
-| torch-eager spatial_add    |           65.3814    |                        | 3.238 +-   0.002 |                  | 3.173 +-   0.001   |
-| torch-eager channel_add    |           82.5337    |                        | 3.243 +-   0.084 |                  | 3.160 +-   0.080   |
-| torch-eager matmul         |           69.3549    | 5.083528968195111      | 0.234 +-   0.022 | 0.170 +-   0.020 | 0.165 +-   0.020   |
-| torch-compile rearrange    |           -0.02421   | -0.011160969734188859  | 0.049 +-   0.002 | 0.049 +-   0.002 | 0.049 +-   0.002   |
-| torch-compile spatial_mean |            0.118609  | -0.06167807926719948   | 1.637 +-   0.001 | 1.636 +-   0.001 | 1.636 +-   0.001   |
-| torch-compile channel_mean |           -0.0413706 | -0.1392870520552144    | 1.610 +-   0.001 | 1.610 +-   0.001 | 1.610 +-   0.001   |
-| torch-compile spatial_add  |            0.0653779 |                        | 3.232 +-   0.002 |                  | 3.232 +-   0.002   |
-| torch-compile channel_add  |            0.0296018 |                        | 3.200 +-   0.002 |                  | 3.200 +-   0.002   |
-| torch-compile matmul       |            0.187771  | 0.1698241879542718     | 0.172 +-   0.001 | 0.172 +-   0.001 | 0.171 +-   0.001   |
-| jax-jit rearrange          |           -0.99082   | -1.0315198451281773    | 3.516 +-   0.035 | 3.516 +-   0.035 | 3.517 +-   0.036   |
-| jax-jit spatial_mean       |            0.451091  | 0.3436785191298589     | 1.902 +-   0.035 | 1.902 +-   0.036 | 1.901 +-   0.035   |
-| jax-jit channel_mean       |           -1.28048   | -1.0852500175436222    | 1.982 +-   0.036 | 1.982 +-   0.036 | 1.983 +-   0.035   |
-| jax-jit spatial_add        |            0.169596  |                        | 3.585 +-   0.019 |                  | 3.585 +-   0.019   |
-| jax-jit channel_add        |           -0.282265  |                        | 3.556 +-   0.024 |                  | 3.556 +-   0.024   |
-| jax-jit matmul             |            0.190998  | 0.5361990382274243     | 0.177 +-   0.001 | 0.177 +-   0.001 | 0.176 +-   0.001   |
-```
-
-</details>
-
-**Summary:**<br>
-   - In *jit-compiled* code, einx and einops have zero overhead compared to index-based notation.
-   - In *eager* mode, einx overhead is < 100us and einops overhead is < 20us (except numpy matmul).
-
-### Benchmark: Deep learning modules
-
-Performance of einx deep learning modules compared with native/ canonical versions in PyTorch and Jax, benchmarked with [scripts/benchmark2.py](scripts/benchmark2.py):
-
-<details>
-<summary><i>Benchmark on RTX A6000 and Intel(R) Xeon(R) Gold 6254 CPU @ 3.10GHz</i></summary>
-
-```
-| Method                          |   einx overhead (us) | einx (ms)         | native (ms)       | index-based (ms)   |
-|---------------------------------|----------------------|-------------------|-------------------|--------------------|
-| torch-compile layernorm         |            -2.89867  | 3.608 +-   0.002  | 3.611 +-   0.002  | 3.606 +-   0.002   |
-| torch-compile layernorm_fastvar |          -118.207    | 3.491 +-   0.001  | 3.609 +-   0.001  | 3.491 +-   0.001   |
-| torch-compile batchnorm         |           257.416    | 6.493 +-   0.001  | 6.235 +-   0.001  | 6.378 +-   0.001   |
-| torch-compile batchnorm_fastvar |         -1366.06     | 4.871 +-   0.002  | 6.237 +-   0.002  | 4.795 +-   0.002   |
-| torch-compile channel_linear    |            18.4558   | 11.787 +-   0.005 | 11.768 +-   0.006 | 11.783 +-   0.005  |
-| torch-compile spatial_mlp       |        -24352.9      | 17.174 +-   0.900 |                   | 41.527 +-   2.105  |
-| jax-jit layernorm               |            -0.58402  | 6.760 +-   0.014  |                   | 6.761 +-   0.015   |
-| jax-jit layernorm_fastvar       |            -0.206963 | 5.212 +-   0.018  |                   | 5.212 +-   0.018   |
-| jax-jit batchnorm               |            -7.04752  | 6.603 +-   0.028  |                   | 6.610 +-   0.023   |
-| jax-jit batchnorm_fastvar       |            -4.74965  | 5.013 +-   0.027  |                   | 5.018 +-   0.027   |
-| jax-jit channel_linear          |          -126.612    | 12.325 +-   1.180 |                   | 12.452 +-   1.322  |
-| jax-jit spatial_mlp             |         -5015.3      | 14.791 +-   0.864 |                   | 19.806 +-   1.370  |
-```
-
-</details>
 
 ## Examples: einx-einops
 

@@ -91,6 +91,9 @@ def test_shape_rearrange(backend):
     with pytest.raises(Exception):
         assert einx.rearrange("a, -> (a +)", x, 1).shape == (11,)
 
+    x = backend.zeros((10, 10), "float32")
+    assert einx.rearrange("b c, 1 -> b (c + 1)", x, [42]).shape == (10, 11)
+
 @pytest.mark.parametrize("backend", backends)
 def test_shape_dot(backend):
     x = backend.zeros((10, 10), "float32")
