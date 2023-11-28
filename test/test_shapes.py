@@ -303,3 +303,5 @@ def test_shape_vmap(backend):
     x = backend.zeros((16, 64), "float32") # b c
     assert einx.vmap("b ([c d]) -> b [2]", x, op=func, c=16).shape == (16, 2)
     assert einx.vmap("b ([c d]) -> b [2] 1", x, op=func, c=16).shape == (16, 2, 1)
+    assert einx.vmap("b [(c d)|2]", x, op=func, c=16).shape == (16, 2)
+    assert einx.vmap("b ([c d|2])", x, op=func, c=16).shape == (16, 2)

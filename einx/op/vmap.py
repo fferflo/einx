@@ -163,21 +163,37 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
 def parse(description, *tensor_shapes, cse=True, **parameters):
     description, parameters = einx.expr.util._clean_description_and_parameters(description, parameters)
 
-    description = description.split("->")
+    if "->" in description:
+        # Description: Inputs and output
+        description = description.split("->")
+        if len(description) != 2:
+            raise ValueError("Operation string must contain exactly one '->'")
+        exprs_in, exprs_out = description
+        exprs_in = exprs_in.split(",")
+        exprs_out = exprs_out.split(",")
 
-    if len(description) != 2:
-        raise ValueError("Operation string must contain exactly one '->'")
-    exprs_in, exprs_out = description
-    exprs_in = exprs_in.split(",")
-    exprs_out = exprs_out.split(",")
+        if len(exprs_in) != len(tensor_shapes):
+            raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensor_shapes)}")
 
-    if len(exprs_in) != len(tensor_shapes):
-        raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensor_shapes)}")
+    else:
+        # Description: "input -> output" using [|]-choice
+        expr = description
+        if "," in expr:
+            raise ValueError("Only a single expression is allowed when using the choice operator [|]")
+        if len(tensor_shapes) != 1:
+            raise ValueError(f"Expected 1 input tensor, got {len(tensor_shapes)}")
+
+        expr = einx.expr.stage1.parse(expr)
+        expr_in = str(einx.expr.stage1.choose(expr, 0, num=2))
+        expr_out = str(einx.expr.stage1.choose(expr, 1, num=2))
+
+        exprs_in = [expr_in]
+        exprs_out = [expr_out]
 
     exprs = einx.expr.solve(
-           [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)] \
-         + [einx.expr.Condition(expr=expr_out, depth=0) for expr_out in exprs_out] \
-         + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+          [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)] \
+        + [einx.expr.Condition(expr=expr_out, depth=0) for expr_out in exprs_out] \
+        + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
         cse=cse,
         cse_concat=False,
     )[:len(exprs_in) + len(exprs_out)]

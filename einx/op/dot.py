@@ -73,7 +73,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     description = description.split("->")
     if len(description) == 1:
-        # "input -> output" using [|]-choice
+        # Description: "input -> output" using [|]-choice
         expr = description[0]
         if "," in expr:
             raise ValueError("Only a single input expression is allowed when output expression is not given")
@@ -86,14 +86,14 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
         exprs_in = [expr_in1]
     else:
-        # "inputs... -> output"
+        # Description: "inputs... -> output"
         if len(description) > 2:
             raise ValueError("Operation can contain at most one '->'")
         exprs_in, expr_out = description
         exprs_in = exprs_in.split(",")
 
     if len(exprs_in) == 1 and len(tensor_shapes) == 2:
-        # input1 -> output, determine input2 implicitly
+        # Description: input1 -> output, determine input2 implicitly
         expr_in1 = einx.expr.stage1.parse(exprs_in[0])
         expr_out = einx.expr.stage1.parse(expr_out)
 
