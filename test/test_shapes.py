@@ -190,6 +190,9 @@ def test_shape_reduce(backend):
         einx.sum("(a + [b]) -> a (1 + 1)", x)
     assert einx.sum("(a + [2])", x).shape == (9,)
 
+    x = backend.zeros((16, 1, 20, 30, 64), "float32")
+    assert einx.mean("(b rg) pv [s...] c", x).shape == (16, 1, 64)
+
 @pytest.mark.parametrize("backend", backends)
 def test_shape_elementwise(backend):
     x = backend.zeros((10, 5, 1), "float32")
@@ -229,6 +232,11 @@ def test_shape_elementwise(backend):
     x = backend.zeros((10, 20), "float32")
     y = backend.zeros((10, 20, 30), "float32")
     assert einx.add("a b, a b c -> a b c", x, y).shape == (10, 20, 30)
+
+    x = backend.zeros((10, 20), "float32")
+    y = backend.zeros((30, 20), "float32")
+    with pytest.raises(Exception):
+        einx.subtract("ba c, i c -> i ba", x, y)
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_vmap(backend):
@@ -294,3 +302,4 @@ def test_shape_vmap(backend):
         return backend.stack([x, x])
     x = backend.zeros((16, 64), "float32") # b c
     assert einx.vmap("b ([c d]) -> b [2]", x, op=func, c=16).shape == (16, 2)
+    assert einx.vmap("b ([c d]) -> b [2] 1", x, op=func, c=16).shape == (16, 2, 1)

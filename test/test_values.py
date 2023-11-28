@@ -56,6 +56,10 @@ def test_values(backend):
         einx.dot("a [|b]", y, y),
         x,
     )
+    assert backend.allclose(
+        einx.dot("a [b|b]", x, y),
+        einx.multiply("a b, b -> a b", x, y),
+    )
 
     x = backend.to_tensor(np.arange(6)[np.newaxis])
     q, k, v = einx.rearrange("b (q+k+v) -> b q, b k, b v", x, q=2, k=2, v=2)
@@ -67,3 +71,10 @@ def test_values(backend):
     q, k = einx.rearrange("b (q+k) -> b q, b k", x, q=2)
     assert backend.allclose(q, backend.to_tensor([[0, 1]]))
     assert backend.allclose(k, backend.to_tensor([[2, 3]]))
+
+    x = backend.to_tensor(np.arange(4).reshape((2, 2)))
+    a, b, c, d = einx.rearrange("(a + b) (c + d) -> (a c), (a d), (b c), (b d)", x, a=1, b=1, c=1, d=1)
+    assert backend.allclose(a, backend.to_tensor([0]))
+    assert backend.allclose(b, backend.to_tensor([1]))
+    assert backend.allclose(c, backend.to_tensor([2]))
+    assert backend.allclose(d, backend.to_tensor([3]))
