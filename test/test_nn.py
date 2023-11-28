@@ -2,23 +2,25 @@ import einx, importlib
 import numpy as np
 from functools import partial
 
+norms = [("[b...] c", {}), ("b [s...] (g [c])", {"g": 2})]
+
 if importlib.util.find_spec("torch"):
     import torch, einx.nn.torch
 
     def test_torch_linear():
         x = torch.zeros((4, 128, 128, 3))
 
-        layer = einx.nn.torch.Linear(("b... [c1|c2]", {"c2": 32}))
+        layer = einx.nn.torch.Linear("b... [c1|c2]", c2=32)
         assert layer.forward(x).shape == (4, 128, 128, 32)
         layer = torch.compile(layer)
         assert layer.forward(x).shape == (4, 128, 128, 32)
 
     def test_torch_meanvar_norm():
         x = torch.zeros((4, 128, 128, 32))
-        for expr in ["[b...] c", ("b [s...] (g [c])", {"g": 2})]:
+        for expr, kwargs in norms:
             for mean in [True, False]:
                 for decay_rate in [None, 0.9]:
-                    layer = einx.nn.torch.Norm(expr, mean=mean, decay_rate=decay_rate)
+                    layer = einx.nn.torch.Norm(expr, mean=mean, decay_rate=decay_rate, **kwargs)
                     layer.train()
                     assert layer.forward(x).shape == (4, 128, 128, 32)
                     layer.eval()
@@ -39,7 +41,7 @@ if importlib.util.find_spec("haiku"):
         rng = jax.random.PRNGKey(42)
 
         def model(x):
-            return einx.nn.haiku.Linear(("b... [c1|c2]", {"c2": 32}))(x)
+            return einx.nn.haiku.Linear("b... [c1|c2]", c2=32)(x)
         model = hk.transform_with_state(model)
 
         params, state = model.init(rng=rng, x=x)
@@ -51,11 +53,11 @@ if importlib.util.find_spec("haiku"):
         x = jnp.zeros((4, 128, 128, 32))
         rng = jax.random.PRNGKey(42)
 
-        for expr in ["[b...] c", ("b [s...] (g [c])", {"g": 2})]:
+        for expr, kwargs in norms:
             for mean in [True, False]:
                 for decay_rate in [None, 0.9]:
                     def model(x, training):
-                        return einx.nn.haiku.Norm(expr, mean=mean, decay_rate=decay_rate)(x, training)
+                        return einx.nn.haiku.Norm(expr, mean=mean, decay_rate=decay_rate, **kwargs)(x, training)
                     model = hk.transform_with_state(model)
 
                     params, state = model.init(rng=rng, x=x, training=True)
@@ -74,7 +76,7 @@ if importlib.util.find_spec("flax"):
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
 
-        model = einx.nn.flax.Linear(("b... [c1|c2]", {"c2": 32}))
+        model = einx.nn.flax.Linear("b... [c1|c2]", c2=32)
         
         params = model.init(rng, x)
 
@@ -85,10 +87,10 @@ if importlib.util.find_spec("flax"):
         x = jnp.zeros((4, 128, 128, 32))
         rng = jax.random.PRNGKey(42)
 
-        for expr in ["[b...] c", ("b [s...] (g [c])", {"g": 2})]:
+        for expr, kwargs in norms:
             for mean in [True, False]:
                 for decay_rate in [None, 0.9]:
-                    model = einx.nn.flax.Norm(expr, mean=mean, decay_rate=decay_rate)
+                    model = einx.nn.flax.Norm(expr, mean=mean, decay_rate=decay_rate, **kwargs)
 
                     params = model.init(rng, x, training=True)
                     state, params = flax.core.pop(params, "params")

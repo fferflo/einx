@@ -95,23 +95,3 @@ def solve(conditions, cse=True, cse_concat=True, verbose=False):
             print(f"    {expr} = {_to_str(expr.shape)}")
 
     return expressions
-
-def _clean_description_and_parameters(description, parameters):
-    # If description is a tuple (description, parameters2), merge parameters2 into parameters
-    if isinstance(description, tuple):
-        if len(description) != 2:
-            raise ValueError("Expected tuple of length 2")
-        for k in parameters:
-            if k in description[1]:
-                raise ValueError(f"Parameter '{k}' is given twice")
-        parameters.update(description[1])
-        description = description[0]
-    if not isinstance(description, str):
-        raise ValueError("First argument must be an operation string")
-
-    # Remove parameters that are not used in the description
-    exprs = [einx.expr.stage1.parse(d) for d in description.split("->") for d in d.split(",")]
-    axis_names = {axis.name for root in exprs for axis in root.all() if isinstance(axis, einx.expr.stage1.NamedAxis)}
-    parameters = {k: v for k, v in parameters.items() if k in axis_names}
-
-    return description, parameters

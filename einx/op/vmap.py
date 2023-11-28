@@ -161,7 +161,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
     return tensors, exprs_out
 
 def parse(description, *tensor_shapes, cse=True, **parameters):
-    description, parameters = einx.expr.util._clean_description_and_parameters(description, parameters)
+    description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
 
     if "->" in description:
         # Description: Inputs and output
