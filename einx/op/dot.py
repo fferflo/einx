@@ -64,7 +64,9 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     tensor = util.transpose_broadcast(expr_out_flat, tensor, expr_out)
 
     # Unflatten output expression
-    tensor = backend.reshape(tensor, expr_out.shape)
+    assert not tensor.shape is None
+    if tensor.shape != expr_out.shape:
+        tensor = backend.reshape(tensor, expr_out.shape)
 
     return tensor, expr_out
 

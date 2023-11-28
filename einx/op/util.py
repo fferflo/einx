@@ -44,7 +44,9 @@ def flatten(exprs, tensors=None, backend=None):
         for expr, tensor in zip(exprs, tensors):
             expr = einx.expr.stage3.decompose(expr)
             expr = einx.expr.stage3.remove_unnamed_trivial_axes(expr)
-            tensor = backend.reshape(tensor, expr.shape)
+            assert not tensor.shape is None
+            if tensor.shape != expr.shape:
+                tensor = backend.reshape(tensor, expr.shape)
 
             if any(isinstance(e, einx.expr.stage3.Concatenation) for e in expr):
                 concat_index, concat_expr = [(i, e) for i, e in enumerate(expr) if isinstance(e, einx.expr.stage3.Concatenation)][0]
@@ -132,11 +134,12 @@ def transpose_broadcast(expr_in, tensor, expr_out, broadcast=True, backend=None)
 
     # Expand and broadcast missing output dimensions if necessary
     if len(out_axes_broadcast) > 0:
-        shape = tuple(1 if a.name in out_axes_broadcast else a.value for a in einx.expr.stage3.get_axes(expr_out))
-        tensor = backend.reshape(tensor, shape)
-        broadcast_shape = expr_out.shape
-        if broadcast and np.any(shape != broadcast_shape):
-            tensor = backend.broadcast_to(tensor, broadcast_shape)
+        pre_broadcast_shape = tuple(1 if a.name in out_axes_broadcast else a.value for a in einx.expr.stage3.get_axes(expr_out))
+        assert not tensor.shape is None
+        if tensor.shape != pre_broadcast_shape:
+            tensor = backend.reshape(tensor, pre_broadcast_shape)
+        if broadcast and tensor.shape != expr_out.shape:
+            tensor = backend.broadcast_to(tensor, expr_out.shape)
 
     return tensor
 
@@ -164,7 +167,9 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
     else:
         tensor_out = next(tensors_in)
 
-    tensor_out = backend.reshape(tensor_out, expr_out.shape)
+    assert not tensor_out.shape is None
+    if tensor_out.shape != expr_out.shape:
+        tensor_out = backend.reshape(tensor_out, expr_out.shape)
     return tensor_out
 
 def unflatten(exprs_in, tensors_in, exprs_out, backend=None):

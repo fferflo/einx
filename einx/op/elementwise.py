@@ -55,7 +55,9 @@ def elementwise_stage3(exprs_in, tensors_in, expr_out, backend=None, op=None):
         tensor = backend.broadcast_to(tensor, expr_out_flat.shape)
 
     # Unflatten output expression
-    tensor = backend.reshape(tensor, expr_out.shape)
+    assert not tensor.shape is None
+    if tensor.shape != expr_out.shape:
+        tensor = backend.reshape(tensor, expr_out.shape)
 
     return tensor, expr_out
 
