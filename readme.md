@@ -1,4 +1,4 @@
-# *einx* - Tensor Operations in Einstein-inspired Notation
+# *einx* - Tensor Operations in Einstein-Inspired Notation
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
@@ -106,7 +106,7 @@ The following main abstractions are provided:
 
 * `einx.rearrange`: Permute axes, insert new broadcasted axes, concatenate and split tensors (similar to `einops.{rearrange|repeat|pack|unpack}`)
 * `einx.reduce`: Reduction operations along axes like `np.sum`, `np.mean`, `np.any` (similar to `einops.reduce`)
-* `einx.dot`: General tensor dot-products (similar to `einops.einsum`)
+* `einx.dot`: General tensor dot-products (similar to `einsum`)
 * `einx.elementwise`: Element-wise operations like `np.add`, `np.multiply` or `np.where`
 * `einx.vmap`: Apply a function over batched inputs
 
@@ -119,7 +119,7 @@ einx solves expression shapes using symbolic equations with [SymPy](https://www.
 
 ### Ellipses
 
-An ellipsis repeats the expression that appears directly in front of it. The number of repetitions is determined from the shapes of the passed arguments. For example, the following operations are equivalent:
+An ellipsis repeats the expression that appears directly in front of it. The number of repetitions is determined from the shapes of the passed arguments. For example, the following lines perform the same operation:
 
 ```python
 einx.rearrange("b c h w  -> b h w  c", x)
@@ -181,21 +181,17 @@ einx.add("a [b]", x, y) # Same as: a b, b -> a b
 
 #### Tensor dot-product
 
-:warning: **This will likely be changed in a future version** :warning:
-
-For 2-place tensor dot-products, the expression for the right input can be determined implicitly:
+For 2-place tensor dot-products, the expression for the right input can be determined implicitly by marking subexpressions with `[]`-brackets:
 
 ```python
-einx.dot("b c1 -> b c2", x, y) # Same as: b c1, c1 c2 -> b c2
-
-# []-brackets in left input indicate batch axes for right input
-einx.dot("[b] c1 -> b c2", x, y) # Same as: b c1, b c1 c2 -> b c2
+einx.dot("b [c1] -> b [c2]", x, y) # Same as: b c1, c1 c2 -> b c2
+einx.dot("[b c1] -> [b c2]", x, y) # Same as: b c1, b c1 c2 -> b c2
 ```
 
 This can be simplified further by using `[input1|output]`-notation that represents both expressions as one:
 
 ```python
-einx.dot("b [c1|c2]", x, y) # Same as: b c1 -> b c2
+einx.dot("b [c1|c2]", x, y) # Same as: b [c1] -> b [c2]
 ```
 
 The left choice represents the first input tensor and the right choice represents the output tensor. The second input tensor's shape is then determined implicitly as shown above.

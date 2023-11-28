@@ -9,7 +9,6 @@ class Tracer:
         elif isinstance(shape, list):
             shape = tuple(shape)
         self.shape = shape
-        self.concrete = None
 
     def compute(self, backend, input_values, concrete_values):
         if id(self) in concrete_values:
@@ -157,9 +156,44 @@ class Op(Tracer):
                 op = self.op
             return op(*args, **kwargs)
 
+def _to_str(x, names, lines):
+    if isinstance(x, Input):
+        if id(x) in names:
+            return names[id(x)]
+        name = names[id(x)] = f"I{len([n for n in names.values() if n.startswith('I')])}"
+        return name
+    elif isinstance(x, Constant):
+        return _to_str(x.value, names, lines)
+    elif isinstance(x, Op):
+        if id(x) in names:
+            return names[id(x)]
+        name = names[id(x)] = f"X{len(names)}"
+
+        args = ", ".join([_to_str(a, names, lines) for a in x.args] + [f"{k}={_to_str(v, names, lines)}" for k, v in x.kwargs.items()])
+        op = x.op.__name__ if "__name__" in dir(x.op) else f"{x.op}"
+        line = (name, f"{op}(" + args + ")")
+        lines.append(line)
+
+        return name
+    elif isinstance(x, str):
+        return f"\"{x}\""
+    elif isinstance(x, tuple):
+        return "(" + ", ".join(_to_str(a, names, lines) for a in x) + ")"
+    elif isinstance(x, list):
+        return "[" + ", ".join(_to_str(a, names, lines) for a in x) + "]"
+    elif isinstance(x, dict):
+        return "{" + ", ".join(f"{k}: {_to_str(v, names, lines)}" for k, v in x.items()) + "}"
+    elif __name__ in dir(x):
+        return x.__name__
+    else:
+        return str(x)
+
 class Graph:
-    def __init__(self, output):
+    def __init__(self, output, name, args, kwargs):
         self.output = output
+        self.name = name
+        self.args = args
+        self.kwargs = kwargs
 
     def __call__(self, *args, backend=None, **kwargs):
         if backend is None:
@@ -177,6 +211,20 @@ class Graph:
 
         return concrete_output
 
+    def __str__(self):
+        names = {}
+        lines = []
+
+        string = f"Graph {self.name}(" + ", ".join([_to_str(a, names, lines) for a in self.args] + [f"{k}={_to_str(v, names, lines)}" for k, v in self.kwargs.items()]) + "):"
+
+        _to_str(self.output, names, lines)
+
+        max_name_len = max(len(name) for name, _ in lines)
+        lines = [f"{name:<{max_name_len}} := {line}" for name, line in lines]
+        for line in lines:
+            string += "\n    " + line
+        string += f"\n    return {_to_str(self.output, names, lines)}"
+        return string
 
 
 
@@ -197,9 +245,13 @@ class vmapped_op:
     def __call__(self, *args, **kwargs):
         def inner(*args, backend, **kwargs):
             return self.to_backend(backend)(*args, **kwargs)
+        inner.__name__ = self.__name__
         outputs = Op(inner, args=args, kwargs=kwargs, shape=None, pass_backend=True)
         return tuple(outputs[i] for i in range(len(self.out_axes)))
 
+    @property
+    def __name__(self):
+        return f"vmap({self.op.__name__ if '__name__' in dir(self.op) else str(self.op)}, in_axes={self.in_axes}, out_axes={self.out_axes})"
 
 
 def elementwise(*args, op):
@@ -344,4 +396,5 @@ class tracer:
             if not x.shape is None:
                 assert x.shape == shape, f"Expected shape {shape}, got {x.shape}"
             return x
+        inner.__name__ = "id"
         return Op(inner, args=[tensor], shape=shape)

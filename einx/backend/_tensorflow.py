@@ -94,6 +94,7 @@ def make_tensorflow_backend():
                 xs = [tf.transpose(x, perm=[(a + 1 if a < out_axis else (0 if a == out_axis else a)) for a in range(len(x.shape))]) for x, out_axis in zip(xs, out_axes)]
 
                 return tuple(xs)
+            inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
             return inner
 
         def assert_shape(tensor, shape):

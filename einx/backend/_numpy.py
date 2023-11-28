@@ -79,6 +79,7 @@ class numpy:
                     xs_stack.append(x)
             xs = tuple(np.stack(xs_stack, axis=out_axis) for out_axis, xs_stack in zip(out_axes, xs_stacks))
             return xs
+        inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
         return inner
     
     def assert_shape(tensor, shape):

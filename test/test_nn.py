@@ -77,7 +77,7 @@ if importlib.util.find_spec("flax"):
         rng = jax.random.PRNGKey(0)
 
         model = einx.nn.flax.Linear("b... [c1|c2]", c2=32)
-        
+
         params = model.init(rng, x)
 
         y = jax.jit(model.apply)(params, x=x)

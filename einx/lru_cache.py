@@ -32,7 +32,8 @@ def lru_cache(func=None, trace=None):
     lock = threading.Lock()
 
     @functools.wraps(func)
-    def inner(*args, backend=None, **kwargs):
+    def inner(*args, backend=None, graph=False, **kwargs):
+        return_graph = graph
         map = lambda x, key: einx.param.get_shape(x) if trace(key) else x
         args_key = einx.tree_util.tree_map_with_key(map, args)
         kwargs_key = einx.tree_util.tree_map_with_key(map, kwargs)
@@ -59,8 +60,9 @@ def lru_cache(func=None, trace=None):
 
             output_tracers = func(*args_replaced_with_tracers, **kwargs_replaced_with_tracers, backend=einx.backend.tracer)
 
-            graph = einx.backend.tracer.Graph(output_tracers)
+            graph = einx.backend.tracer.Graph(output_tracers, name=func.__name__, args=args_replaced_with_tracers, kwargs=kwargs_replaced_with_tracers)
             # print("###################### END TRACE ######################")
+
             with lock:
                 if h in cache:
                     candidates = cache[h]
@@ -70,6 +72,9 @@ def lru_cache(func=None, trace=None):
                         cache.popitem(False)
                 candidates.append((key, graph))
 
-        return graph(*args, backend=backend, **kwargs)
+        if return_graph:
+            return graph
+        else:
+            return graph(*args, backend=backend, **kwargs)
 
     return inner

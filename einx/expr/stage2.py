@@ -184,7 +184,7 @@ class SolveExpansionException(Exception):
         self.depths = depths
         self.message = f"Failed to solve expansion of expressions. {message}\nInput:\n"
         for expr, shape, depth in zip(expressions, shapes, depths):
-            self.message += f"    '{expr}' has shape {einx.expr.util._to_str(shape)} at depth {depth})\n"
+            self.message += f"    '{expr}' has shape {einx.expr.util._to_str(shape)} at depth {depth}\n"
         super().__init__(self.message)
 
 def solve(expressions, shapes, depths):

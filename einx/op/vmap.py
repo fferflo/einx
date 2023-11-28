@@ -1,4 +1,4 @@
-import einx, inspect
+import einx, inspect, functools
 from . import util
 import numpy as np
 
@@ -45,6 +45,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
         print("    IN_FLAT:", [str(e) for e in exprs_in_funcargs_flat])
         print("    OUT_FLAT:", [str(e) for e in exprs_out_funcargs_flat])
 
+    op_ = op
     def op(*tensors_in_flat, op=op):
         if verbose:
             print("Flat input tensors that arrived in op:", [str(a.shape) for a in tensors_in_flat])
@@ -80,6 +81,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
         if verbose:
             print("Returning types from vmapped function:", [type(t) for t in tensors_out])
         return tuple(tensors_out)
+    op.__name__ = f"wrapped({op_.__name__ if '__name__' in dir(op_) else str(op_)})"
 
     # Get ordered list of vmapped axes
     def is_vmapped(expr):

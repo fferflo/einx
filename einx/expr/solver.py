@@ -146,15 +146,15 @@ def solve(equations):
     for t1, t2 in equations:
         if isinstance(t1, Variable) and isinstance(t2, Constant):
             if constants.get(t1.id, t2.value) != t2.value:
-                raise SolveException(f"Found contradictory constant values {set(constants[t1.id], t2.value)} for axis '{t1.name}'")
+                raise SolveException(f"Found contradictory values {set([constants[t1.id], t2.value])} for expression '{t1.name}'")
             constants[t1.id] = t2.value
         elif isinstance(t1, Constant) and isinstance(t2, Variable):
             if constants.get(t2.id, t1.value) != t1.value:
-                raise SolveException(f"Found contradictory constant values {set(constants[t2.id], t1.value)} for axis '{t2.name}'")
+                raise SolveException(f"Found contradictory values {set([constants[t2.id], t1.value])} for expression '{t2.name}'")
             constants[t2.id] = t1.value
         elif isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
-                raise SolveException(f"Found contradictory constant definition {t1.value} != {t2.value}")
+                raise SolveException(f"Found contradictory values {t1.value} != {t2.value}")
 
     # Find equivalence classes of variables
     classes = {v: set([v]) for v in variables} # id: set of equivalent ids
@@ -176,13 +176,13 @@ def solve(equations):
             if len(class_constants) != 1:
                 names = set(variables[a].name for a in eclass)
                 if len(names) == 1:
-                    raise SolveException(f"Found contradictory values {class_constants} for axis '{next(iter(names))}'")
+                    raise SolveException(f"Found contradictory values {class_constants} for expression '{next(iter(names))}'")
                 else:
-                    raise SolveException(f"Found contradictory values {class_constants} for equivalent axes {names}")
+                    raise SolveException(f"Found contradictory values {class_constants} for equivalent expressions {names}")
             v = Constant(next(iter(class_constants)))
         else:
             # Create new variable for class
-            v = Variable(f"Class-{id(eclass)}", f"Equivalent axes {set(variables[a].name for a in eclass)}")
+            v = Variable(f"Class-{id(eclass)}", f"Equivalent expressions {set(variables[a].name for a in eclass)}")
         for n in eclass:
             assert not n in origvar_to_solvevar
             origvar_to_solvevar[n] = v

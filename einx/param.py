@@ -15,7 +15,7 @@ def get_shape(x):
 
 def instantiate(x, shape, backend, **kwargs):
     if backend == einx.backend.tracer:
-        return einx.backend.tracer.Op(lambda x, backend: instantiate(x, shape, backend=backend, **kwargs), [x], shape=shape, pass_backend=True)
+        return einx.backend.tracer.Op(instantiate, [x], {"shape": shape} | kwargs, shape=shape, pass_backend=True)
     else:
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)

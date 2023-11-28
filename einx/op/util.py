@@ -130,7 +130,7 @@ def transpose_broadcast(expr_in, tensor, expr_out, broadcast=True, backend=None)
 
     perm = [in_axes.index(out_axis) for out_axis in out_axes_intersect]
     if perm != list(range(len(perm))):
-        tensor = backend.transpose(tensor, perm)
+        tensor = backend.transpose(tensor, tuple(perm))
 
     # Expand and broadcast missing output dimensions if necessary
     if len(out_axes_broadcast) > 0:
