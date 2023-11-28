@@ -1,5 +1,5 @@
 from . import stage1, solver
-import re
+import re, einx
 import numpy as np
 from collections import defaultdict
 
@@ -167,9 +167,25 @@ class Marker(Expression):
 
 
 
-class SolveError(Exception):
-    def __init__(self, message):
-        self.message = message
+class SolveDepthException(Exception):
+    def __init__(self, expressions, shapes, depths, message):
+        self.expressions = expressions
+        self.shapes = shapes
+        self.depths = depths
+        self.message = f"Failed to solve depths of expressions. {message}\nInput:\n"
+        for expr, shape, depth in zip(expressions, shapes, depths):
+            self.message += f"    '{expr}' has depth {depth}\n"
+        super().__init__(self.message)
+
+class SolveExpansionException(Exception):
+    def __init__(self, expressions, shapes, depths, message):
+        self.expressions = expressions
+        self.shapes = shapes
+        self.depths = depths
+        self.message = f"Failed to solve expansion of expressions. {message}\nInput:\n"
+        for expr, shape, depth in zip(expressions, shapes, depths):
+            self.message += f"    '{expr}' has shape {einx.expr.util._to_str(shape)} at depth {depth})\n"
+        super().__init__(self.message)
 
 def solve(expressions, shapes, depths):
     if any(not isinstance(expr, stage1.Expression) for expr in expressions):
@@ -190,7 +206,7 @@ def solve(expressions, shapes, depths):
     symbolic_expr_depths = {}
     for root in expressions:
         for expr in root.all():
-            symbolic_expr_depths[id(expr)] = solver.Variable(str(id(expr)))
+            symbolic_expr_depths[id(expr)] = solver.Variable(str(id(expr)), str(expr))
 
     # Add equations: Depth relations between subexpressions
     for root in expressions:
@@ -214,18 +230,27 @@ def solve(expressions, shapes, depths):
         for axis in root.all():
             if isinstance(axis, stage1.NamedAxis):
                 if not axis.name in symbolic_axis_depths:
-                    symbolic_axis_depths[axis.name] = solver.Variable(axis.name)
+                    symbolic_axis_depths[axis.name] = solver.Variable(axis.name, axis.name)
                 equations.append((symbolic_expr_depths[id(axis)], symbolic_axis_depths[axis.name]))
 
     # Solve
-    expr_depths = solver.solve(equations)
+    try:
+        expr_depths = solver.solve(equations)
+    except solver.SolveException as e:
+        raise SolveDepthException(expressions, shapes, depths, str(e))
     expr_depths = {int(k): int(v) for k, v in expr_depths.items() if not str(k) in symbolic_axis_depths}
 
-    for i, root in enumerate(expressions):
+    failed_exprs = set()
+    for root in expressions:
         for expr in root.all():
             if not id(expr) in expr_depths:
-                raise SolveError(f"Failed to solve depth of expression {expr}")
+                failed_exprs.add(str(expr))
+    if len(failed_exprs) == 1:
+        raise SolveDepthException(expressions, shapes, depths, f"Found no unique solution for '{failed_exprs.pop()}'")
+    elif len(failed_exprs) > 1:
+        raise SolveValueError(expressions, shapes, depths, f"Found no unique solutions for {failed_exprs}")
 
+    for i, root in enumerate(expressions):
         # Add missing dimensions to shapes
         if not shapes[i] is None:
             assert len(shapes[i]) >= 1
@@ -242,8 +267,6 @@ def solve(expressions, shapes, depths):
                 expressions[i] = stage1.Ellipsis(expressions[i], expressions[i].begin_pos, expressions[i].end_pos)
                 expr_depths[id(expressions[i])] = expr_depths[id(expressions[i].inner)] - 1
 
-    # print("Depths:", [(str(expr), expr_depths[id(expr)]) for root in expressions for expr in root])
-
     # ##### 2. Find ellipsis expansions #####
     equations = []
 
@@ -252,7 +275,7 @@ def solve(expressions, shapes, depths):
         for expr in root.all():
             for depth in range(expr_depths[id(expr)] + 1):
                 key = (id(expr), depth)
-                symbolic_expr_expansions[key] = solver.Variable(f"{id(expr)},{depth}")
+                symbolic_expr_expansions[key] = solver.Variable(f"{id(expr)},{depth}", f"{expr} at depth {depth}")
 
     # Add equations: Expansion of an expression at depth d (less than own depth) is equal to the expansion of each child at depth d
     for root in expressions:
@@ -299,11 +322,14 @@ def solve(expressions, shapes, depths):
             if isinstance(axis, stage1.NamedAxis):
                 for depth in range(expr_depths[id(axis)] + 1):
                     if not axis.name in symbolic_axis_expansions:
-                        symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"{axis.name},{depth}")
+                        symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"{axis.name},{depth}", f"{axis.name} at depth {depth}")
                     equations.append((symbolic_expr_expansions[(id(axis), depth)], symbolic_axis_expansions[(axis.name, depth)]))
 
     # Solve
-    solutions = solver.solve(equations)
+    try:
+        solutions = solver.solve(equations)
+    except solver.SolveException as e:
+        raise SolveExpansionException(expressions, shapes, depths, str(e))
     def to_key(k):
         return int(id_expr), int(depth)
     expansion_values = {}
@@ -316,11 +342,15 @@ def solve(expressions, shapes, depths):
         depth = int(depth)
         expansion_values[(id_expr, depth)] = int(v)
 
-    # print("Expansions:", [f"{expr} d={depth} v={expansion_values[(id(expr), depth)]}" for root in expressions for expr in root for depth in range(expr_depths[id(expr)] + 1) if (id(expr), depth) in expansion_values])
-
+    failed_exprs = set()
     for root in expressions:
-        if not (id(root), expr_depths[id(root)]) in expansion_values:
-            raise SolveError(f"Failed to solve expansion of expression '{root}'")
+        for expr in root.all():
+            if not (id(root), expr_depths[id(root)]) in expansion_values:
+                failed_exprs.add(str(expr))
+    if len(failed_exprs) == 1:
+        raise SolveExpansionException(expressions, shapes, depths, f"Found no unique solution for '{failed_exprs.pop()}'")
+    elif len(failed_exprs) > 1:
+        raise SolveExpansionException(expressions, shapes, depths, f"Found no unique solutions for {failed_exprs}")
 
     def is_unnamed(expr):
         for expr in expr.all():

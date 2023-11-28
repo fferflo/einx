@@ -22,6 +22,16 @@ class Condition:
     def __hash__(self):
         return hash((self.expr, self.value, self.shape, self.depth))
 
+def _to_str(l): # Print numpy arrays in a single line rather than with line breaks
+    if l is None:
+        return "None"
+    elif isinstance(l, np.ndarray):
+        return str(tuple(l.tolist()))
+    elif isinstance(l, list):
+        return str(tuple(l))
+    else:
+        return str(l)
+
 def solve(conditions, cse=True, cse_concat=True, verbose=False):
     if any(not isinstance(c, Condition) for c in conditions):
         raise ValueError("All arguments must be of type Condition")
@@ -31,25 +41,17 @@ def solve(conditions, cse=True, cse_concat=True, verbose=False):
     shapes = [t.shape for t in conditions]
     depths = [t.depth for t in conditions]
 
-    def to_str(l): # Print numpy arrays in a single line rather than with line breaks
-        if l is None:
-            return "None"
-        elif isinstance(l, np.ndarray):
-            return str(l.tolist())
-        else:
-            return str(l)
-
     if verbose:
         print("Stage0:")
         for expr, value, shape, depth in zip(expressions, values, shapes, depths):
-            print(f"    {expr} = {to_str(value)} (shape={to_str(shape)} at depth={depth})")
+            print(f"    {expr} = {_to_str(value)} (shape={_to_str(shape)} at depth={depth})")
 
     expressions = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in expressions]
 
     if verbose:
         print("Stage1:")
         for expr, value, shape, depth in zip(expressions, values, shapes, depths):
-            print(f"    {expr} = {to_str(value)} (shape={to_str(shape)} at depth={depth})")
+            print(f"    {expr} = {_to_str(value)} (shape={_to_str(shape)} at depth={depth})")
 
     expressions = stage2.solve(expressions, shapes, depths)
 
@@ -75,7 +77,7 @@ def solve(conditions, cse=True, cse_concat=True, verbose=False):
     if verbose:
         print("Stage2:")
         for expr, value in zip(expressions, values):
-            print(f"    {expr} = {to_str(value)}")
+            print(f"    {expr} = {_to_str(value)}")
 
     if cse:
         expressions = stage2.cse(expressions, cse_concat=cse_concat)
@@ -83,14 +85,14 @@ def solve(conditions, cse=True, cse_concat=True, verbose=False):
         if verbose:
             print("Stage2.CSE:")
             for expr, value in zip(expressions, values):
-                print(f"    {expr} = {to_str(value)}")
+                print(f"    {expr} = {_to_str(value)}")
 
     expressions = stage3.solve(expressions, values)
 
     if verbose:
         print("Stage3:")
         for expr in expressions:
-            print(f"    {expr} = {to_str(expr.shape)}")
+            print(f"    {expr} = {_to_str(expr.shape)}")
 
     return expressions
 

@@ -1,6 +1,7 @@
 from . import stage2, solver
 import numpy as np
 from functools import partial
+import einx
 
 class Expression:
     def __init__(self, value):
@@ -199,9 +200,14 @@ class Marker(Expression):
 
 
 
-class SolveError(Exception):
-    def __init__(self, message):
-        self.message = message
+class SolveValueException(Exception):
+    def __init__(self, expressions, values, message):
+        self.expressions = expressions
+        self.values = values
+        self.message = f"Failed to solve values of expressions. {message}\nInput:\n"
+        for expr, value in zip(expressions, values):
+            self.message += f"    '{expr}' has shape {einx.expr.util._to_str(value)}\n"
+        super().__init__(self.message)
 
 def solve(expressions, values):
     if any(not isinstance(expr, stage2.Expression) for expr in expressions):
@@ -215,7 +221,7 @@ def solve(expressions, values):
     symbolic_expr_values = {}
     for root in expressions:
         for expr in root.all():
-            symbolic_expr_values[id(expr)] = solver.Variable(str(id(expr)))
+            symbolic_expr_values[id(expr)] = solver.Variable(str(id(expr)), str(expr))
 
     # Add equations: Relations between expressions and their children
     for root in expressions:
@@ -261,26 +267,34 @@ def solve(expressions, values):
         for axis in root.all():
             if isinstance(axis, stage2.NamedAxis):
                 if not axis.name in sympy_axis_values:
-                    sympy_axis_values[axis.name] = solver.Variable(axis.name)
+                    sympy_axis_values[axis.name] = solver.Variable(axis.name, axis.name)
                 equations.append((
                     symbolic_expr_values[id(axis)],
                     sympy_axis_values[axis.name],
                 ))
 
     # Solve
-    axis_values = solver.solve(equations)
+    try:
+        axis_values = solver.solve(equations)
+    except solver.SolveException as e:
+        raise SolveValueException(expressions, values, str(e))
     axis_values = {int(k): int(v) for k, v in axis_values.items() if not str(k) in sympy_axis_values}
 
-    required_exprs = [expr for root in expressions for expr in root]
-    failed_exprs = [expr for expr in required_exprs if not id(expr) in axis_values]
-    if len(failed_exprs) > 0:
-        raise SolveError(f"Failed to solve axis values. Could not determine value for expressions: {set([str(expr) for expr in failed_exprs])}")
+    failed_axes = set()
+    for root in expressions:
+        for expr in root.all():
+            if isinstance(expr, stage2.NamedAxis):
+                if not id(expr) in axis_values:
+                    failed_axes.add(str(expr))
+    if len(failed_axes) == 1:
+        raise SolveValueException(expressions, values, f"Found no unique solution for '{failed_axes.pop()}'")
+    elif len(failed_axes) > 1:
+        raise SolveValueException(expressions, values, f"Found no unique solutions for {failed_axes}")
 
     # Map stage2 expressions to stage3 expressions
     def map(expr):
         if isinstance(expr, stage2.NamedAxis):
-            if not id(expr) in axis_values:
-                raise SolveError(f"Failed to solve value of axis '{str(expr)}'")
+            assert id(expr) in axis_values
             return Axis(expr.name, axis_values[id(expr)])
         elif isinstance(expr, stage2.UnnamedAxis):
             assert id(expr) in axis_values
