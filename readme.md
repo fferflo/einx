@@ -263,17 +263,8 @@ Unkown tensor objects and python sequences are converted to numpy via `np.asarra
 For full compatibility with einops shape expressions, einx implicitly converts anonymous ellipses (that do not have a preceeding expression) by adding a name in front:
 
 ```python
-einx.rearrange("b ... -> ... b", x) # Same as: "b anonymous_ellipsis... -> anonymous_ellipsis... b"
+einx.rearrange("b ... -> ... b", x) # Same as: "b _anonymous_ellipsis_variable... -> _anonymous_ellipsis_variable... b"
 ```
-
-This behavior can be turned off:
-
-```python
-einx.anonymous_ellipsis_name = None
-einx.rearrange("b ... -> ... b", x) # Fails
-```
-
-einx currently includes equivalent operations for `einops.rearrange`, `einops.repeat`, `einops.reduce` and `einops.einsum`. Support for other operations (`einops.pack` and `einops.unpack`) might be added in the future.
 
 ### Lazy tensor construction
 
