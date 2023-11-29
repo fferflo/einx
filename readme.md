@@ -3,14 +3,18 @@
 einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
 - *Seamless integration* with tensor frameworks like Numpy, PyTorch, Tensorflow, Jax.
-- *Zero-overhead* when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html). (See [Performance](#performance))
+- *Zero-overhead* when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html). (See [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance))
 - *Compatible with einops expressions.* Any einops shape expression is also a valid einx shape expression.
-
-If you are new to Einstein-notation, see [this great einops tutorial](https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb) for an introduction and many useful examples.<br>If you have already worked with einops, see the following for an introduction to the features of einx.
 
 :warning: **This library is currently experimental and may undergo breaking changes.** :warning:
 
-[Go to Overview](#overview)
+[Getting Started](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
+
+### Installation
+
+```python
+pip install git+https://github.com/fferflo/einx.git
+```
 
 ### Examples (tl;dr)
 
@@ -62,10 +66,4 @@ spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 
 # See scripts/train_{torch|flax|haiku}.py for example trainings on CIFAR10
-```
-
-### Installation
-
-```python
-pip install git+https://github.com/fferflo/einx.git
 ```
