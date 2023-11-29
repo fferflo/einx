@@ -1,0 +1,8 @@
+sphinx>=6.0.0
+sphinx-autodoc-typehints
+sphinx-book-theme>=1.0.1
+.
+
+dm-haiku
+flax
+torch
