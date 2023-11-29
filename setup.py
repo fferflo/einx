@@ -6,7 +6,7 @@ setup(
     name="einx",
     version="0.1.0",
     python_requires=">=3",
-    description="Tensor Operations expressed in Einstein Notation",
+    description="Tensor Operations Expressed in Einstein-Inspired Notation",
     author="Florian Fervers",
     author_email="florian.fervers@gmail.com",
     url="https://github.com/fferflo/einx",

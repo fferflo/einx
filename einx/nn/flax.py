@@ -66,6 +66,21 @@ class _Norm(nn.Module):
         )
 
 def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, dtype="float32", **kwargs):
+    """Normalization layer.
+
+    Args:
+        stats: Einstein string determining the axes along which mean and variance are computed. Will be passed to ``einx.reduce``.
+        params: Einstein string determining the axes along which learnable parameters are applied. Will be passed to ``einx.elementwise``. Defaults to ``"b... [c]"``.
+        mean: Whether to apply mean normalization. Defaults to ``True``.
+        var: Whether to apply variance normalization. Defaults to ``True``.
+        scale: Whether to apply a learnable scale according to ``params``. Defaults to ``True``.
+        bias: Whether to apply a learnable bias according to ``params``. Defaults to ``True``.
+        epsilon: A small float added to the variance to avoid division by zero. Defaults to ``1e-5``.
+        dtype: Data type of the weights. Defaults to ``"float32"``.
+        decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
+        **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+    
     return _Norm(stats, params=params, mean=mean, var=var, scale=scale, bias=bias, decay_rate=decay_rate, epsilon=epsilon, dtype=dtype, kwargs=kwargs)
 
 class _Linear(nn.Module):
@@ -85,6 +100,15 @@ class _Linear(nn.Module):
         )
 
 def Linear(expr, bias=True, dtype="float32", **kwargs):
+    """Linear layer.
+
+    Args:
+        expr: Einstein string determining the axes along which the weight matrix is multiplied. Will be passed to ``einx.dot``.
+        bias: Whether to apply a learnable bias. Defaults to ``True``.
+        dtype: Data type of the weights. Defaults to ``"float32"``.
+        **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+
     return _Linear(expr, bias=bias, dtype=dtype, kwargs=kwargs)
 
 class _Dropout(nn.Module):
@@ -107,4 +131,13 @@ class _Dropout(nn.Module):
             return x
 
 def Dropout(expr, drop_rate, rng_collection="dropout", **kwargs):
+    """Dropout layer.
+
+    Args:
+        expr: Einstein string determining the axes along which dropout is applied. Will be passed to ``einx.elementwise``.
+        drop_rate: Drop rate.
+        rng_collection: the rng collection name to use when requesting an rng key. Defaults to ``"dropout"``.
+        **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+
     return _Dropout(expr, drop_rate, rng_collection=rng_collection, kwargs=kwargs)

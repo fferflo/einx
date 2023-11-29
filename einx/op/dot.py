@@ -141,6 +141,79 @@ def dot_stage0(description, *tensors, backend=None, cse=True, **parameters):
     return tensor
 
 def dot(arg0, *args, **kwargs):
+    """Computes a general dot-product of the input tensors.
+
+    The function flattens all input tensors, applies the general dot-product yielding a single output tensor, and rearranges
+    the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+
+    The `description` argument specifies the input and output expressions. It must meet one of the following formats:
+
+    1. ``input1, input2, ... -> output``
+        All input and output expressions are specified explicitly. Similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_ notation.
+        
+    2. ``input1 -> output``
+        The function accepts two input tensors. ``[]``-brackets mark all axes in ``input1`` and ``output`` that should also appear in the second input.
+        The second input is then determined as an ordered list of all marked axes (without duplicates).
+        
+        Example: ``[b c1] -> [b c2]`` resolves to ``b c1, b c1 c2 -> b c2``
+
+    3. ``... [input1|output] ...``
+        The function accepts two input tensors. The left and right choices correspond to the first input tensor and the output tensor, respectively.
+
+        Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
+
+    If an input tensors contains a concatenation, it is first split into separate tensors. All resulting tensors are used as inputs to the function.
+
+    Args:
+        description: Description string in Einstein notation (see above).
+        tensors: Input tensors or tensor factories matching the description string.
+        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
+        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        The result of the dot-product operation if `graph=False`, otherwise the graph representation of the operation.
+
+    Examples:
+        Compute an inner product between two vectors:
+
+        >>> a, b = np.random.uniform(size=(10,)), np.random.uniform(size=(10,))
+        >>> einx.dot("a, b ->", a, b).shape
+        ()
+
+        Compute a matrix-vector product:
+
+        >>> a, b = np.random.uniform(size=(10, 10)), np.random.uniform(size=(10,))
+        >>> einx.dot("a b, b -> a", a, b).shape
+        (10,)
+        >>> einx.dot("a [b] -> a", a, b).shape
+        (10,)
+        >>> einx.dot("a [b|]", a, b).shape
+        (10,)
+
+        Compute a vector-matrix product:
+
+        >>> a, b = np.random.uniform(size=(10,)), np.random.uniform(size=(10, 10))
+        >>> einx.dot("a, a b -> b", a, b).shape
+        (10,)
+        >>> einx.dot("[a] -> [b]", a, b).shape
+        (10,)
+        >>> einx.dot("[a|b]", a, b).shape
+        (10,)
+
+        Multiply a tensor with a weight matrix:
+
+        >>> x, w = np.random.uniform(size=(4, 16, 16, 64)), np.random.uniform(size=(64, 32,))
+        >>> einx.dot("b... [c1|c2]", x, w).shape
+        (4, 16, 16, 32)
+
+        Split a tensor in two parts and compute an inner product along the split axis:
+
+        >>> x = np.random.uniform(size=(4, 64))
+        >>> einx.dot("a (b + b) -> a", x).shape
+        (4,)
+    """
     if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
         return dot_stage0(arg0, *args, **kwargs)
     else:

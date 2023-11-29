@@ -65,6 +65,56 @@ def rearrange_stage0(description, *tensors, backend=None, cse=True, **parameters
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def rearrange(arg0, *args, **kwargs):
+    """Rearranges the input tensors to match the output expressions.
+
+    (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+
+    The `description` argument specifies the input and output expressions. It must meet the following format:
+    ``input1, input2, ... -> output1, output2, ...``
+
+    Args:
+        description: Description string in Einstein notation (see above).
+        tensors: Input tensors or tensor factories matching the description string.
+        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
+        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        The result of the elementwise operation if `graph=False`, otherwise the graph representation of the operation.
+
+    Examples:
+        Transpose the row and column axes of a batch of images:
+
+        >>> x = np.random.uniform(size=(4, 64, 48, 3))
+        >>> einx.rearrange("b h w c -> b w h c", x).shape
+        (4, 48, 64, 3,)
+
+        Insert new axis (repeats elements along the new axis):
+
+        >>> x = np.random.uniform(size=(10, 10))
+        >>> einx.rearrange("a b -> a c b", x, c=100).shape
+        (10, 100, 10,)
+
+        Concatenate two tensors along the first axis:
+
+        >>> a, b = np.random.uniform(size=(10, 10)), np.random.uniform(size=(20, 10))
+        >>> einx.rearrange("a b, c b -> (a + c) b", a, b).shape
+        (30, 10,)
+
+        Split a tensor:
+
+        >>> x = np.random.uniform(size=(10, 2))
+        >>> a, b = einx.rearrange("a (1 + 1) -> a, a", x)
+        >>> a.shape, b.shape
+        ((10,), (10,))
+
+        Swap the first and last third of a tensor along a given axis:
+
+        >>> x = np.arange(6)
+        >>> einx.rearrange("(b + c + d) -> (d + c + b)", x, b=2, c=2)
+        array([4, 5, 2, 3, 0, 1])
+    """
     if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
         return rearrange_stage0(arg0, *args, **kwargs)
     else:

@@ -210,6 +210,60 @@ def vmap_stage0(description, *tensors, op, backend=None, cse=True, **parameters)
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def vmap(arg0, *args, **kwargs):
+    """Vectorizes a function and applies it over batched tensors.
+
+    The function flattens all input tensors, applies the vectorized operation on the tensors and rearranges
+    the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    Tensors are passed to and should be returned from the operation ``op`` in unflattened representation, i.e. matching
+    the layout of marked subexpressions in `description`.
+
+    The `description` argument specifies the input and output expressions. It must meet one of the following formats:
+
+    1. ``input1, input2, ... -> output1, output2, ...``
+        All input and output expressions are specified explicitly. The operation is applied over all axes marked with ``[]``-brackets.
+        All other axes are considered batch axes.
+
+    2. ``... [input1|output] ...``
+        The function accepts one input and one output tensor. The left and right choices correspond to the input and output tensor, respectively.
+
+        Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
+
+    The function ``op`` should accept input tensors and yield output tensors as specified in ``description`` with shapes matching the subexpressions that
+    are marked with ``[]``-brackets.
+
+    Args:
+        description: Description string in Einstein notation (see above).
+        tensors: Input tensors or tensor factories matching the description string.
+        op: Operation that will be vectorized. 
+        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
+        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        The result of the vectorized operation if `graph=False`, otherwise the graph representation of the operation.
+
+    Examples:
+        Compute the mean along rows of a matrix:
+
+        >>> x = np.random.uniform(size=(10, 8))
+        >>> einx.vmap("a [b] -> a", x, op=np.mean)
+        (10,)
+
+        Vectorize a custom function:
+
+        >>> x, y = np.random.uniform(size=(10, 13, 4)), np.random.uniform(size=(4, 9,))
+        >>> def op(x, y): # c, d -> 2
+        >>>     return np.stack([np.mean(x), np.max(y)])
+        >>> einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=op).shape
+        (4, 2, 10)
+
+        Compute a matrix-matrix multiplication
+
+        >>> x, y = np.random.uniform(size=(5, 10)), np.random.uniform(size=(10, 3))
+        >>> einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot).shape
+        (5, 3,)
+    """
     if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
         return vmap_stage0(arg0, *args, **kwargs)
     else:

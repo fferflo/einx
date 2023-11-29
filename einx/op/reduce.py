@@ -129,6 +129,65 @@ def reduce_stage0(description, *tensors, op, keepdims=None, backend=None, cse=Tr
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def reduce(arg0, *args, **kwargs):
+    """Applies a reduction operation on each given tensor.
+
+    The function flattens all input tensors, applies the given reduction operation on each tensor and rearranges
+    the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+
+    The `description` argument specifies the input and output expressions, as well as reduced axes. It must meet one of the following formats:
+
+    1. ``input1, input2, ... -> output1, output2, ...``
+        All input and output expressions are specified explicitly. Reduced axes are marked with ``[]``-brackets in the input expressions. If no axes are
+        marked, reduces all axes that do not appear in one of the output expressions.
+
+    2. ``input1``
+        A single input expression is specified. Reduced axes are marked with ``[]``-brackets. The output expression is determined by removing all marked expressions
+        from the input expression.
+
+        Example: ``a [b]`` resolves to ``a b -> a``.
+
+    Args:
+        description: Description string in Einstein notation (see above).
+        tensors: Input tensors or tensor factories matching the description string.
+        op: Backend reduction operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
+        keepdims: Whether to replace marked expressions with 1s instead of removing them. Defaults to False.
+        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
+        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        The result of the reduction operation if ``graph=False``, otherwise the graph representation of the operation.
+
+    Examples:
+        Compute mean along rows of a matrix:
+
+        >>> x = np.random.uniform(size=(16, 20))
+        >>> einx.mean("a b -> b", x).shape
+        (20,)
+        >>> einx.mean("[a] b -> b", x).shape
+        (20,)
+        >>> einx.mean("[a] b", x).shape
+        (20,)
+
+        Compute sum along rows of a matrix and broadcast to the original shape:
+
+        >>> x = np.random.uniform(size=(16, 20))
+        >>> einx.sum("[a] b -> a b", x).shape
+        (16, 20,)
+
+        Sum pooling with kernel size 2:
+
+        >>> x = np.random.uniform(size=(4, 16, 16, 3))
+        >>> einx.sum("b (s [s2])... c", x, s2=2).shape
+        (4, 8, 8, 3)
+
+        Compute variance per channel over an image:
+
+        >>> x = np.random.uniform(size=(256, 256, 3))
+        >>> einx.var("[...] c", x).shape
+        (3,)
+    """
     if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
         return reduce_stage0(arg0, *args, **kwargs)
     else:

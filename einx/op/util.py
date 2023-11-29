@@ -1,20 +1,20 @@
 import einx, sys
 import numpy as np
 
-"""Flatten the given expressions and optionally the corresponding tensors.
-
-Flattening removes all compositions and concatenations and returns a list of new expressions (and optinally a list of flattened tensors).
-
-Parameters:
-    exprs: Expressions to flatten.
-    tensors: Tensors corresponding to ``exprs``. If None, flattens and returns only ``exprs``. Defaults to None.
-    backend: Backend to use for tensor operations. If None, determines backend from ``tensors``. Defaults to None.
-
-Returns:
-    exprs: The flattened expressions.
-    tensors, optional: The flattened tensors. Only returned if ``tensors`` is not None.
-"""
 def flatten(exprs, tensors=None, backend=None):
+    """Flatten the given expressions and optionally the corresponding tensors.
+
+    Flattening removes all compositions and concatenations and returns a list of new expressions (and optinally a list of flattened tensors).
+
+    Parameters:
+        exprs: Expressions to flatten.
+        tensors: Tensors corresponding to ``exprs``. If None, flattens and returns only ``exprs``. Defaults to None.
+        backend: Backend to use for tensor operations. If None, determines backend from ``tensors``. Defaults to None.
+
+    Returns:
+        exprs: The flattened expressions.
+        tensors, optional: The flattened tensors. Only returned if ``tensors`` is not None.
+    """
     if tensors is None:
         exprs_out = []
         for expr in exprs:
@@ -71,18 +71,18 @@ def flatten(exprs, tensors=None, backend=None):
 
         return exprs_out, tensors_out
 
-"""Solve the assignment problem between input and output expressions.
-
-If multiple solutions exist: For each output expression in order, choose the first input expression that matches.
-
-Parameters:
-    exprs_in: Input expressions.
-    exprs_out: Output expressions:
-
-Returns:
-    indices: Indices into ``exprs_in`` with the same ordering as ``exprs_out``.
-"""
 def assignment(exprs_in, exprs_out):
+    """Solve the assignment problem between input and output expressions.
+
+    If multiple solutions exist: For each output expression in order, choose the first input expression that matches.
+
+    Args:
+        exprs_in: Input expressions.
+        exprs_out: Output expressions.
+
+    Returns:
+        indices: Indices into ``exprs_in`` with the same ordering as ``exprs_out``.
+    """
     if len(exprs_in) != len(exprs_out):
         raise ValueError("Got different number of input and output expressions")
     axes_in = [set([a.name for a in einx.expr.stage3.get_named_axes(expr_in)]) for expr_in in exprs_in]
