@@ -29,7 +29,7 @@ class Net(nn.Module):
         blocks = []
         for c in [1024, 512, 256]:
             blocks.append(einn.Linear("b [...|c]", c=c))
-            blocks.append(einn.Norm("b [c]"))
+            blocks.append(einn.Norm("[b] c", decay_rate=0.99))
             blocks.append(nn.GELU())
             blocks.append(einn.Dropout("[...]", drop_rate=0.2))
         blocks.append(einn.Linear("b [...|c]", c=10))
@@ -40,12 +40,12 @@ class Net(nn.Module):
 
 net = Net()
 
-# Run once to initialize parameter shapes (see: https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html)
+# Run once to initialize parameters (see: https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html)
 inputs, labels = next(iter(trainloader))
 net(inputs)
 
 # Just-in-time compile
-net = torch.compile(net)
+# net = torch.compile(net)
 
 optimizer = optim.Adam(net.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()

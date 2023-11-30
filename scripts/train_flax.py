@@ -37,7 +37,7 @@ class Net(nn.Module):
     def __call__(self, x, training):
         for c in [1024, 512, 256]:
             x = einn.Linear("b [...|c]", c=c)(x)
-            x = einn.Norm("b [c]")(x)
+            x = einn.Norm("[b] c", decay_rate=0.99)(x, training=training)
             x = nn.gelu(x)
             x = einn.Dropout("[...]", drop_rate=0.2)(x, training=training)
         x = einn.Linear("b [...|c]", c=10)(x)
@@ -45,27 +45,30 @@ class Net(nn.Module):
 
 net = Net()
 inputs, labels = next(iter(trainloader))
-params = net.init(next_rng(), jnp.asarray(inputs), training=False)["params"]
-tx = optax.adam(3e-4)
-state = train_state.TrainState.create(apply_fn=net.apply, params=params, tx=tx)
+params = net.init({"dropout": next_rng(), "params": next_rng()}, jnp.asarray(inputs), training=True)
 
+optimizer = optax.adam(3e-4)
+opt_state = optimizer.init(params["params"])
 
 @partial(jax.jit, donate_argnums=(0,))
-def update_step(state, images, labels, rng):
-    def loss_fn(params):
-        logits = state.apply_fn({"params": params}, images, training=True, rngs={"dropout": rng})
+def update_step(params, opt_state, images, labels, rng):
+    def loss_fn(params, stats):
+        logits, new_stats = net.apply({"params": params, "stats": stats}, images, training=True, rngs={"dropout": rng}, mutable=["stats"])
         one_hot = jax.nn.one_hot(labels, 10)
         loss = jnp.mean(optax.softmax_cross_entropy(logits=logits, labels=one_hot))
-        return loss
+        return loss, new_stats
 
-    grads = jax.grad(loss_fn)(state.params)
-    state = state.apply_gradients(grads=grads)
+    (loss, new_stats), grads = jax.value_and_grad(loss_fn, has_aux=True)(params["params"], params["stats"])
+    params["stats"] = new_stats["stats"]
 
-    return state
+    updates, new_opt_state = optimizer.update(grads, opt_state, params["params"])
+    params["params"] = optax.apply_updates(params["params"], updates)
+
+    return params, new_opt_state
 
 @jax.jit
-def test_step(state, images, labels):
-    logits = state.apply_fn({"params": state.params}, images, training=False)
+def test_step(params, images, labels):
+    logits = net.apply(params, images, training=False)
     accurate = jnp.argmax(logits, axis=1) == jnp.asarray(labels)
     return accurate
 
@@ -78,14 +81,14 @@ for epoch in range(100):
     # Train
     for i, data in enumerate(trainloader, 0):
         inputs, labels = data
-        state = update_step(state, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
+        params, opt_state = update_step(params, opt_state, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
 
     # Test
     correct = 0
     total = 0
     for data in testloader:
         images, labels = data
-        accurate = test_step(state, jnp.asarray(images), jnp.asarray(labels))
+        accurate = test_step(params, jnp.asarray(images), jnp.asarray(labels))
         total += accurate.shape[0]
         correct += jnp.sum(accurate)
     

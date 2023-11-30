@@ -35,37 +35,37 @@ class Net(hk.Module):
     def __call__(self, x, training):
         for c in [1024, 512, 256]:
             x = einn.Linear("b [...|c]", c=c)(x)
-            x = einn.Norm("b [c]")(x)
+            x = einn.Norm("[b] c", decay_rate=0.99)(x, training=training)
             x = jax.nn.gelu(x)
             x = einn.Dropout("[...]", drop_rate=0.2)(x, training=training)
         x = einn.Linear("b [...|c]", c=10)(x)
         return x
 
-net = hk.transform(lambda x, training: Net()(x, training))
+net = hk.transform_with_state(lambda x, training: Net()(x, training))
 inputs, labels = next(iter(trainloader))
-params = net.init(rng=next_rng(), x=jnp.asarray(inputs), training=False)
+params, state = net.init(rng=next_rng(), x=jnp.asarray(inputs), training=True)
 
 optimizer = optax.adam(3e-4)
 opt_state = optimizer.init(params)
 
 @partial(jax.jit, donate_argnums=(0, 1))
-def update_step(opt_state, params, images, labels, rng):
-    def loss_fn(params):
-        logits = net.apply(params, rng, images, training=True)
+def update_step(opt_state, params, state, images, labels, rng):
+    def loss_fn(params, state):
+        logits, new_state = net.apply(params, state, rng, images, training=True)
         one_hot = jax.nn.one_hot(labels, 10)
         loss = jnp.mean(optax.softmax_cross_entropy(logits=logits, labels=one_hot))
-        return loss
+        return loss, new_state
 
-    grads = jax.grad(loss_fn)(params)
+    (loss, new_state), grads = jax.value_and_grad(loss_fn, has_aux=True)(params, state)
 
     updates, new_opt_state = optimizer.update(grads, opt_state, params)
     new_params = optax.apply_updates(params, updates)
 
-    return new_opt_state, new_params
+    return new_opt_state, new_params, new_state
 
 @jax.jit
-def test_step(params, images, labels):
-    logits = net.apply(params, rng, images, training=False)
+def test_step(params, state, images, labels):
+    logits, _ = net.apply(params, state, rng, images, training=False)
     accurate = jnp.argmax(logits, axis=1) == jnp.asarray(labels)
     return accurate
 
@@ -78,14 +78,14 @@ for epoch in range(100):
     # Train
     for i, data in enumerate(trainloader, 0):
         inputs, labels = data
-        opt_state, params = update_step(opt_state, params, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
+        opt_state, params, state = update_step(opt_state, params, state, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
 
     # Test
     correct = 0
     total = 0
     for data in testloader:
         images, labels = data
-        accurate = test_step(params, jnp.asarray(images), jnp.asarray(labels))
+        accurate = test_step(params, state, jnp.asarray(images), jnp.asarray(labels))
         total += accurate.shape[0]
         correct += jnp.sum(accurate)
     
