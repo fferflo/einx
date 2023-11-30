@@ -44,27 +44,30 @@ def _get1(tensor):
         type_to_backend[type(tensor)] = tensor_backend
     return tensor_backend
 
-def get(tensors):
-    if len(tensors) == 1:
-        return _get1(tensors[0])
-    backend = None
-    for tensor in tensors:
-        backend2 = _get1(tensor)
-        if backend2 != numpy:
-            if not backend is None and backend != backend2:
-                raise ValueError(f"Got tensors with conflicting backends: {backend.__name__} and {backend2.__name__}")
-            backend = backend2
-    if backend is None:
-        return numpy
+def get(arg):
+    if isinstance(arg, str):
+        name = arg
+        for backend in backends:
+            if backend.name == name:
+                return backend
+        update()
+        for backend in backends:
+            if backend.name == name:
+                return backend
+        raise ValueError(f"Backend {name} not found")
     else:
-        return backend
-
-def get_by_name(name):
-    update()
-    for backend in backends:
-        if backend.name == name:
+        tensors = arg
+        if len(tensors) == 1:
+            return _get1(tensors[0])
+        backend = None
+        for tensor in tensors:
+            if not tensor is None:
+                backend2 = _get1(tensor)
+                if backend2 != numpy:
+                    if not backend is None and backend != backend2:
+                        raise ValueError(f"Got tensors with conflicting backends: {backend.__name__} and {backend2.__name__}")
+                    backend = backend2
+        if backend is None:
+            return numpy
+        else:
             return backend
-    raise ValueError(f"Backend {name} not found")
-
-def __getattr__(name):
-    return get_by_name(name)

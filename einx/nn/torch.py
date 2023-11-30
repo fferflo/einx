@@ -50,48 +50,44 @@ class Norm(torch.nn.Module):
         super().__init__()
         self.stats = stats
         self.params = params
-        self.kwargs = kwargs
+        self.use_mean = mean
+        self.use_var = var
         self.epsilon = epsilon
+        self.decay_rate = decay_rate
+        self.kwargs = kwargs
 
-        self.mean = Buffer(torch.nn.init.zeros_, dtype) if mean else None
-        self.var = Buffer(torch.nn.init.ones_, dtype) if var else None
+        self.mean = Buffer(torch.nn.init.zeros_, dtype) if mean and not decay_rate is None else None
+        self.var = Buffer(torch.nn.init.ones_, dtype) if var and not decay_rate is None else None
         self.scale = Parameter(torch.nn.init.ones_, dtype) if scale else None
         self.bias = Parameter(torch.nn.init.zeros_, dtype) if bias else None
 
-        if decay_rate is None:
-            self.moving_average = None
-        else:
-            def moving_average(f, name):
-                if decay_rate is None:
-                    return f()
-                elif self.training:
-                    x = f()
-                    if (isinstance(vars(self)[name], torch.nn.parameter.UninitializedParameter) or isinstance(vars(self)[name], torch.nn.parameter.UninitializedBuffer)) \
-                        and not isinstance(vars(self)[name].data, torch._subclasses.FakeTensor):
-                        # Instantiate weights on first call
-                        vars(self)[name](x.shape)
-                    # Compute and store moving average
-                    vars(self)[name] = decay_rate * vars(self)[name] + (1 - decay_rate) * x
-
-                    # Use batch statistics during training
-                    return x
-                else:
-                    return vars(self)[name]
-            self.moving_average = moving_average
-
     def forward(self, x):
-        return einx.nn.norm(
+        use_ema = not self.decay_rate is None and not self.training
+        x, mean, var = einx.nn.norm(
             x,
             self.stats,
             self.params,
-            moving_average=self.moving_average,
-            mean=not self.mean is None,
-            var=not self.var is None,
+            mean=self.mean if use_ema else self.use_mean,
+            var=self.var if use_ema else self.use_var,
             scale=self.scale,
             bias=self.bias,
             epsilon=self.epsilon,
+            backend=einx.backend.get("torch"),
             **self.kwargs,
         )
+
+        update_ema = not self.decay_rate is None and self.training
+        if update_ema:
+            with torch.no_grad():
+                if not mean is None:
+                    if isinstance(self.mean, torch.nn.parameter.UninitializedBuffer):
+                        self.mean(mean.shape)
+                    self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
+                if not var is None:
+                    if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
+                        self.var(mean.shape)
+                    self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
+        return x
 
 class Linear(torch.nn.Module):
     """Linear layer.
@@ -123,8 +119,15 @@ class Linear(torch.nn.Module):
         self.expr = expr
         self.kwargs = kwargs
 
-    def forward(self, x, **kwargs):
-        return einx.nn.linear(x, self.expr, self.weight, self.bias, **self.kwargs, **kwargs)
+    def forward(self, x):
+        return einx.nn.linear(
+            x,
+            self.expr,
+            self.weight,
+            self.bias,
+            backend=einx.backend.get("torch"),
+            **self.kwargs,
+        )
 
 class Dropout(torch.nn.Module):
     """Dropout layer.
@@ -142,8 +145,14 @@ class Dropout(torch.nn.Module):
         self.drop_rate = drop_rate
         self.kwargs = kwargs
 
-    def forward(self, x, **kwargs):
+    def forward(self, x):
         if self.training:
-            return einx.nn.dropout(x, self.expr, drop_rate=self.drop_rate, **self.kwargs, **kwargs)
+            return einx.nn.dropout(
+                x,
+                self.expr,
+                drop_rate=self.drop_rate,
+                backend=einx.backend.get("torch"),
+                **self.kwargs,
+            )
         else:
             return x

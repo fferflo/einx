@@ -1,4 +1,4 @@
-import collections, threading, functools, os, einx
+import collections, threading, functools, os, einx, inspect
 from functools import partial
 
 def _hash(x):
@@ -7,15 +7,14 @@ def _hash(x):
         for v in x:
             h += _hash(v)
             h *= 18738
-        return h
     elif isinstance(x, dict):
         h = 697123
         for v in x.values():
             h += _hash(v)
             h *= 9583
-        return h
     else:
-        return hash(x)
+        h = hash(x)
+    return int(h) % 2147483648 # Fixes issue with torch.compile
 
 
 
@@ -33,7 +32,7 @@ def lru_cache(func=None, trace=None):
 
     if trace is None:
         @functools.wraps(func)
-        def inner(*args, backend=None, graph=False, **kwargs):
+        def inner(*args, **kwargs):
             key = (args, kwargs)
             h = _hash(key)
 
@@ -63,10 +62,14 @@ def lru_cache(func=None, trace=None):
 
             return result
     else:
+        if len(inspect.signature(trace).parameters) == 1:
+            trace0 = trace
+            trace = lambda key, value: trace0(key)
+
         @functools.wraps(func)
         def inner(*args, backend=None, graph=False, **kwargs):
             return_graph = graph
-            map = lambda x, key: einx.param.get_shape(x) if trace(key) else x
+            map = lambda x, key: einx.param.get_shape(x) if trace(key, x) else x
             args_key = einx.tree_util.tree_map_with_key(map, args)
             kwargs_key = einx.tree_util.tree_map_with_key(map, kwargs)
             key = (args_key, kwargs_key)
@@ -83,10 +86,13 @@ def lru_cache(func=None, trace=None):
 
             if graph is None:
                 if print_cache_miss:
-                    print(f"einx: Cache miss on {inner.__name__} with args={args} kwargs={kwargs} hash={h} cache_size={len(cache)}")
+                    map = lambda x, key: f"TracedTensor({einx.param.get_shape(x)})" if trace(key, x) else x
+                    args_print = einx.tree_util.tree_map_with_key(map, args)
+                    kwargs_print = einx.tree_util.tree_map_with_key(map, kwargs)
+                    print(f"einx: Cache miss on {inner.__name__} with args={args_print} kwargs={kwargs_print} hash={h} cache_size={len(cache)}")
 
                 # print("###################### BEGIN TRACE ######################")
-                map = lambda x, key: einx.backend.tracer.Input(key, einx.param.get_shape(x)) if trace(key) else x
+                map = lambda x, key: einx.backend.tracer.Input(key, einx.param.get_shape(x)) if trace(key, x) else x
                 args_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, args)
                 kwargs_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, kwargs)
 

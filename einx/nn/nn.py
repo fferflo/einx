@@ -1,40 +1,46 @@
 import einx
 
-def norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True, var=True, scale=None, bias=None, fastvar=True, **kwargs):
-    if moving_average is None:
-        moving_average = lambda f, name: f()
-    backend = einx.backend.get([x])
+@einx.lru_cache(trace=lambda k, v: k[0] in [0, 3, 4, 5, 6, "mean", "var", "scale", "bias"] and not isinstance(v, bool))
+def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs):
+    if backend is None:
+        backend = einx.backend.get([x, mean if not isinstance(mean, bool) else None, var if not isinstance(var, bool) else None, scale, bias])
 
-    # Compute mean and variance
-    if mean:
-        mean = backend.cast(moving_average(lambda: einx.mean(stats, x, **kwargs), name="mean"), x.dtype)
-    else:
-        mean = None
-    if var:
-        if mean is None:
-            # RMS norm
-            var = lambda: einx.mean(stats, backend.square(x), **kwargs)
-        else:
-            if fastvar:
-                def var():
-                    mean_of_squares = einx.mean(stats, backend.square(x), **kwargs)
-                    var = mean_of_squares - backend.square(mean)
-                    var = backend.maximum(var, 0)
-                    return var
-            else:
-                var = lambda: einx.var(stats, x, **kwargs)
-        var = backend.cast(moving_average(var, name="var"), x.dtype)
-        inv_std = backend.rsqrt(var + epsilon)
-    else:
-        inv_std = None
-
-    # Normalize mean and variance
     (expr_in,), (expr_stats,) = einx.reduce.parse(stats, einx.param.get_shape(x), **kwargs)
     expr_in = einx.expr.stage3.demark(expr_in)
     expr_stats = einx.expr.stage3.demark(expr_stats)
+
+    # Instantiate moving averages
+    if not isinstance(mean, bool) and not mean is None:
+        mean = einx.param.instantiate(mean, shape=expr_stats.shape, backend=backend)
+    if not isinstance(var, bool) and not var is None:
+        var = einx.param.instantiate(var, shape=expr_stats.shape, backend=backend)
+
+    # Compute mean and variance
+    if isinstance(mean, bool):
+        if mean:
+            mean = einx.mean(stats, x, **kwargs)
+        else:
+            mean = None
+    if isinstance(var, bool):
+        if var:
+            if mean is None:
+                # RMS norm
+                var = einx.mean(stats, backend.square(x), **kwargs)
+            else:
+                if fastvar:
+                    mean_of_squares = einx.mean(stats, backend.square(x), **kwargs)
+                    var = mean_of_squares - backend.square(mean)
+                    var = backend.maximum(var, 0)
+                else:
+                    var = einx.var(stats, x, **kwargs)
+        else:
+            var = None
+
+    # Normalize mean and variance
     if not mean is None:
         x, _ = einx.subtract([expr_in, expr_stats], [x, mean], expr_in)
-    if not inv_std is None:
+    if not var is None:
+        inv_std = backend.rsqrt(var + epsilon)
         x, _ = einx.multiply([expr_in, expr_stats], [x, inv_std], expr_in)
 
     # TODO: need optimizer like opt_einsum that can optimize elementwise expressions like: (x - mean) * scale * inv_std + bias
@@ -45,8 +51,9 @@ def norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True,
     if not bias is None:
         x = einx.add(params, x, bias, **kwargs)
 
-    return x
+    return x, mean, var
 
+@einx.lru_cache(trace=lambda k: k[0] in [0, 2, 3, "weight", "bias"])
 def linear(x, expr, weight, bias=None, **kwargs):
     (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.param.get_shape(x), einx.param.get_shape(weight), **kwargs)
 
@@ -66,6 +73,7 @@ def linear(x, expr, weight, bias=None, **kwargs):
 
     return x
 
+@einx.lru_cache(trace=lambda k: k[0] in [0, 3, "rng"])
 def dropout(x, expr, drop_rate, rng=None, **kwargs):
     backend = einx.backend.get([x])
     keep_rate = 1 - drop_rate

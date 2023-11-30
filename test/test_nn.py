@@ -15,7 +15,7 @@ if importlib.util.find_spec("torch"):
         layer = torch.compile(layer)
         assert layer.forward(x).shape == (4, 128, 128, 32)
 
-    def test_torch_meanvar_norm():
+    def test_torch_norm():
         x = torch.zeros((4, 128, 128, 32))
         for expr, kwargs in norms:
             for mean in [True, False]:
@@ -25,11 +25,12 @@ if importlib.util.find_spec("torch"):
                     assert layer.forward(x).shape == (4, 128, 128, 32)
                     layer.eval()
                     assert layer.forward(x).shape == (4, 128, 128, 32)
-                    if decay_rate is None: # TODO: decay_rate currently does not work with torch.compile
-                        layer.train()
-                        assert torch.compile(layer).forward(x).shape == (4, 128, 128, 32)
-                        layer.eval()
-                        assert torch.compile(layer).forward(x).shape == (4, 128, 128, 32)
+
+                    layer = torch.compile(layer)
+                    layer.train()
+                    assert layer.forward(x).shape == (4, 128, 128, 32)
+                    layer.eval()
+                    assert layer.forward(x).shape == (4, 128, 128, 32)
 
 if importlib.util.find_spec("haiku"):
     import haiku as hk
@@ -49,7 +50,7 @@ if importlib.util.find_spec("haiku"):
         y, state = jax.jit(model.apply)(params=params, state=state, x=x, rng=rng)
         assert y.shape == (4, 128, 128, 32)
 
-    def test_haiku_meanvar_norm():
+    def test_haiku_norm():
         x = jnp.zeros((4, 128, 128, 32))
         rng = jax.random.PRNGKey(42)
 
@@ -83,7 +84,7 @@ if importlib.util.find_spec("flax"):
         y = jax.jit(model.apply)(params, x=x)
         assert y.shape == (4, 128, 128, 32)
 
-    def test_flax_meanvar_norm():
+    def test_flax_norm():
         x = jnp.zeros((4, 128, 128, 32))
         rng = jax.random.PRNGKey(42)
 

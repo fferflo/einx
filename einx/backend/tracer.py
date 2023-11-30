@@ -151,7 +151,9 @@ class Op(Tracer):
                 assert not "backend" in kwargs
                 kwargs["backend"] = backend
             if isinstance(self.op, str):
-                op = getattr(backend, self.op)
+                op = backend
+                for name in self.op.split("."):
+                    op = getattr(op, name)
             else:
                 op = self.op
             return op(*args, **kwargs)
@@ -255,14 +257,18 @@ class vmapped_op:
 
 
 def elementwise(*args, op):
-    shape = args[0].shape
-    for a in args[1:]:
-        shape2 = a.shape
-        while len(shape) < len(shape2):
-            shape = (1,) + shape
-        while len(shape2) < len(shape):
-            shape2 = (1,) + shape2
-        shape = np.maximum(shape, shape2)
+    shape = None
+    for a in args:
+        if "shape" in dir(a):
+            if shape is None:
+                shape = a.shape
+            else:
+                shape2 = a.shape
+                while len(shape) < len(shape2):
+                    shape = (1,) + shape
+                while len(shape2) < len(shape):
+                    shape2 = (1,) + shape2
+                shape = np.maximum(shape, shape2)
     return Op(op, args=args, shape=shape)
 
 def reduce(tensor, axis, keepdims=False, op=None):
@@ -398,3 +404,7 @@ class tracer:
             return x
         inner.__name__ = "id"
         return Op(inner, args=[tensor], shape=shape)
+
+    class random:
+        def bernoulli(rng, p, shape):
+            return Op("random.bernoulli", args=[rng, p, shape], shape=shape)

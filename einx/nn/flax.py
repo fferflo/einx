@@ -17,53 +17,34 @@ class _Norm(nn.Module):
     dtype: str = "float32"
     kwargs: dict = None
 
-    def moving_average(self, f, name, training):
-        if self.decay_rate is None:
-            return f()
-        else:
-            if training is None:
-                raise ValueError("training must be specified when decay_rate is not None")
-            if training:
-                x = f()
-
-                if name == "mean":
-                    assert self.mean
-                    ema = self.variable("stats", "mean", lambda: jnp.zeros(x.shape, self.dtype))
-                elif name == "var":
-                    assert self.var
-                    ema = self.variable("stats", "var", lambda: jnp.ones(x.shape, self.dtype))
-                else:
-                    assert False
-
-                if not self.is_initializing():
-                    ema.value = self.decay_rate * ema.value + (1 - self.decay_rate) * x
-                return x
-            else:
-                if name == "mean":
-                    assert self.mean
-                    ema = self.variable("stats", "mean", None)
-                elif name == "var":
-                    assert self.var
-                    ema = self.variable("stats", "var", None)
-                else:
-                    assert False
-
-                return ema.value
-
     @nn.compact
     def __call__(self, x, training=None):
-        return einx.nn.norm(
+        if not self.decay_rate is None and training is None:
+            raise ValueError("training must be specified when decay_rate is used")
+
+        use_ema = not self.decay_rate is None and (not training or self.is_initializing())
+        x, mean, var = einx.nn.norm(
             x,
             self.stats,
             self.params,
-            moving_average=partial(self.moving_average, training=training),
-            mean=self.mean,
-            var=self.var,
-            scale=lambda shape: self.param("scale", nn.initializers.ones_init(), shape, self.dtype) if self.scale else None,
-            bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype) if self.bias else None,
+            mean=(lambda shape: self.variable("stats", "mean", lambda: jnp.zeros(shape, self.dtype)).value) if use_ema else self.mean,
+            var=(lambda shape: self.variable("stats", "var", lambda: jnp.ones(shape, self.dtype)).value) if use_ema else self.var,
+            scale=(lambda shape: self.param("scale", nn.initializers.ones_init(), shape, self.dtype)) if self.scale else None,
+            bias=(lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype)) if self.bias else None,
             epsilon=self.epsilon,
             **(self.kwargs if not self.kwargs is None else {}),
         )
+
+        update_ema = not self.decay_rate is None and training and not self.is_initializing()
+        if update_ema:
+            if self.mean:
+                mean_ema = self.variable("stats", "mean", None)
+                mean_ema.value = self.decay_rate * mean_ema.value + (1 - self.decay_rate) * mean
+            if self.var:
+                var_ema = self.variable("stats", "var", None)
+                var_ema.value = self.decay_rate * var_ema.value + (1 - self.decay_rate) * var
+
+        return x
 
 def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, dtype="float32", **kwargs):
     """Normalization layer.

@@ -14,10 +14,10 @@ rows = []
 
 einx.backend.update()
 envs = [
-    ("numpy", einx.backend.get_by_name("numpy"), lambda x: x, lambda x: x, lambda x: x, np.asarray),
-    ("torch-eager", einx.backend.get_by_name("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),
-    ("torch-compile", einx.backend.get_by_name("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),
-    ("jax-jit", einx.backend.get_by_name("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x)),
+    ("numpy", einx.backend.get("numpy"), lambda x: x, lambda x: x, lambda x: x, np.asarray),
+    ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),
+    ("torch-compile", einx.backend.get("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),
+    ("jax-jit", einx.backend.get("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x)),
 ]
 
 for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:

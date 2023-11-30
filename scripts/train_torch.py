@@ -45,7 +45,7 @@ inputs, labels = next(iter(trainloader))
 net(inputs)
 
 # Just-in-time compile
-# net = torch.compile(net)
+net = torch.compile(net)
 
 optimizer = optim.Adam(net.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()

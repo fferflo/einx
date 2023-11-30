@@ -23,7 +23,7 @@ def instantiate(x, shape, backend, **kwargs):
         if "torch" in sys.modules:
             import torch
             if not callable(x) and isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
-                if backend != einx.backend.torch:
+                if backend.name != "torch":
                     raise ValueError("Cannot instantiate a torch tensor using a non-torch backend")
                 def x(shape, x=x, **kwargs):
                     x.materialize(shape)

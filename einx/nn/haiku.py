@@ -23,46 +23,43 @@ class Norm(hk.Module):
         super().__init__(name=name)
         self.stats = stats
         self.params = params
-        self.kwargs = kwargs
-
-        if decay_rate is None:
-            self.mean = mean
-            self.var = var
-        else:
-            self.mean = hk.ExponentialMovingAverage(decay_rate, name="mean") if not mean is None else None
-            self.var = hk.ExponentialMovingAverage(decay_rate, name="var") if not var is None else None
+        self.mean = mean
+        self.var = var
         self.scale = scale
         self.bias = bias
         self.epsilon = epsilon
         self.dtype = dtype
         self.decay_rate = decay_rate
-
-    def moving_average(self, f, name, training):
-        if self.decay_rate is None:
-            return f()
-        else:
-            if training is None:
-                raise ValueError("training must be specified when decay_rate is not None")
-            if training:
-                x = f()
-                vars(self)[name](x)
-                return x
-            else:
-                return vars(self)[name].average
+        self.kwargs = kwargs
 
     def __call__(self, x, training=None):
-        return einx.nn.norm(
+        if not self.decay_rate is None and training is None:
+            raise ValueError("training must be specified when decay_rate is used")
+
+        get_ema_mean = lambda shape: hk.get_state(name="mean", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0))
+        get_ema_var = lambda shape: hk.get_state(name="var", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(1.0))
+
+        use_ema = not self.decay_rate is None and not training
+        x, mean, var = einx.nn.norm(
             x,
             self.stats,
             self.params,
-            moving_average=partial(self.moving_average, training=training),
-            mean=self.mean,
-            var=self.var,
-            scale=lambda shape: hk.get_parameter(name="scale", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(1.0)) if self.scale else None,
-            bias=lambda shape: hk.get_parameter(name="bias", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0)) if self.bias else None,
+            mean=get_ema_mean if use_ema else self.mean,
+            var=get_ema_var if use_ema else self.var,
+            scale=(lambda shape: hk.get_parameter(name="scale", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(1.0))) if self.scale else None,
+            bias=(lambda shape: hk.get_parameter(name="bias", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0))) if self.bias else None,
             epsilon=self.epsilon,
             **self.kwargs,
         )
+
+        update_ema = not self.decay_rate is None and training
+        if update_ema:
+            if self.mean:
+                hk.set_state("mean", get_ema_mean(mean.shape) * self.decay_rate + mean * (1 - self.decay_rate))
+            if self.var:
+                hk.set_state("var", get_ema_var(var.shape) * self.decay_rate + var * (1 - self.decay_rate))
+
+        return x
 
 class Linear(hk.Module):
     """Linear layer.

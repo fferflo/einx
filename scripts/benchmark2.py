@@ -14,9 +14,9 @@ rows = []
 
 einx.backend.update()
 envs = [
-    # ("torch-eager", einx.backend.get_by_name("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
-    ("torch-compile", einx.backend.get_by_name("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
-    ("jax-jit", einx.backend.get_by_name("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x), jax.lax.rsqrt, False),
+    # ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
+    ("torch-compile", einx.backend.get("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
+    ("jax-jit", einx.backend.get("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x), jax.lax.rsqrt, False),
 ]
 
 k = int(math.sqrt(args.n))
