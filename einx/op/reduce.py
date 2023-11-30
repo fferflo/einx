@@ -65,6 +65,7 @@ def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
 
     return tensors, exprs_out
 
+@einx.lru_cache
 def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
 

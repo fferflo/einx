@@ -162,6 +162,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
 
     return tensors, exprs_out
 
+@einx.lru_cache
 def parse(description, *tensor_shapes, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
 
