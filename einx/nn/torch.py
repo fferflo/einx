@@ -85,7 +85,7 @@ class Norm(torch.nn.Module):
                     self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
                 if not var is None:
                     if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
-                        self.var(mean.shape)
+                        self.var(var.shape)
                     self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
         return x
 
