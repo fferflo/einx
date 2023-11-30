@@ -19,18 +19,19 @@ if importlib.util.find_spec("torch"):
         x = torch.zeros((4, 128, 128, 32))
         for expr, kwargs in norms:
             for mean in [True, False]:
-                for decay_rate in [None, 0.9]:
-                    layer = einx.nn.torch.Norm(expr, mean=mean, decay_rate=decay_rate, **kwargs)
-                    layer.train()
-                    assert layer.forward(x).shape == (4, 128, 128, 32)
-                    layer.eval()
-                    assert layer.forward(x).shape == (4, 128, 128, 32)
+                for scale in [True, False]:
+                    for decay_rate in [None, 0.9]:
+                        layer = einx.nn.torch.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
+                        layer.train()
+                        assert layer.forward(x).shape == (4, 128, 128, 32)
+                        layer.eval()
+                        assert layer.forward(x).shape == (4, 128, 128, 32)
 
-                    layer = torch.compile(layer)
-                    layer.train()
-                    assert layer.forward(x).shape == (4, 128, 128, 32)
-                    layer.eval()
-                    assert layer.forward(x).shape == (4, 128, 128, 32)
+                        layer = torch.compile(layer)
+                        layer.train()
+                        assert layer.forward(x).shape == (4, 128, 128, 32)
+                        layer.eval()
+                        assert layer.forward(x).shape == (4, 128, 128, 32)
 
 if importlib.util.find_spec("haiku"):
     import haiku as hk
@@ -56,17 +57,18 @@ if importlib.util.find_spec("haiku"):
 
         for expr, kwargs in norms:
             for mean in [True, False]:
-                for decay_rate in [None, 0.9]:
-                    def model(x, training):
-                        return einx.nn.haiku.Norm(expr, mean=mean, decay_rate=decay_rate, **kwargs)(x, training)
-                    model = hk.transform_with_state(model)
+                for scale in [True, False]:
+                    for decay_rate in [None, 0.9]:
+                        def model(x, training):
+                            return einx.nn.haiku.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)(x, training)
+                        model = hk.transform_with_state(model)
 
-                    params, state = model.init(rng=rng, x=x, training=True)
+                        params, state = model.init(rng=rng, x=x, training=True)
 
-                    y, state = jax.jit(partial(model.apply, training=False))(params=params, state=state, x=x, rng=rng)
-                    assert y.shape == (4, 128, 128, 32)
-                    y, state = jax.jit(partial(model.apply, training=True))(params=params, state=state, x=x, rng=rng)
-                    assert y.shape == (4, 128, 128, 32)
+                        y, state = jax.jit(partial(model.apply, training=False))(params=params, state=state, x=x, rng=rng)
+                        assert y.shape == (4, 128, 128, 32)
+                        y, state = jax.jit(partial(model.apply, training=True))(params=params, state=state, x=x, rng=rng)
+                        assert y.shape == (4, 128, 128, 32)
 
 if importlib.util.find_spec("flax"):
     import flax.linen as nn
@@ -90,13 +92,14 @@ if importlib.util.find_spec("flax"):
 
         for expr, kwargs in norms:
             for mean in [True, False]:
-                for decay_rate in [None, 0.9]:
-                    model = einx.nn.flax.Norm(expr, mean=mean, decay_rate=decay_rate, **kwargs)
+                for scale in [True, False]:
+                    for decay_rate in [None, 0.9]:
+                        model = einx.nn.flax.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
 
-                    params = model.init(rng, x, training=True)
-                    state, params = flax.core.pop(params, "params")
+                        params = model.init(rng, x, training=True)
+                        state, params = flax.core.pop(params, "params")
 
-                    y, state = jax.jit(partial(model.apply, training=False, mutable=list(state.keys())))({"params": params, **state}, x=x)
-                    assert y.shape == (4, 128, 128, 32)
-                    y, state = jax.jit(partial(model.apply, training=True, mutable=list(state.keys())))({"params": params, **state}, x=x)
-                    assert y.shape == (4, 128, 128, 32)
+                        y, state = jax.jit(partial(model.apply, training=False, mutable=list(state.keys())))({"params": params, **state}, x=x)
+                        assert y.shape == (4, 128, 128, 32)
+                        y, state = jax.jit(partial(model.apply, training=True, mutable=list(state.keys())))({"params": params, **state}, x=x)
+                        assert y.shape == (4, 128, 128, 32)

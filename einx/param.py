@@ -14,6 +14,8 @@ def get_shape(x):
             return None
 
 def instantiate(x, shape, backend, **kwargs):
+    if x is None:
+        raise TypeError("instantiate cannot be called on None")
     if backend == einx.backend.tracer:
         return einx.backend.tracer.Op(instantiate, [x], {"shape": shape} | kwargs, shape=shape, pass_backend=True)
     else:

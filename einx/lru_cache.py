@@ -17,6 +17,8 @@ def _hash(x):
     return int(h) % 2147483648 # Fixes issue with torch.compile
 
 
+class _tensor_factory:
+    pass
 
 def lru_cache(func=None, trace=None):
     if func is None:
@@ -69,7 +71,15 @@ def lru_cache(func=None, trace=None):
         @functools.wraps(func)
         def inner(*args, backend=None, graph=False, **kwargs):
             return_graph = graph
-            map = lambda x, key: einx.param.get_shape(x) if trace(key, x) else x
+            def map(x, key):
+                if trace(key, x):
+                    shape = einx.param.get_shape(x)
+                    if shape is None:
+                        return _tensor_factory
+                    else:
+                        return shape
+                else:
+                    return x
             args_key = einx.tree_util.tree_map_with_key(map, args)
             kwargs_key = einx.tree_util.tree_map_with_key(map, kwargs)
             key = (args_key, kwargs_key)
@@ -91,7 +101,6 @@ def lru_cache(func=None, trace=None):
                     kwargs_print = einx.tree_util.tree_map_with_key(map, kwargs)
                     print(f"einx: Cache miss on {inner.__name__} with args={args_print} kwargs={kwargs_print} hash={h} cache_size={len(cache)}")
 
-                # print("###################### BEGIN TRACE ######################")
                 map = lambda x, key: einx.backend.tracer.Input(key, einx.param.get_shape(x)) if trace(key, x) else x
                 args_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, args)
                 kwargs_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, kwargs)
@@ -99,7 +108,6 @@ def lru_cache(func=None, trace=None):
                 output_tracers = func(*args_replaced_with_tracers, **kwargs_replaced_with_tracers, backend=einx.backend.tracer)
 
                 graph = einx.backend.tracer.Graph(output_tracers, name=func.__name__, args=args_replaced_with_tracers, kwargs=kwargs_replaced_with_tracers)
-                # print("###################### END TRACE ######################")
 
                 with lock:
                     if h in cache:

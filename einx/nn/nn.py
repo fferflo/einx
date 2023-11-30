@@ -1,6 +1,6 @@
 import einx
 
-@einx.lru_cache(trace=lambda k, v: k[0] in [0, 3, 4, 5, 6, "mean", "var", "scale", "bias"] and not isinstance(v, bool))
+@einx.lru_cache(trace=lambda k, v: k[0] in [0, 3, 4, 5, 6, "mean", "var", "scale", "bias"] and not isinstance(v, bool) and not v is None)
 def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs):
     if backend is None:
         backend = einx.backend.get([x, mean if not isinstance(mean, bool) else None, var if not isinstance(var, bool) else None, scale, bias])
