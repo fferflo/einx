@@ -10,7 +10,7 @@ For an introduction to Einstein-notation see
 `this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ and a
 :doc:`comparison with index-based notation </gettingstarted/cheatsheet>`.
 
-einx can be integrated easily into existing code and seemlessly works with tensors from different frameworks (Numpy, Torch, Jax, Tensorflow):
+einx can be integrated easily into existing code and seamlessly works with tensors from different frameworks (Numpy, Torch, Jax, Tensorflow):
 
 ..  code::
 
@@ -251,7 +251,7 @@ An example of a call to ``einx.dot`` that forwards computation to ``backend.eins
 .. note::
 
     ``einx.dot`` also passes the ``in_axis``, ``out_axis`` and ``batch_axis`` arguments to tensor factories, e.g. to determine the fan-in and fan-out
-    of neural network layers and initialize the weights accordingly.
+    of neural network layers and initialize the weights accordingly (see `Neural Networks </gettingstarted/neuralnetworks>`).
 
 An example of an operation that requires concatenation of tensors:
 
