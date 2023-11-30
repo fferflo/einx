@@ -97,6 +97,8 @@ In many cases, the shapes of the input tensors provide enough constraints to det
     einx.rearrange("(a b) -> a b", x, a=5, b=2) # Succeeds
     einx.rearrange("(a b) -> a b", x, a=5, b=5) # Fails: Conflicting constraints
 
+.. _bracketnotation:
+
 Bracket notation
 ----------------
 
@@ -182,7 +184,7 @@ called to create the corresponding tensor when the shape is resolved.
     einx.dot("b... [c1|c2]", x, np.ones, c2=32) # Second input is constructed using np.ones
 
 This is especially useful in the context of deep learning modules, where the shapes of a layer's weights are chosen to match with the desired
-input and output shapes (see :doc:`Neural Networks </gettingstarted/neuralnetworks>`).
+input and output shapes (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
 
 Performance
 -----------
@@ -198,9 +200,16 @@ To reduce the overhead in eager mode, einx caches operations when called for the
 To cache an operation, einx runs the function with tracer objects instead of the input tensors and accumulates all backend calls into a graph representation. When the function is called again,
 the overhead is reduced to the cache lookup and graph execution overhead.
 
-einx tries to use as few backend operations as possible to perform the requested computation. The graph can be used to examine the specific backend calls
-that einx makes and to ensure that no needless operations are performed. The graph can be accessed by passing ``graph=True`` to an einx function, and can be
-converted to string representation:
+einx tries to use as few backend operations as possible to perform the requested computation. The graph can be inspected to determine the backend calls
+that einx makes and to ensure that no needless operations are performed (see below).
+
+.. _inspectingoperations:
+
+Inspecting operations
+---------------------
+
+einx functions accept the ``graph=True`` argument to return a graph representation of the backend operations. The graph can be
+inspected to verify that the expected index-based calls are made:
 
 ..  code:: python
 
@@ -215,8 +224,6 @@ converted to string representation:
 
 The ``instantiate`` function executes tensor factories if they are given, and converts tensors to the requested backend. The ``einx.sum("a [b]", x)`` call
 thus reduces to a single ``backend.sum`` call with ``axis=1``.
-
-
 
 Another example of a sum-reduction that requires a reshape operation:
 
@@ -251,7 +258,7 @@ An example of a call to ``einx.dot`` that forwards computation to ``backend.eins
 .. note::
 
     ``einx.dot`` also passes the ``in_axis``, ``out_axis`` and ``batch_axis`` arguments to tensor factories, e.g. to determine the fan-in and fan-out
-    of neural network layers and initialize the weights accordingly (see `Neural Networks </gettingstarted/neuralnetworks>`).
+    of neural network layers and initialize the weights accordingly (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
 
 An example of an operation that requires concatenation of tensors:
 

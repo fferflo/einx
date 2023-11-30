@@ -4,11 +4,13 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 - *Seamless integration* with tensor frameworks like Numpy, PyTorch, Tensorflow, Jax.
 - *Zero-overhead* when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html). (See [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance))
-- *Compatible with einops expressions.* Any einops shape expression is also a valid einx shape expression.
+- *Compatible with einops expressions.* Any einops shape expression is also a valid einx shape expression. (See [Comparison with einops](https://einx.readthedocs.io/en/latest/faq/einops.html))
 
 :warning: **This library is currently experimental and may undergo breaking changes.** :warning:
 
-[Getting Started](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
+### Getting started
+
+[Go to overview](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
 
 ### Installation
 
@@ -16,10 +18,12 @@ einx is a Python library that allows formulating many tensor operations as conci
 pip install git+https://github.com/fferflo/einx.git
 ```
 
-### Examples (tl;dr)
+### What does einx look like?
 
 ```python
 import einx
+import numpy as np
+x = np.asarray(...)
 
 einx.mean("b [s...] c", x)                        # Global mean-pooling (dimension-agnostic)
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2 (dimension-agnostic)
