@@ -1,6 +1,6 @@
 import einx
 
-def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True, var=True, scale=None, bias=None, fastvar=True, **kwargs):
+def norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, mean=True, var=True, scale=None, bias=None, fastvar=True, **kwargs):
     if moving_average is None:
         moving_average = lambda f, name: f()
     backend = einx.backend.get([x])
@@ -12,6 +12,7 @@ def meanvar_norm(x, stats, params="b... [c]", moving_average=None, epsilon=0, me
         mean = None
     if var:
         if mean is None:
+            # RMS norm
             var = lambda: einx.mean(stats, backend.square(x), **kwargs)
         else:
             if fastvar:

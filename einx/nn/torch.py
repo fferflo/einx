@@ -68,15 +68,19 @@ class Norm(torch.nn.Module):
                     x = f()
                     if (isinstance(vars(self)[name], torch.nn.parameter.UninitializedParameter) or isinstance(vars(self)[name], torch.nn.parameter.UninitializedBuffer)) \
                         and not isinstance(vars(self)[name].data, torch._subclasses.FakeTensor):
+                        # Instantiate weights on first call
                         vars(self)[name](x.shape)
+                    # Compute and store moving average
                     vars(self)[name] = decay_rate * vars(self)[name] + (1 - decay_rate) * x
+
+                    # Use batch statistics during training
                     return x
                 else:
                     return vars(self)[name]
             self.moving_average = moving_average
 
     def forward(self, x):
-        return einx.nn.meanvar_norm(
+        return einx.nn.norm(
             x,
             self.stats,
             self.params,

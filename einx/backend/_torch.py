@@ -93,7 +93,7 @@ def make_torch_backend():
     _dynamo.allow_in_graph(einx.rearrange)
     _dynamo.allow_in_graph(einx.elementwise)
     _dynamo.allow_in_graph(einx.reduce)
-    _dynamo.allow_in_graph(einx.nn.meanvar_norm)
+    _dynamo.allow_in_graph(einx.nn.norm)
     _dynamo.allow_in_graph(einx.nn.linear)
     _dynamo.allow_in_graph(einx.nn.dropout)
 

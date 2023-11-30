@@ -52,7 +52,7 @@ class _Norm(nn.Module):
 
     @nn.compact
     def __call__(self, x, training=None):
-        return einx.nn.meanvar_norm(
+        return einx.nn.norm(
             x,
             self.stats,
             self.params,
