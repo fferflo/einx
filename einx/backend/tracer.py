@@ -282,6 +282,9 @@ def reduce(tensor, axis, keepdims=False, op=None):
             del shape[a]
     return Op(op, args=[tensor, axis], kwargs={"keepdims": keepdims}, shape=tuple(shape))
 
+def map(tensor, axis, op, *args, **kwargs):
+    return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, shape=tensor.shape)
+
 class tracer:
     Input = Input
     Constant = Constant
@@ -383,6 +386,10 @@ class tracer:
     all = partial(reduce, op="all")
     min = partial(reduce, op="min")
     max = partial(reduce, op="max")
+
+    map = map
+    flip = partial(map, op="flip")
+    roll = partial(map, op="roll")
 
     def sqrt(tensor):
         return Op("sqrt", args=[tensor], shape=tensor.shape)

@@ -43,7 +43,7 @@ def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
         any_reduced = any_reduced or len(reduced_axis_indices) > 0
         if len(reduced_axis_indices) > 0:
             # Apply reduction
-            tensor_in = op(tensor_in, axis=reduced_axis_indices)
+            tensor_in = op(tensor_in, axis=reduced_axis_indices if len(reduced_axis_indices) > 1 else reduced_axis_indices[0])
             expr_in = einx.expr.stage3.remove(expr_in, lambda expr: isinstance(expr, einx.expr.stage3.Marker))
         exprs_in2.append(expr_in)
         tensors_in2.append(tensor_in)
@@ -110,7 +110,7 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
         )[:len(exprs_in)]
 
         if not _any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_in for expr in root.all()):
-            raise ValueError("No axes were marked for reduction")
+            raise ValueError("No axes are marked for reduction")
 
         # Determine output expressions by removing markers from input expressions
         def replace(expr):
@@ -160,6 +160,8 @@ def reduce(arg0, *args, **kwargs):
     Returns:
         The result of the reduction operation if ``graph=False``, otherwise the graph representation of the operation.
 
+    The following specializations of this function are provided in the same namespace: ``sum``, ``mean``, ``var``, ``std``, ``prod``, ``count_nonzero``, ``any``, ``all``, ``max``, ``min``.
+
     Examples:
         Compute mean along rows of a matrix:
 
@@ -203,5 +205,5 @@ def _make(name):
     func.__name__ = name
     globals()[name] = func
 
-for name in ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min"]:
+for name in _op_names:
     _make(name)

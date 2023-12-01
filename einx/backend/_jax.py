@@ -56,6 +56,10 @@ def make_jax_backend():
         min = jnp.amin
         max = jnp.amax
 
+        map = lambda *args, op, **kwargs: op(*args, **kwargs)
+        flip = jnp.flip
+        roll = jnp.roll
+
         sqrt = jnp.sqrt
         rsqrt = jax_.lax.rsqrt
         square = jnp.square

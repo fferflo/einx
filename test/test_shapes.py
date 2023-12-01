@@ -305,3 +305,13 @@ def test_shape_vmap(backend):
     assert einx.vmap("b ([c d]) -> b [2] 1", x, op=func, c=16).shape == (16, 2, 1)
     assert einx.vmap("b [(c d)|2]", x, op=func, c=16).shape == (16, 2)
     assert einx.vmap("b ([c d|2])", x, op=func, c=16).shape == (16, 2)
+
+@pytest.mark.parametrize("backend", backends)
+def test_shape_map(backend):
+    x = backend.zeros((10, 10), "float32")
+    assert einx.flip("a [b]", x).shape == (10, 10)
+    assert einx.roll("a [b]", x, shift=5).shape == (10, 10)
+    assert einx.roll("a [b]", x, shift=(5,)).shape == (10, 10)
+
+    assert einx.flip("a ([b c])", x, b=2).shape == (10, 10)
+    assert einx.roll("a ([b c])", x, shift=(5, 5,), b=2).shape == (10, 10)

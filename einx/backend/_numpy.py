@@ -54,6 +54,10 @@ class numpy:
     min = np.amin
     max = np.amax
 
+    map = lambda *args, op, **kwargs: op(*args, **kwargs)
+    flip = np.flip
+    roll = np.roll
+
     sqrt = np.sqrt
     rsqrt = lambda x: 1.0 / np.sqrt(x)
     square = np.square

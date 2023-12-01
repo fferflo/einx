@@ -59,6 +59,10 @@ def make_tensorflow_backend():
         min = tnp.min
         max = tnp.max
 
+        map = lambda *args, op, **kwargs: op(*args, **kwargs)
+        flip = tnp.flip
+        roll = tnp.roll
+
         sqrt = tf.math.sqrt
         rsqrt = tf.math.rsqrt
         square = tnp.square

@@ -24,21 +24,33 @@ einx can be integrated easily into existing code and seamlessly works with tenso
     x = torch.ones(3, 4)
     y = einx.sum("a [b]", x)
 
-It provides several powerful abstractions, as well as easy-to-use specializations:
+einx provides a hierarchy of powerful abstractions:
 
-* :func:`einx.rearrange` maps tensors from input to output expressions by permuting axes, inserting new
-  broadcasted axes, concatenating and splitting the tensors as requested. Other einx functions support the same rearranging, but also
-  compute additional operations on the tensors (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
-* :func:`einx.reduce` applies a reduction operation on tensors along the axes specified in the input expressions, such as
-  `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.mean <https://numpy.org/doc/stable/reference/generated/numpy.mean.html>`_
-  or `np.any <https://numpy.org/doc/stable/reference/generated/numpy.any.html>`_. Specializations are provided as top-level functions
-  in the ``einx.*`` namespace following Numpy naming: ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}``.
-* :func:`einx.elementwise` applies element-by-element operations on tensors, such as
-  `np.add <https://numpy.org/doc/stable/reference/generated/numpy.add.html>`_, `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.multiply.html>`_
-  or `np.where <https://numpy.org/doc/stable/reference/generated/numpy.where.html>`_. Specializations are provided as top-level functions
-  in the ``einx.*`` namespace following Numpy naming: ``einx.{add|multiply|logical_and|where|equal|...}``.
-* :func:`einx.dot` applies general dot-products between tensors similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
-* :func:`einx.vmap` allows vectorizing arbitrary functions over batched tensors (see e.g. `vectorization in jax <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_).
+1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
+   broadcasted axes, concatenating and splitting the tensors as required.
+
+2. :func:`einx.reduce`, :func:`einx.elementwise`, :func:`einx.map`, :func:`einx.dot` apply backend operations on the tensors in addition to 
+   arbitrary rearranging (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+
+   * :func:`einx.reduce` applies reduction operations such as
+     `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.mean <https://numpy.org/doc/stable/reference/generated/numpy.mean.html>`_
+     or `np.any <https://numpy.org/doc/stable/reference/generated/numpy.any.html>`_.
+   * :func:`einx.elementwise` applies element-by-element operations such as
+     `np.add <https://numpy.org/doc/stable/reference/generated/numpy.add.html>`_, `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.multiply.html>`_
+     or `np.where <https://numpy.org/doc/stable/reference/generated/numpy.where.html>`_.
+   * :func:`einx.map` applies operations along axes of tensors that do not change their axis length such as
+     `jax.nn.softmax <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.softmax.html>`_, 
+     `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.flip.html>`_ or `np.roll <https://numpy.org/doc/stable/reference/generated/numpy.roll.html>`_.
+   * :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
+
+3. :func:`einx.vmap` is the most general abstraction and allows applying arbitrary functions on tensors using vectorization
+   (see `this jax tutorial <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_ for an introduction to vectorization).
+
+Many easy-to-use specializations are included as top-level functions in the ``einx.*`` namespace following Numpy naming conventions:
+
+* ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`` for :func:`einx.reduce`.
+* ``einx.{add|multiply|logical_and|where|equal|...}`` for :func:`einx.elementwise`.
+* ``einx.{flip|roll|...}`` for :func:`einx.map`.
 
 Einstein expressions
 --------------------
@@ -50,18 +62,18 @@ and concatenations ``(a + b)``. Unlike in einops, an ellipsis always repeats the
 
     einx.rearrange("b c h w  -> b h w  c", x)
     # same as
-    einx.rearrange("b c s... -> b s... c", x)
+    einx.rearrange("b c s... -> b s... c", x) # Expands to "b c s.0 s.1 -> b s.0 s.1 c"
 
 and can appear multiple times per expression and be composed with other expressions arbitrarily:
 
 ..  code::
 
     # Divide image into patches (space-to-depth)
-    einx.rearrange("b (h h2) (w w2) c -> b h w  (h2 w2 c)", x, h2=2, w2=2)
+    einx.rearrange("b (h h2) (w w2) c -> b h w  h2 w2 c", x, h2=2, w2=2)
     # same as
-    einx.rearrange("b (s s2)...     c -> b s... (s2... c)", x, s2=2) # or s2=(2, 2)
+    einx.rearrange("b (s s2)...     c -> b s... s2... c", x, s2=2) # or s2=(2, 2)
 
-This facilitates writing dimension-agnostic code even for complex operations. To be fully compatible with einops-style notation, einx implicitly
+This simplifies expressions and facilitates writing dimension-agnostic code even for complex operations. To be fully compatible with einops-style notation, einx implicitly
 converts anonymous ellipses (that do not have a preceeding expression) by adding a name in front:
 
 ..  code::
@@ -70,7 +82,7 @@ converts anonymous ellipses (that do not have a preceeding expression) by adding
     # same as
     einx.rearrange("b _anonymous_ellipsis_variable... -> _anonymous_ellipsis_variable... b", x)
 
-einx introduces concatenations as a way to specify operations such as `np.concatenate <https://numpy.org/doc/stable/reference/generated/numpy.concatenate.html>`_,
+einx introduces axis concatenations as a way to specify operations such as `np.concatenate <https://numpy.org/doc/stable/reference/generated/numpy.concatenate.html>`_,
 `np.split <https://numpy.org/doc/stable/reference/generated/numpy.split.html>`_,
 `np.stack <https://numpy.org/doc/stable/reference/generated/numpy.stack.html>`_,
 `einops.pack and einops.unpack <https://einops.rocks/4-pack-and-unpack/>`_ in pure Einstein notation:
@@ -103,9 +115,7 @@ Bracket notation
 ----------------
 
 einx introduces the ``[]``-notation to specify how operations should be vectorized. ``[]`` denotes axes that an operation is applied on, while all other
-axes are batch axes and vectorized over.
-
-This corresponds to the ``axis`` argument of numpy functions:
+axes are batch axes and vectorized over. This corresponds to the ``axis`` argument in index-based notation:
 
 ..  code::
 
@@ -119,6 +129,10 @@ This corresponds to the ``axis`` argument of numpy functions:
 
     einx.sum("b... (g [c])", x)
     # requires reshapes in numpy
+
+    einx.flip("... [b c]", x)
+    # same as
+    np.flip(x, axis=(-2, -1))
 
 Operations are sensitive to the positioning of brackets, e.g. allowing for flexible ``keepdims=True`` behavior out-of-the-box:
 
@@ -137,7 +151,7 @@ Other examples of bracket notation:
     # Add bias onto channels
     einx.add("b... [c]", x, bias) # bias has shape c
 
-    # Map from c1 to c2 channels using a linear map
+    # Map from c1 to c2 channels using a linear map w
     einx.dot("b [c1] -> b [c2]", x, w)
     # Same call in shorter notation:
     einx.dot("b [c1|c2]", x, w)
@@ -153,9 +167,10 @@ Other examples of bracket notation:
     def op(x, y): # c, d -> 2
         return np.stack([np.mean(x), np.max(y)])
 
+    # Apply op to batched tensors x and y
     einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=op)
 
-The arguments that arrive at ``op`` have shapes that match the marked subexpressions. Other einx functions can similarly be formulated using ``einx.vmap``:
+The arguments that are passed to ``op`` have shapes that match the marked subexpressions. Other einx functions can similarly be formulated using ``einx.vmap``:
 
 ..  code::
 
@@ -168,7 +183,7 @@ The arguments that arrive at ``op`` have shapes that match the marked subexpress
     einx.dot("a b, b c -> a c", x, y)
     einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
 
-While using the option without ``einx.vmap`` is often faster, ``einx.vmap`` also allows vectorizing functions that do not support
+While using the option without ``einx.vmap`` is often faster, ``einx.vmap`` also allows vectorizing functions that do not inherently support
 batch axes (e.g. `map_coordinates <https://jax.readthedocs.io/en/latest/_autosummary/jax.scipy.ndimage.map_coordinates.html>`_).
 
 .. _lazytensorconstruction:
@@ -201,7 +216,7 @@ To cache an operation, einx runs the function with tracer objects instead of the
 the overhead is reduced to the cache lookup and graph execution overhead.
 
 einx tries to use as few backend operations as possible to perform the requested computation. The graph can be inspected to determine the backend calls
-that einx makes and to ensure that no needless operations are performed (see below).
+that einx makes and to ensure that no needless operations are performed (see :ref:`Inspecting operations <inspectingoperations>`).
 
 .. _inspectingoperations:
 
@@ -209,7 +224,7 @@ Inspecting operations
 ---------------------
 
 einx functions accept the ``graph=True`` argument to return a graph representation of the backend operations. The graph can be
-inspected to verify that the expected index-based calls are made:
+inspected to verify that the expected index-based calls are made. For example:
 
 ..  code:: python
 
@@ -222,7 +237,7 @@ inspected to verify that the expected index-based calls are made:
         X1 := sum(X2, (1), keepdims=False)
         return X1
 
-The ``instantiate`` function executes tensor factories if they are given, and converts tensors to the requested backend. The ``einx.sum("a [b]", x)`` call
+The ``instantiate`` function executes :ref:`tensor factories <lazytensorconstruction>` if they are given, and converts tensors to the requested backend. The ``einx.sum("a [b]", x)`` call
 thus reduces to a single ``backend.sum`` call with ``axis=1``.
 
 Another example of a sum-reduction that requires a reshape operation:

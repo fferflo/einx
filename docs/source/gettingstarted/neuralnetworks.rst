@@ -14,14 +14,14 @@ Motivation
 ----------
 
 The main idea for implementing layers in einx is to exploit :ref:`tensor factories <lazytensorconstruction>` to initialize the weights of a layer.
-As an example, in the following linear layer the parameters ``w`` and ``b`` represent the layer weights:
+For example, consider the following linear layer:
 
 ..  code::
 
     x = einx.dot("b... [c1|c2]", x, w) # x * w
-    x = einx.add("b... [c]", x, b)     # x + b
+    x = einx.add("b... [c2]", x, b)     # x + b
 
-Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually, we define ``w`` and ``b`` as tensor factories that
+The parameters ``w`` and ``b`` represent the layer weights. Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually, we define ``w`` and ``b`` as tensor factories that
 are called inside the einx functions once the shapes are determined. For example, in the Haiku framework ``hk.get_parameter`` is used to create new weights
 and can be defined as a tensor factory as follows:
 
@@ -35,13 +35,14 @@ and can be defined as a tensor factory as follows:
             b = lambda shape: hk.get_parameter(name="bias", shape=shape, dtype="float32", init=hk.initializers.Constant(0.0))
 
             x = einx.dot("b... [c1|c2]", x, w, c2=64)
-            x = einx.add("b... [c]", x, b)
+            x = einx.add("b... [c2]", x, b)
+            return x
 
-Unlike a tensor, the tensor factory does not provide shape constraints to the expression solver and requires that we define the missing axes (``c2``) manually. In this case,
-this corresponds to passing the ``channels`` parameter to a linear layer.
+Unlike a tensor, the tensor factory does not provide shape constraints to the expression solver and requires that we define the missing axes (``c2``) manually. Here,
+this corresponds to specifying the ``out_channels`` parameter of the linear layer. All other axis values are determined implicitly from the input shapes.
 
 The weights are created once a layer is run on the first input batch. This is standard practice in jax-based frameworks like Flax and Haiku where a model
-is typically first invoked with a dummy batch to instantiate all weights before the training loop.
+is typically first invoked with a dummy batch to instantiate all weights.
 
 In Torch, we rely on `lazy modules <https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html#torch.nn.modules.lazy.LazyModuleMixin>`_
 by creating weights as ``torch.nn.parameter.UninitializedParameter`` in the constructor and calling their ``materialize`` method on the first input batch. This is
@@ -59,11 +60,11 @@ handled automatically by einx, and ``torch.nn.parameter.UninitializedParameter``
 
         def forward(self, x):
             x = einx.dot("b... [c1|c2]", x, self.w, c2=64)
-            x = einx.add("b... [c]", x, self.b)
+            x = einx.add("b... [c2]", x, self.b)
             return x
 
-``einx.dot`` passes the ``in_axes``, ``out_axes`` and ``batch_axes`` to the respective tensor factory (if it accepts these parameters) that can be used to determine the
-fan-in and fan-out of the layer and initialize the weights accordingly.
+``einx.dot`` passes the ``in_axes``, ``out_axes`` and ``batch_axes`` arguments to the respective tensor factory (if it includes corresponding parameters) that can be
+used to determine the fan-in and fan-out of the layer and initialize the weights accordingly.
 
 Layers
 ------

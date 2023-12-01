@@ -54,8 +54,10 @@ def make_torch_backend():
         greater_equal = torch_.greater_equal
         equal = torch_.equal
         not_equal = torch_.not_equal
-        maximum = lambda a, b: torch_.maximum(torch.to_tensor(a), torch.to_tensor(b))
-        minimum = lambda a, b: torch_.minimum(torch.to_tensor(a), torch.to_tensor(b)) # TODO: add support for python scalars everywhere
+        def maximum(a, b):
+            return torch_.maximum(torch.to_tensor(a), torch.to_tensor(b)) # TODO: add support for python scalars everywhere
+        def minimum(a, b):
+            return torch_.minimum(torch.to_tensor(a), torch.to_tensor(b))
 
         reduce = lambda *args, op, **kwargs: op(*args, **kwargs)
         sum = torch_.sum
@@ -69,17 +71,28 @@ def make_torch_backend():
         min = torch_.min
         max = torch_.max
 
+        map = lambda *args, op, **kwargs: op(*args, **kwargs)
+        def flip(tensor, axis):
+            if isinstance(axis, int):
+                axis = [axis]
+            return torch_.flip(tensor, axis)
+        def roll(tensor, shift, axis):
+            if isinstance(axis, int):
+                axis = [axis]
+            return torch_.roll(tensor, shift, axis)
+
         sqrt = torch_.sqrt
         rsqrt = torch_.rsqrt
         square = torch_.square
 
         allclose = torch_.allclose
 
-        vmap = lambda op, in_axes, out_axes: torch_.vmap(
-            op,
-            in_dims=tuple(in_axes) if isinstance(in_axes, list) else in_axes,
-            out_dims=tuple(out_axes) if isinstance(out_axes, list) else out_axes,
-        )
+        def vmap(op, in_axes, out_axes):
+            return torch_.vmap(
+                op,
+                in_dims=tuple(in_axes) if isinstance(in_axes, list) else in_axes,
+                out_dims=tuple(out_axes) if isinstance(out_axes, list) else out_axes,
+            )
 
         def assert_shape(tensor, shape):
             assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"

@@ -1,0 +1,174 @@
+import einx
+from . import util
+import numpy as np
+from functools import partial
+
+_op_names = ["roll", "flip"]
+
+@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+def map_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backend=None):
+    if backend is None:
+        backend = einx.backend.get(tensors_in)
+    if op is None:
+        raise TypeError("op cannot be None")
+    if isinstance(op, str):
+        op = getattr(backend, op)
+    else:
+        op = partial(backend.reduce, op=op)
+    if len(exprs_in) != len(tensors_in):
+        raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
+    if any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_out for expr in root.all()):
+        raise ValueError(f"Marker '{expr}' in output expression is not allowed")
+
+    # Call tensor factories
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
+
+    # Flatten expressions
+    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
+    exprs_out_flat = util.flatten(exprs_out)
+    assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
+    assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
+    if len(exprs_in) != len(exprs_out_flat):
+        raise ValueError("Got different number of input and output expressions (after flattening)")
+
+    # Apply operation
+    exprs_in2 = []
+    tensors_in2 = []
+    any_applied = False
+    for expr_in, tensor_in in zip(exprs_in, tensors_in):
+        # Find axes
+        axis_indices = tuple(i for i, axis in enumerate(expr_in) if einx.expr.stage3.is_marked(axis))
+        any_applied = any_applied or len(axis_indices) > 0
+        if len(axis_indices) > 0:
+            # Apply operation
+            tensor_in = op(tensor_in, axis=axis_indices if len(axis_indices) > 1 else axis_indices[0], **kwargs)
+            expr_in = einx.expr.stage3.demark(expr_in)
+        exprs_in2.append(expr_in)
+        tensors_in2.append(tensor_in)
+    if not any_applied:
+        raise ValueError("No axes are marked")
+
+    exprs_in = exprs_in2
+    tensors_in = tensors_in2
+
+    # Order inputs to align with output expressions
+    indices = util.assignment(exprs_in, exprs_out_flat)
+    exprs_in = [exprs_in[i] for i in indices]
+    tensors_in = [tensors_in[i] for i in indices]
+
+    # Transpose and broadcast missing output dimensions
+    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out) for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
+
+    # Unflatten output expressions
+    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend)
+
+    return tensors, exprs_out
+
+@einx.lru_cache
+def parse(description, *tensors_shapes, cse=True, **parameters):
+    description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
+
+    if "->" in description:
+        description = description.split("->")
+        if len(description) != 2:
+            raise ValueError("Operation cannot contain more than one '->'")
+
+        exprs_in, exprs_out = description
+        exprs_in = exprs_in.split(",")
+        exprs_out = exprs_out.split(",")
+        exprs = exprs_in + exprs_out
+        if len(exprs_in) != len(tensors_shapes):
+            raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_shapes)}")
+
+        exprs = einx.expr.solve(
+                [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+              + [einx.expr.Condition(expr=expr_out, depth=0) for expr_out in exprs_out] \
+              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+            cse=cse,
+        )[:len(exprs_in) + len(exprs_out)]
+        exprs_in, exprs_out = exprs[:len(exprs_in)], exprs[len(exprs_in):]
+
+    else:
+        exprs_in = description.split(",")
+        if len(exprs_in) != len(tensors_shapes):
+            raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_shapes)}")
+
+        exprs_in = einx.expr.solve(
+                [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+            cse=cse,
+        )[:len(exprs_in)]
+
+        if not any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_in for expr in root.all()):
+            raise ValueError("No axes are marked")
+
+        exprs_out = [einx.expr.stage3.demark(expr_in) for expr_in in exprs_in]
+
+    if any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_out for expr in root.all()):
+        raise ValueError("Output expressions cannot contain []-brackets")
+
+    return exprs_in, exprs_out
+
+@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+def map_stage0(description, *tensors, op, backend=None, cse=True, kwargs={}, **parameters):
+    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensors, exprs_out = map_stage3(exprs_in, tensors, exprs_out, op=op, kwargs=kwargs, backend=backend)
+    return tensors[0] if len(exprs_out) == 1 else tensors
+
+def map(arg0, *args, **kwargs):
+    """Applies an operation to all input tensors along the specified axes that does not change the axis lengths.
+
+    The function flattens all input tensors, applies the given operation on each tensor and rearranges
+    the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+
+    The `description` argument specifies the input and output expressions, as well as axes along which the operation is applied. It must meet one of the following formats:
+
+    1. ``input1, input2, ... -> output1, output2, ...``
+        All input and output expressions are specified explicitly. Axes that the operation is applied along are marked with ``[]``-brackets in the input expressions.
+
+    2. ``input1, input2, ...``
+        Only the input expressions are specified, and the output expressions chosen equal to the input expressions. Axes that the operation is applied along are
+        marked with ``[]``-brackets in the input expressions.
+
+        Example: ``a [b]`` resolves to ``a [b] -> a b``.
+
+    Args:
+        description: Description string in Einstein notation (see above).
+        tensors: Input tensors or tensor factories matching the description string.
+        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
+        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
+        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        The result of the operation if ``graph=False``, otherwise the graph representation of the operation.
+
+    Examples:
+        Reverse order of elements along an axis
+
+        >>> x = np.random.uniform(size=(16, 20))
+        >>> einx.flip("a [b] -> a b", x).shape
+        (16, 20)
+        >>> einx.flip("a [b]", x).shape
+        (16, 20)
+
+        Roll elements along two axes
+
+        >>> x = np.random.uniform(size=(16, 20))
+        >>> einx.roll("a ([b c])", x, shift=(2, 2)).shape
+        (16, 20)
+    """
+    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
+        return map_stage0(arg0, *args, **kwargs)
+    else:
+        return map_stage3(arg0, *args, **kwargs)
+map._op_names = _op_names
+map.parse = parse
+
+
+def flip(*args, **kwargs):
+    return map(*args, op="flip", **kwargs)
+
+def roll(description, tensor, shift, **kwargs):
+    return map(description, tensor, op="roll", kwargs={"shift": shift}, **kwargs)

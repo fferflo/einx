@@ -78,3 +78,13 @@ def test_values(backend):
     assert backend.allclose(b, backend.to_tensor([1]))
     assert backend.allclose(c, backend.to_tensor([2]))
     assert backend.allclose(d, backend.to_tensor([3]))
+
+    x = backend.to_tensor(np.arange(4)[np.newaxis])
+    assert backend.allclose(
+        einx.flip("a [b]", x),
+        backend.to_tensor([[3, 2, 1, 0]]),
+    )
+    assert backend.allclose(
+        einx.roll("a [b]", x, shift=2),
+        backend.to_tensor([[2, 3, 0, 1]]),
+    )

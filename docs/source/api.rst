@@ -8,6 +8,7 @@ Main abstractions
 .. autofunction:: einx.rearrange
 .. autofunction:: einx.reduce
 .. autofunction:: einx.elementwise
+.. autofunction:: einx.map
 .. autofunction:: einx.dot
 .. autofunction:: einx.vmap
 
