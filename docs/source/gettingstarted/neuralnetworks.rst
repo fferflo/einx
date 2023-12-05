@@ -1,7 +1,7 @@
 Neural networks
 ###############
 
-einx provides several neural network layer types for deep learning frameworks (`Torch <https://pytorch.org/>`_, `Flax <https://github.com/google/flax>`_,
+einx provides several neural network layer types for deep learning frameworks (`PyTorch <https://pytorch.org/>`_, `Flax <https://github.com/google/flax>`_,
 `Haiku <https://github.com/google-deepmind/dm-haiku>`_) in the ``einx.nn.*`` namespace 
 based on the functions in ``einx.*``. These layers provide abstractions that can implement a wide variety of deep learning operations using Einstein notation.
 The ``einx.nn.*`` namespace is entirely optional, and is imported as follows:
@@ -19,7 +19,7 @@ For example, consider the following linear layer:
 ..  code::
 
     x = einx.dot("b... [c1|c2]", x, w) # x * w
-    x = einx.add("b... [c2]", x, b)     # x + b
+    x = einx.add("b... [c2]", x, b)    # x + b
 
 The parameters ``w`` and ``b`` represent the layer weights. Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually, we define ``w`` and ``b`` as tensor factories that
 are called inside the einx functions once the shapes are determined. For example, in the Haiku framework ``hk.get_parameter`` is used to create new weights
@@ -41,12 +41,12 @@ and can be defined as a tensor factory as follows:
 Unlike a tensor, the tensor factory does not provide shape constraints to the expression solver and requires that we define the missing axes (``c2``) manually. Here,
 this corresponds to specifying the ``out_channels`` parameter of the linear layer. All other axis values are determined implicitly from the input shapes.
 
-The weights are created once a layer is run on the first input batch. This is standard practice in jax-based frameworks like Flax and Haiku where a model
+The weights are created once a layer is run on the first input batch. This is common practice in jax-based frameworks like Flax and Haiku where a model
 is typically first invoked with a dummy batch to instantiate all weights.
 
-In Torch, we rely on `lazy modules <https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html#torch.nn.modules.lazy.LazyModuleMixin>`_
+In PyTorch, we rely on `lazy modules <https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html#torch.nn.modules.lazy.LazyModuleMixin>`_
 by creating weights as ``torch.nn.parameter.UninitializedParameter`` in the constructor and calling their ``materialize`` method on the first input batch. This is
-handled automatically by einx, and ``torch.nn.parameter.UninitializedParameter`` can simply be passed to einx like a regular tensor factory:
+handled automatically by einx, and ``torch.nn.parameter.UninitializedParameter`` can simply be passed to einx as a tensor factory:
 
 ..  code::
 
@@ -91,8 +91,8 @@ The abstractions can be used to implement a wide variety of different layers:
     spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
     droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 
-As described above, all layers have to be invoked with a dummy batch first to instantiate the weights. In Torch, ``torch.compile`` should be applied after this
+As described above, all layers have to be invoked with a dummy batch first to instantiate the weights. In PyTorch, ``torch.compile`` should be applied after this
 first forward pass.
 
-The scripts ``scripts/train_{torch|flax|haiku}.py`` provide example trainings for models implemented using ``einn`` on CIFAR10. ``einn`` layers can be combined
+Example trainings on CIFAR10 are provided in ``scripts/train_{torch|flax|haiku}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
 with other layers or used as submodules in the respective framework seamlessly.

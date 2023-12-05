@@ -6,11 +6,12 @@ Main abstractions
 =================
 
 .. autofunction:: einx.rearrange
+.. autofunction:: einx.vmap_with_axis
+.. autofunction:: einx.vmap
 .. autofunction:: einx.reduce
 .. autofunction:: einx.elementwise
-.. autofunction:: einx.map
 .. autofunction:: einx.dot
-.. autofunction:: einx.vmap
+
 
 
 Layers

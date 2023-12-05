@@ -1,7 +1,7 @@
 Cheatsheet
 ##########
 
-**Einstein-notation in einx and index-based notation in numpy**
+**Einstein-notation in einx and index-based notation in Numpy**
 
 .. list-table:: 
    :widths: 10 45 45
@@ -9,7 +9,7 @@ Cheatsheet
 
    * -
      - einx
-     - numpy
+     - Numpy
    * - Transpose
      - ``einx.rearrange("a b c -> a c b", x)``
      - ``np.transpose(x, (0, 2, 1))``

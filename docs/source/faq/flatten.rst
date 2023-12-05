@@ -45,5 +45,5 @@ expression that allows for a successful assignment. In most cases, this leads to
     # same as
     np.stack([x, y], axis=-1)
 
-The function `einx.rearrange` can be used to perform flattening and unflattening of the input tensors as described in the operation string. Other functions
-such as `einx.reduce` and `einx.dot` perform the same flattening and unflattening, in addition to applying some operation to the flattened tensors.
+The function :func:`einx.rearrange` can be used to perform flattening and unflattening of the input tensors as described in the operation string. Other functions
+such as :func:`einx.vmap` and :func:`einx.dot` perform the same flattening and unflattening, in addition to applying an operation to the flattened tensors.

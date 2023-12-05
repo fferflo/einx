@@ -164,7 +164,9 @@ def dot(arg0, *args, **kwargs):
 
         Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
 
-    If an input tensors contains a concatenation, it is first split into separate tensors. All resulting tensors are used as inputs to the function.
+    The function additionally passes the ``in_axes``, ``out_axes`` and ``batch_axes`` arguments to tensor factories that can be used to determine the fan-in
+    and fan-out of a neural network layer and initialize weights accordingly
+    (see e.g. `jax.nn.initializers.lecun_normal <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.initializers.lecun_normal.html#jax.nn.initializers.lecun_normal>`_)
 
     Args:
         description: Description string in Einstein notation (see above).

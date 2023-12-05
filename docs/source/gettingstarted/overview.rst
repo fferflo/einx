@@ -1,3 +1,7 @@
+.. toctree::
+   :caption: Overview
+   :maxdepth: 3
+
 Overview
 ########
 
@@ -5,10 +9,14 @@ Introduction
 ------------
 
 einx allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
-`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
-For an introduction to the basics of Einstein-notation see
-`this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ and a
-:doc:`comparison with index-based notation </gettingstarted/cheatsheet>`.
+`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
+(see :doc:`comparison </faq/einops>`). einx introduces:
+
+* Powerful and composable :ref:`Einstein expressions <einsteinexpressions>`.
+* Numpy-like naming convention: ``einx.{sum|mean|any|max|count_nonzero|where|add|logical_and|flip|...}``
+* ``[]``-:ref:`notation <bracketnotation>` similar to the ``axis`` argument in Numpy functions.
+* :ref:`Inspection of backend operations <inspectingoperations>` in index-based notation that are invoked in a given einx call.
+* Generalized :doc:`neural network layers </gettingstarted/neuralnetworks>` that are formulated using einx expressions.
 
 einx can be integrated easily into existing code and seamlessly works with tensors from different frameworks (Numpy, Torch, Jax, Tensorflow):
 
@@ -24,57 +32,60 @@ einx can be integrated easily into existing code and seamlessly works with tenso
     x = torch.ones(3, 4)
     y = einx.sum("a [b]", x)
 
-einx provides a hierarchy of powerful abstractions:
-
-1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
-   broadcasted axes, concatenating and splitting as required.
-
-2. :func:`einx.reduce`, :func:`einx.elementwise`, :func:`einx.map`, :func:`einx.dot` apply backend operations on the tensors in addition to 
-   arbitrary rearranging (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
-
-   * :func:`einx.reduce` applies reduction operations like
-     `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.mean <https://numpy.org/doc/stable/reference/generated/numpy.mean.html>`_
-     or `np.any <https://numpy.org/doc/stable/reference/generated/numpy.any.html>`_.
-   * :func:`einx.elementwise` applies element-by-element operations like
-     `np.add <https://numpy.org/doc/stable/reference/generated/numpy.add.html>`_, `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.multiply.html>`_
-     or `np.where <https://numpy.org/doc/stable/reference/generated/numpy.where.html>`_.
-   * :func:`einx.map` applies operations along axes of tensors that do not change their axis length like
-     `jax.nn.softmax <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.softmax.html>`_, 
-     `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.flip.html>`_ or `np.roll <https://numpy.org/doc/stable/reference/generated/numpy.roll.html>`_.
-   * :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
-
-3. :func:`einx.vmap` is the most general abstraction and allows applying arbitrary functions on tensors using vectorization
-   (see `this jax tutorial <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_ for an introduction to vectorization).
-
-Many easy-to-use specializations are included as top-level functions in the ``einx.*`` namespace following Numpy naming conventions:
-
-* ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`` for :func:`einx.reduce`.
-* ``einx.{add|multiply|logical_and|where|equal|...}`` for :func:`einx.elementwise`.
-* ``einx.{flip|roll|...}`` for :func:`einx.map`.
+.. _einsteinexpressions:
 
 Einstein expressions
 --------------------
 
-An einx expression that describes a tensor's shape consists of named and unnamed axes (``a``, ``8``), compositions ``(a b)``, ellipses ``a...``
-and concatenations ``(a + b)``. An ellipsis always repeats the expression that appears directly in front of it (unlike in einops)
+For an introduction to the basics of Einstein-notation for tensor manipulation see
+`this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ and a
+:doc:`comparison with index-based notation </gettingstarted/cheatsheet>`.
+
+An Einstein expression describes a tensor's shape and consists of named and unnamed axes (``a``, ``8``), axis lists ``a b``, compositions ``(a b)``, ellipses ``a...``
+and concatenations ``(a + b)``.
+
+An axis **list** specifies the axes of a tensor in order, separated by spaces:
+
+>>> x = np.ones((2, 3, 4)) # Expression: a b c
+>>> einx.rearrange("a b c  -> a c b", x).shape
+(2, 4, 3)
+
+A **composition** collapses multiple axes into a single axis:
+
+>>> x = np.ones((2, 3, 4)) # Expression: a b c
+>>> einx.rearrange("a b c  -> (a b) c", x).shape
+(6, 4)
+
+This uses a `reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_ operation which interprets the composed dimensions as a single list of values.
+The value of the new axis is the product of the composed axes. See `this einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_
+for hands-on illustrations of axis composition using a batch of images. Axes can be decomposed analogously:
+
+>>> x = np.ones((6, 4)) # Expression: (a b) c
+>>> einx.rearrange("(a b) c  -> a b c", x, a=2).shape
+(2, 3, 4)
+
+Since a decomposition is ambiguous w.r.t. the values of the individual axes (only the product is known), additional constraints for the axis values
+must be passed as parameters, e.g. ``a=2``. 
+
+An **ellipsis** repeats the expression that appears directly in front of it:
+
+>>> x = np.ones((2, 3, 4)) # Expression: a x...
+>>> einx.rearrange("a x...  -> x... a", x).shape # Expands to "a x.0 x.1 -> x.0 x.1 a"
+(3, 4, 2)
+
+The number of repetitions is determined from the rank of the input tensors. This simplifies expressions and facilitates writing dimension-agnostic code.
+Ellipses can be composed with other expressions arbitrarily which allows formulating complex multi-dimensional operations in a concise way. For example:
 
 ..  code::
 
-    einx.rearrange("b c h w  -> b h w  c", x)
-    # same as
-    einx.rearrange("b c s... -> b s... c", x) # Expands to "b c s.0 s.1 -> b s.0 s.1 c"
+    # Mean-pooling with stride 4 (if evenly divisible)
+    einx.mean("b (s [s2])... c", x, s2=4)
 
-and can appear multiple times per expression and be composed with other expressions arbitrarily:
+    # Divide an into a list of patches with size 4
+    einx.rearrange("(s s2)... c -> (s...) s2... c", x, s2=4)
 
-..  code::
-
-    # Divide image into patches (space-to-depth)
-    einx.rearrange("b (h h2) (w w2) c -> b h w  h2 w2 c", x, h2=2, w2=2)
-    # same as
-    einx.rearrange("b (s s2)...     c -> b s... s2... c", x, s2=2) # or s2=(2, 2)
-
-This simplifies expressions and facilitates writing dimension-agnostic code even for complex operations. To be fully compatible with einops-style notation, einx implicitly
-converts anonymous ellipses (that do not have a preceeding expression) by adding a name in front:
+To be fully compatible with einops-style notation where an ellipsis can only appear once without a preceding expression, einx implicitly
+converts anonymous ellipses by adding a name in front:
 
 ..  code::
 
@@ -82,7 +93,7 @@ converts anonymous ellipses (that do not have a preceeding expression) by adding
     # same as
     einx.rearrange("b _anonymous_ellipsis_variable... -> _anonymous_ellipsis_variable... b", x)
 
-einx introduces axis concatenations as a way to specify operations such as `np.concatenate <https://numpy.org/doc/stable/reference/generated/numpy.concatenate.html>`_,
+einx introduces axis **concatenations** as a way to specify operations such as `np.concatenate <https://numpy.org/doc/stable/reference/generated/numpy.concatenate.html>`_,
 `np.split <https://numpy.org/doc/stable/reference/generated/numpy.split.html>`_,
 `np.stack <https://numpy.org/doc/stable/reference/generated/numpy.stack.html>`_,
 `einops.pack and einops.unpack <https://einops.rocks/4-pack-and-unpack/>`_ in pure Einstein notation:
@@ -98,7 +109,7 @@ einx introduces axis concatenations as a way to specify operations such as `np.c
 
 einx uses a `SymPy <https://www.sympy.org/en/index.html>`_ solver to determine the values of named axes in Einstein expressions.
 In many cases, the shapes of the input tensors provide enough constraints to determine the values of all named axes. For other cases, einx functions accept
-``**parameters`` that can be used to specify the values of some or all named axes and provide additional constraints to the solver:
+``**parameters`` that can be used to specify the values of some or all named axes and provide **additional constraints** to the solver:
 
 ..  code::
 
@@ -152,7 +163,7 @@ Other examples of bracket notation:
     # Same call in shorter notation:
     einx.dot("b [c1|c2]", x, w)
 
-    # Mean pooling with kernel_size=4 and stride=4 (must be evenly divisible)
+    # Mean pooling with stride 4 (if evenly divisible)
     einx.mean("b (s [s2])... c", x, s2=4)
 
     # Reverse elements along the last two axes
@@ -187,6 +198,33 @@ The arguments that are passed to ``op`` have shapes that match the marked subexp
 
 While using the option without ``einx.vmap`` is often faster, ``einx.vmap`` also allows vectorizing functions that do not inherently support
 batch axes (e.g. `map_coordinates <https://jax.readthedocs.io/en/latest/_autosummary/jax.scipy.ndimage.map_coordinates.html>`_).
+
+.. _apisummary:
+
+API
+---
+
+einx provides several powerful abstractions:
+
+1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
+   broadcasted axes, concatenating and splitting as required.
+
+2. :func:`einx.vmap_with_axis` applies functions that accept the ``axis`` argument and follow
+   `numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
+   `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_).
+
+3. :func:`einx.vmap` applies arbitrary functions using vectorization
+   (see `this jax tutorial <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_ for an introduction to vectorization).
+
+4. :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
+
+Many easy-to-use specializations are also included as top-level functions in the ``einx.*`` namespace following Numpy naming conventions:
+
+* ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`` (see :func:`einx.reduce`).
+* ``einx.{add|multiply|logical_and|where|equal|...}`` (see :func:`einx.elementwise`).
+* ``einx.{flip|roll|...}`` (see :func:`einx.vmap_with_axis`).
+
+See the :doc:`API reference </api>` for a list of functions.
 
 .. _lazytensorconstruction:
 
@@ -236,7 +274,7 @@ inspected to verify that the expected index-based calls are made. For example:
 
     Graph reduce_stage0("a [b]", I0, op="sum"):
         X2 := instantiate(I0, shape=(10, 10))
-        X1 := sum(X2, (1), keepdims=False)
+        X1 := sum(X2, axis=1)
         return X1
 
 The ``instantiate`` function executes :ref:`tensor factories <lazytensorconstruction>` if they are given, and converts tensors to the requested backend. The ``einx.sum("a [b]", x)`` call
@@ -253,7 +291,7 @@ Another example of a sum-reduction that requires a reshape operation:
     Graph reduce_stage0("b... (g [c])", I0, op="sum", g=2):
         X3 := instantiate(I0, shape=(10, 10))
         X2 := reshape(X3, (10, 2, 5))
-        X1 := sum(X2, (2), keepdims=False)
+        X1 := sum(X2, axis=2)
         return X1
 
 An example of a call to ``einx.dot`` that forwards computation to ``backend.einsum``:
@@ -274,7 +312,7 @@ An example of a call to ``einx.dot`` that forwards computation to ``backend.eins
 
 .. note::
 
-    ``einx.dot`` also passes the ``in_axis``, ``out_axis`` and ``batch_axis`` arguments to tensor factories, e.g. to determine the fan-in and fan-out
+    ``einx.dot`` passes the ``in_axis``, ``out_axis`` and ``batch_axis`` arguments to tensor factories, e.g. to determine the fan-in and fan-out
     of neural network layers and initialize the weights accordingly (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
 
 An example of an operation that requires concatenation of tensors:

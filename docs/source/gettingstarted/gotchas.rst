@@ -15,3 +15,8 @@ motivated by the fact that the function computes a generalized dot-product, and 
 
     einx.dot("a b, b c -> a c", x, y)
     einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
+
+4. **Neural network layers in** ``einx.nn.*`` **have to be initialized with a single forward-pass on a dummy batch** to determine the shapes and construct the layer weights.
+This is already common practice in jax-based frameworks like `Flax <https://github.com/google/flax>`_ and `Haiku <https://github.com/google-deepmind/dm-haiku>`_,
+but might require modification for `PyTorch <https://pytorch.org/>`_ training scripts. ``torch.compile`` should be applied after this
+first forward pass (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
