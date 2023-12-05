@@ -1,25 +1,21 @@
 # *einx* - Tensor Operations in Einstein-Inspired Notation
 
-einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
+einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html). **tl;dr**:
 
-### tl;dr:
-
-- Introduces composable Einstein expressions that are compatible with einops-notation (see [Comparison with einops](https://einx.readthedocs.io/en/latest/faq/einops.html)).
-- Integrates easily into existing code using Numpy, PyTorch, Tensorflow and Jax.
-- Uses Numpy-like naming conventions:
-  - `einx.{sum|mean|any|max|count_nonzero|where|add|logical_and|flip|...}`
-  - `[]`-notation similar to `axis` argument (see [Bracket notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation))
-- Incurs zero overhead when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html), small overhead in eager mode where operations are cached on the first call (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance)).
+- Introduces [composable Einstein expressions](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#einstein-expressions) with [`[]`-notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation) that are compatible with einops-notation (see [Comparison with einops](https://einx.readthedocs.io/en/latest/faq/einops.html)).
+- Integrates easily with existing code using Numpy, PyTorch, Tensorflow and Jax.
+- Incurs zero overhead when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html). Overhead in eager mode is reduced by caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance)).
+- Uses Numpy-like naming conventions: `einx.{sum|any|max|count_nonzero|where|add|logical_and|flip|...}`
 - Allows inspecting the backend calls in index-based notation that are made for a given einx operation (see [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations)).
 - Provides generalized neural network layers formulated in einx notation (see [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)).
 
+**Getting started:** [Go to overview and documentation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
+
 :warning: **This library is currently experimental and may undergo breaking changes.** :warning:
 
-### Getting started
+## What does einx look like?
 
-[Go to overview and documentation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
-
-### What does einx look like?
+#### Examples: Tensor manipulation
 
 ```python
 import einx
@@ -57,6 +53,8 @@ w = torch.nn.parameter.UninitializedParameter()
 einx.dot("b... [c1|c2]", x, w, c2=32) # Calls w.materialize(shape)
 ```
 
+#### Examples: Deep learning modules
+
 ```python
 import einx.nn.{torch|flax|haiku} as einn
 
@@ -78,7 +76,25 @@ droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 # See scripts/train_{torch|flax|haiku}.py for example trainings on CIFAR10
 ```
 
-### Installation
+#### Examples: Inspection
+
+einx allows inspecting the backend calls in index-based notation that are made for a given einx operation (by passing `graph=True`). For example:
+
+```python
+>>> x = np.zeros((10, 10))
+>>> graph = einx.sum("b... (g [c])", x, g=2, graph=True)
+>>> print(str(graph))
+
+Graph reduce_stage0("b... (g [c])", I0, op="sum", g=2):
+    X3 := instantiate(I0, shape=(10, 10))
+    X2 := reshape(X3, (10, 2, 5))
+    X1 := sum(X2, axis=2)
+    return X1
+```
+
+See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations) for more details.
+
+## Installation
 
 ```python
 pip install git+https://github.com/fferflo/einx.git
