@@ -178,18 +178,6 @@ def test_shape_reduce(backend):
     assert einx.mean("1 [a]... b", x, keepdims=True).shape == (1, 1, 1, 2)
     assert einx.mean("1 [a...] b", x, keepdims=True).shape == (1, 1, 2)
 
-    x = backend.zeros((10,), "float32")
-    y = backend.zeros((20,), "float32")
-    assert einx.sum("a, [b] -> a + 1", x, y).shape == (11,)
-    assert einx.sum("a, [b] -> 1 + a", x, y).shape == (11,)
-    assert einx.sum("a, [b] -> a (1 + 1)", x, y).shape == (10, 2)
-    assert [x.shape for x in einx.sum("(a + [b]) -> a, 1 1", x, a=4)] == [(4,), (1, 1)]
-    with pytest.raises(Exception):
-        einx.sum("a, [b] -> a (1 + 1)", x)
-    with pytest.raises(Exception):
-        einx.sum("(a + [b]) -> a (1 + 1)", x)
-    assert einx.sum("(a + [2])", x).shape == (9,)
-
     x = backend.zeros((16, 1, 20, 30, 64), "float32")
     assert einx.mean("(b rg) pv [s...] c", x).shape == (16, 1, 64)
 

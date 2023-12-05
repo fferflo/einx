@@ -1,4 +1,5 @@
 import einx
+from .base import base_backend
 
 def to_tuple(x):
     if isinstance(x, tuple):
@@ -13,7 +14,7 @@ def to_tuple(x):
 def make_torch_backend():
     import torch as torch_
     import torch._dynamo as _dynamo
-    class torch:
+    class torch(base_backend):
         @staticmethod
         def to_tensor(tensor):
             if torch_.is_tensor(tensor):
@@ -38,7 +39,6 @@ def make_torch_backend():
         zeros = lambda shape, dtype="float32": torch_.zeros(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
         ones = lambda shape, dtype="float32": torch_.ones(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
 
-        elementwise = lambda *args, op, **kwargs: op(*args, **kwargs)
         add = torch_.add
         subtract = torch_.subtract
         multiply = torch_.multiply
@@ -59,7 +59,6 @@ def make_torch_backend():
         def minimum(a, b):
             return torch_.minimum(torch.to_tensor(a), torch.to_tensor(b))
 
-        reduce = lambda *args, op, **kwargs: op(*args, **kwargs)
         sum = torch_.sum
         mean = torch_.mean
         var = torch_.var
@@ -71,7 +70,6 @@ def make_torch_backend():
         min = torch_.min
         max = torch_.max
 
-        map = lambda *args, op, **kwargs: op(*args, **kwargs)
         def flip(tensor, axis):
             if isinstance(axis, int):
                 axis = [axis]
@@ -94,10 +92,6 @@ def make_torch_backend():
                 out_dims=tuple(out_axes) if isinstance(out_axes, list) else out_axes,
             )
 
-        def assert_shape(tensor, shape):
-            assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
-            return tensor
-
         class random:
             def bernoulli(rng, p, shape):
                 return torch_.bernoulli(torch_.full(shape, p), generator=rng) > 0.5
@@ -106,11 +100,13 @@ def make_torch_backend():
     _dynamo.allow_in_graph(einx.rearrange)
     _dynamo.allow_in_graph(einx.elementwise)
     _dynamo.allow_in_graph(einx.reduce)
+    _dynamo.allow_in_graph(einx.vmap)
+    _dynamo.allow_in_graph(einx.vmap_with_axis)
     _dynamo.allow_in_graph(einx.nn.norm)
     _dynamo.allow_in_graph(einx.nn.linear)
     _dynamo.allow_in_graph(einx.nn.dropout)
 
-    for op_name in einx.elementwise._op_names + einx.reduce._op_names:
+    for op_name in einx.elementwise._op_names + einx.reduce._op_names + einx.vmap_with_axis._op_names:
         _dynamo.allow_in_graph(getattr(einx, op_name))
 
     return torch

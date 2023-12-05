@@ -2,9 +2,9 @@ How does einx handle input and output tensors?
 ##############################################
 
 einx functions accept a description string that specifies Einstein expressions for the input and output tensors. The expressions potentially
-contain nested compositions and concatenations that prevent the backend functions from directly accessing the desired axes. To resolve this, einx
+contain nested compositions and concatenations that prevent the backend functions from directly accessing the required axes. To resolve this, einx
 first flattens the input tensors in each operation such that they contain only a flat list of axes. After the backend operation is applied, the
-resulting tensors are unflattened to match the desired output expressions.
+resulting tensors are unflattened to match the requested output expressions.
 
 Compositions are flattened by applying a `reshape` operation:
 
@@ -43,7 +43,7 @@ expression that allows for a successful assignment. In most cases, this leads to
 
     einx.rearrange("a, b -> a b (1 + 1)", x, y)
     # same as
-    np.stack((x, y), axis=-1)
+    np.stack([x, y], axis=-1)
 
 The function `einx.rearrange` can be used to perform flattening and unflattening of the input tensors as described in the operation string. Other functions
 such as `einx.reduce` and `einx.dot` perform the same flattening and unflattening, in addition to applying some operation to the flattened tensors.

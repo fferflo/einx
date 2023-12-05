@@ -6,60 +6,12 @@ import numpy as np
 _op_names = ["add", "subtract", "multiply", "true_divide", "floor_divide", "divide", "logical_and", "logical_or", "where", "less", "less_equal", "greater", "greater_equal", "equal", "not_equal", "maximum", "minimum"]
 
 @einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
-def elementwise_stage3(exprs_in, tensors_in, expr_out, backend=None, op=None):
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    if op is None:
-        raise TypeError("op cannot be None")
-    if isinstance(op, str):
-        op = getattr(backend, op)
-    else:
-        op = partial(backend.elementwise, op=op)
-
-    # Implicitly determine output expression
-    if expr_out is None:
-        # Check if one input expression is parent of all others
-        children_str = [str(einx.expr.stage3.remove_unnamed_trivial_axes(expr)) for expr in exprs_in]
-        for i, parent in enumerate(exprs_in):
-            parent_str = str(parent)
-            for j, child_str in enumerate(children_str):
-                if i != j and not child_str in parent_str:
-                    break
-            else:
-                # Found valid parent
-                expr_out = parent.__deepcopy__()
-                break
-        else:
-            raise ValueError(f"Could not implicitly determine output expression for input expressions {[str(expr) for expr in exprs_in]}")
-
-    if any(isinstance(expr, einx.expr.stage3.Marker) for root in list(exprs_in) + [expr_out] for expr in root.all()):
-        raise ValueError(f"Marker '{expr}' is not allowed")
-    if any(isinstance(expr, einx.expr.stage3.Concatenation) for expr in expr_out.all()):
-        raise ValueError("Output expression cannot contain concatenation")
-
-    # Call tensor factories
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
-
-    # Flatten expressions
-    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
-    expr_out_flat = util.flatten([expr_out])[0]
-    assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
-    assert einx.expr.stage3.is_flat(expr_out_flat)
-
-    # Transpose and insert trivial axes
-    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out_flat, broadcast=False) for expr_in, tensor in zip(exprs_in, tensors_in)]
-
-    # Apply elementwise operation
-    tensor = op(*tensors)
-    if tensor.shape != expr_out_flat.shape:
-        tensor = backend.broadcast_to(tensor, expr_out_flat.shape)
-
-    # Unflatten output expression
-    assert not tensor.shape is None
-    if tensor.shape != expr_out.shape:
-        tensor = backend.reshape(tensor, expr_out.shape)
-
-    return tensor, expr_out
+def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
+    assert not any(einx.expr.stage3.is_marked(expr) for root in exprs_in for expr in root.all())
+    assert not any(einx.expr.stage3.is_marked(expr) for expr in expr_out.all())
+    tensors_out, exprs_out = einx.vmap_with_axis_stage3(exprs_in, tensors_in, [expr_out], op, backend=backend)
+    assert len(tensors_out) == 1 and len(exprs_out) == 1
+    return tensors_out[0], exprs_out[0]
 
 @einx.lru_cache
 def parse(description, *tensor_shapes, cse=True, **parameters):
@@ -113,7 +65,19 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
                 cse_concat=False,
             )[:len(exprs_in)]
 
-        expr_out = None
+        # Implicitly determine output expression: Check if one input expression is parent of all others
+        children_str = [str(einx.expr.stage3.remove_unnamed_trivial_axes(expr)) for expr in exprs_in]
+        for i, parent in enumerate(exprs_in):
+            parent_str = str(parent)
+            for j, child_str in enumerate(children_str):
+                if i != j and not child_str in parent_str:
+                    break
+            else:
+                # Found valid parent
+                expr_out = parent.__deepcopy__()
+                break
+        else:
+            raise ValueError(f"Could not implicitly determine output expression for input expressions {[str(expr) for expr in exprs_in]}")
 
     return exprs_in, expr_out
 
@@ -197,7 +161,7 @@ def elementwise(arg0, *args, **kwargs):
         >>> einx.add("a (b + b) -> a b", x).shape
         (4, 32)
     """
-    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
+    if isinstance(arg0, str):
         return elementwise_stage0(arg0, *args, **kwargs)
     else:
         return elementwise_stage3(arg0, *args, **kwargs)

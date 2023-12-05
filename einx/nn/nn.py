@@ -78,8 +78,7 @@ def dropout(x, expr, drop_rate, rng=None, **kwargs):
     backend = einx.backend.get([x])
     keep_rate = 1 - drop_rate
 
-    (expr_in, expr_mask), exprs_out = einx.elementwise.parse(expr, einx.param.get_shape(x), None, **kwargs)
-    expr_out = expr_in if exprs_out is None else exprs_out[0]
+    (expr_in, expr_mask), expr_out = einx.elementwise.parse(expr, einx.param.get_shape(x), None, **kwargs)
 
     drop_mask = backend.random.bernoulli(rng=rng, p=keep_rate, shape=expr_in.shape)
     x, _ = einx.where([expr_mask, expr_in, einx.expr.stage3.List([])], [drop_mask, x, 0], expr_out)

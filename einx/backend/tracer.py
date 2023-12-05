@@ -10,15 +10,6 @@ class Tracer:
             shape = tuple(shape)
         self.shape = shape
 
-    def compute(self, backend, input_values, concrete_values):
-        if id(self) in concrete_values:
-            concrete_value = concrete_values[id(self)]
-        else:
-            concrete_value = self._compute(backend, input_values, concrete_values)
-            concrete_values[id(self)] = concrete_value
-        assert not isinstance(concrete_value, Tracer) or backend == einx.backend.tracer, f"Got tracer value {concrete_value} for backend {backend} with op {self} {self.op}, args {self.args}, kwargs {self.kwargs}"
-        return concrete_value
-
     def __getitem__(self, key):
         if self.shape is None:
             shape = None
@@ -39,8 +30,9 @@ class Tracer:
                     shape.append((stop - start) // step)
                 else:
                     raise TypeError(f"Invalid key type: {type(slice)}")
+            shape = np.asarray(shape)
 
-        return Op(operator.getitem, args=[self, key], shape=shape)
+        return Op(operator.getitem, args=[self, key], output_shapes=shape).output_tracers
 
     def __add__(self, other):
         return elementwise(self, other, op="add")
@@ -113,8 +105,8 @@ class Input(Tracer):
         super().__init__(shape)
         self.key = key
 
-    def _compute(self, backend, input_values, concrete_values):
-        return input_values[self.key]
+    def _compute(self, context):
+        context.set(self, context.input_values[self.key])
 
 class Constant(Tracer):
     def __init__(self, value):
@@ -122,41 +114,48 @@ class Constant(Tracer):
         super().__init__(value.shape)
         self.value = value
 
-    def _compute(self, backend, input_values, concrete_values):
-        return backend.to_tensor(self.value)
+    def _compute(self, context):
+        context.set(self, context.backend.to_tensor(self.value))
 
-class Op(Tracer):
-    def __init__(self, op, args, kwargs={}, shape=None, pass_backend=False):
+class OpOutput(Tracer):
+    def __init__(self, op, shape, key):
+        super().__init__(shape)
+        self.op = op
+        self.key = key
+
+    def _compute(self, context):
+        self.op._compute(context)
+
+class Op:
+    def __init__(self, op, args=[], kwargs={}, output_shapes=None, pass_backend=False):
         if op is None:
             raise TypeError("op cannot be None")
-        super().__init__(shape)
         self.op = op
         self.args = args
         self.kwargs = kwargs
         self.pass_backend = pass_backend
+        self.output_shapes = output_shapes
+        self.output_tracers = einx.tree_util.tree_map_with_key(lambda shape, key: OpOutput(self, shape, key), self.output_shapes)
         assert not "backend" in self.kwargs
 
-    def _compute(self, backend, input_values, concrete_values):
-        def map(tensor):
-            if isinstance(tensor, Tracer):
-                return tensor.compute(backend, input_values, concrete_values)
-            else:
-                return tensor
-        args, kwargs = einx.tree_util.tree_map(map, (self.args, self.kwargs))
+    def _compute(self, context):
+        args, kwargs = einx.tree_util.tree_map(context.get, (self.args, self.kwargs))
 
-        if backend == einx.backend.tracer:
-            return Op(self.op, args=args, kwargs=kwargs, shape=self.shape, pass_backend=self.pass_backend)
+        if context.backend == einx.backend.tracer:
+            results = Op(self.op, args=args, kwargs=kwargs, output_shapes=self.output_shapes, pass_backend=self.pass_backend).output_tracers
         else:
             if self.pass_backend:
                 assert not "backend" in kwargs
-                kwargs["backend"] = backend
+                kwargs["backend"] = context.backend
             if isinstance(self.op, str):
-                op = backend
+                op = context.backend
                 for name in self.op.split("."):
                     op = getattr(op, name)
             else:
                 op = self.op
-            return op(*args, **kwargs)
+            results = op(*args, **kwargs)
+
+        einx.tree_util.tree_map(context.set, self.output_tracers, results)
 
 def _to_str(x, names, lines):
     if isinstance(x, Input):
@@ -177,6 +176,11 @@ def _to_str(x, names, lines):
         lines.append(line)
 
         return name
+    elif isinstance(x, OpOutput):
+        name = _to_str(x.op, names, lines)
+        for k in x.key:
+            name += f"[{_to_str(k, names, lines)}]"
+        return name
     elif isinstance(x, str):
         return f"\"{x}\""
     elif isinstance(x, tuple):
@@ -190,6 +194,32 @@ def _to_str(x, names, lines):
     else:
         return str(x)
 
+class ExecutionContext:
+    def __init__(self, backend, args, kwargs):
+        if backend is None:
+            backend = einx.backend.get(list(einx.tree_util.tree_flatten((args, kwargs))))
+
+        self.backend = backend
+        self.input_values = {}
+        self.concrete_values = {}
+
+        def map(x, key):
+            self.input_values[key] = x
+        einx.tree_util.tree_map_with_key(map, args)
+        einx.tree_util.tree_map_with_key(map, kwargs)
+
+    def set(self, tracer, value):
+        assert not id(tracer) in self.concrete_values
+        self.concrete_values[id(tracer)] = value
+
+    def get(self, tracer):
+        if isinstance(tracer, Tracer):
+            if not id(tracer) in self.concrete_values:
+                tracer._compute(self)
+            return self.concrete_values[id(tracer)]
+        else:
+            return tracer
+
 class Graph:
     def __init__(self, output, name, args, kwargs):
         self.output = output
@@ -198,19 +228,8 @@ class Graph:
         self.kwargs = kwargs
 
     def __call__(self, *args, backend=None, **kwargs):
-        if backend is None:
-            backend = einx.backend.get(list(einx.tree_util.tree_flatten((args, kwargs))))
-
-        input_values = {}
-        def map(x, key):
-            input_values[key] = x
-        einx.tree_util.tree_map_with_key(map, args)
-        einx.tree_util.tree_map_with_key(map, kwargs)
-
-        concrete_values = {}
-        map = lambda x: x.compute(backend, input_values, concrete_values) if isinstance(x, Tracer) else x
-        concrete_output = einx.tree_util.tree_map(map, self.output)
-
+        context = ExecutionContext(backend, args, kwargs)
+        concrete_output = einx.tree_util.tree_map(context.get, self.output)
         return concrete_output
 
     def __str__(self):
@@ -230,30 +249,26 @@ class Graph:
 
 
 
-
 class vmapped_op:
     def __init__(self, op, in_axes, out_axes):
         self.op = op
         self.in_axes = in_axes
         self.out_axes = out_axes
 
-    def to_backend(self, backend):
+    def _to_backend(self, backend):
         if isinstance(self.op, vmapped_op):
-            op = self.op.to_backend(backend)
+            op = self.op._to_backend(backend)
         else:
             op = self.op
         return backend.vmap(op, in_axes=self.in_axes, out_axes=self.out_axes)
 
-    def __call__(self, *args, **kwargs):
-        def inner(*args, backend, **kwargs):
-            return self.to_backend(backend)(*args, **kwargs)
-        inner.__name__ = self.__name__
-        outputs = Op(inner, args=args, kwargs=kwargs, shape=None, pass_backend=True)
-        return tuple(outputs[i] for i in range(len(self.out_axes)))
+    def __call__(self, *args, backend, **kwargs):
+        return self._to_backend(backend)(*args, **kwargs)
 
     @property
     def __name__(self):
         return f"vmap({self.op.__name__ if '__name__' in dir(self.op) else str(self.op)}, in_axes={self.in_axes}, out_axes={self.out_axes})"
+
 
 
 def elementwise(*args, op):
@@ -269,7 +284,7 @@ def elementwise(*args, op):
                 while len(shape2) < len(shape):
                     shape2 = (1,) + shape2
                 shape = np.maximum(shape, shape2)
-    return Op(op, args=args, shape=shape)
+    return Op(op, args=args, output_shapes=np.asarray(shape)).output_tracers
 
 def reduce(tensor, axis, keepdims=False, op=None):
     axes = [axis] if isinstance(axis, int) else axis
@@ -280,10 +295,10 @@ def reduce(tensor, axis, keepdims=False, op=None):
     else:
         for a in reversed(sorted(axes)):
             del shape[a]
-    return Op(op, args=[tensor, axis], kwargs={"keepdims": keepdims}, shape=tuple(shape))
+    return Op(op, args=[tensor, axis], kwargs={"keepdims": keepdims}, output_shapes=np.asarray(shape)).output_tracers
 
 def map(tensor, axis, op, *args, **kwargs):
-    return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, shape=tensor.shape)
+    return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, output_shapes=np.asarray(tensor.shape)).output_tracers
 
 class tracer:
     Input = Input
@@ -301,17 +316,20 @@ class tracer:
     tensor = Tracer
     name = "tracer"
 
+    def apply(op, args, kwargs, output_shapes):
+        return Op(op, args=args, kwargs=kwargs, output_shapes=output_shapes, pass_backend=isinstance(op, vmapped_op)).output_tracers
+
     def cast(tensor, dtype):
-        return Op("cast", args=[tensor], kwargs={"dtype": dtype}, shape=tensor.shape)
+        return Op("cast", args=[tensor], kwargs={"dtype": dtype}, output_shapes=np.asarray(tensor.shape)).output_tracers
     def reshape(tensor, shape):
-        return Op("reshape", args=[tensor, shape], shape=shape)
+        return Op("reshape", args=[tensor, shape], output_shapes=np.asarray(shape)).output_tracers
 
     def transpose(tensor, perm):
         shape = [tensor.shape[i] for i in perm]
-        return Op("transpose", args=[tensor, perm], shape=shape)
+        return Op("transpose", args=[tensor, perm], output_shapes=np.asarray(shape)).output_tracers
 
     def broadcast_to(tensor, shape):
-        return Op("broadcast_to", args=[tensor, shape], shape=shape)
+        return Op("broadcast_to", args=[tensor, shape], output_shapes=np.asarray(shape)).output_tracers
 
     def einsum(eq, *tensors):
         exprs = eq.split("->")[0].split(",")
@@ -330,7 +348,7 @@ class tracer:
                     values[axis] = value
         expr_out = eq.split("->")[-1].strip().replace(" ", "")
         shape_out = tuple(values[axis] for axis in expr_out)
-        return Op("einsum", args=[eq, *tensors], shape=shape_out)
+        return Op("einsum", args=[eq, *tensors], output_shapes=np.asarray(shape_out)).output_tracers
 
     def dot(a, b):
         raise NotImplementedError()
@@ -338,25 +356,24 @@ class tracer:
     def swapaxes(a, axis1, axis2):
         shape = list(a.shape)
         shape[axis1], shape[axis2] = shape[axis2], shape[axis1]
-        return Op("swapaxes", args=[a, axis1, axis2], shape=shape)
+        return Op("swapaxes", args=[a, axis1, axis2], output_shapes=np.asarray(shape)).output_tracers
 
     def stack(tensors, axis):
         shape = list(tensors[0].shape)
         shape.insert(axis, len(tensors))
-        return Op("stack", args=[tensors, axis], shape=shape)
+        return Op("stack", args=[tensors, axis], output_shapes=np.asarray(shape)).output_tracers
 
     def concatenate(tensors, axis):
         shape = list(tensors[0].shape)
         shape[axis] = sum(tensor.shape[axis] for tensor in tensors)
-        return Op("concatenate", args=[tensors, axis], shape=shape)
+        return Op("concatenate", args=[tensors, axis], output_shapes=np.asarray(shape)).output_tracers
 
     def zeros(shape, dtype="float32"):
-        return Op("zeros", args=[shape, dtype], shape=shape)
+        return Op("zeros", args=[shape, dtype], output_shapes=np.asarray(shape)).output_tracers
     def ones(shape, dtype="float32"):
-        return Op("ones", args=[shape, dtype], shape=shape)
+        return Op("ones", args=[shape, dtype], output_shapes=np.asarray(shape)).output_tracers
 
 
-    elementwise = elementwise
     add = partial(elementwise, op="add")
     subtract = partial(elementwise, op="subtract")
     multiply = partial(elementwise, op="multiply")
@@ -375,7 +392,6 @@ class tracer:
     maximum = partial(elementwise, op="maximum")
     minimum = partial(elementwise, op="minimum")
 
-    reduce = reduce
     sum = partial(reduce, op="sum")
     mean = partial(reduce, op="mean")
     var = partial(reduce, op="var")
@@ -387,31 +403,22 @@ class tracer:
     min = partial(reduce, op="min")
     max = partial(reduce, op="max")
 
-    map = map
     flip = partial(map, op="flip")
     roll = partial(map, op="roll")
 
     def sqrt(tensor):
-        return Op("sqrt", args=[tensor], shape=tensor.shape)
+        return Op("sqrt", args=[tensor], output_shapes=np.asarray(tensor.shape)).output_tracers
     def rsqrt(tensor):
-        return Op("rsqrt", args=[tensor], shape=tensor.shape)
+        return Op("rsqrt", args=[tensor], output_shapes=np.asarray(tensor.shape)).output_tracers
     def square(tensor):
-        return Op("square", args=[tensor], shape=tensor.shape)
+        return Op("square", args=[tensor], output_shapes=np.asarray(tensor.shape)).output_tracers
 
     def allclose(a, b):
-        return Op("allclose", args=[a, b], shape=())
+        return Op("allclose", args=[a, b], shape=np.asarray([]).astype("int32")).output_tracers
 
     def vmap(op, in_axes, out_axes):
         return vmapped_op(op, in_axes, out_axes)
 
-    def assert_shape(tensor, shape):
-        def inner(x):
-            if not x.shape is None:
-                assert x.shape == shape, f"Expected shape {shape}, got {x.shape}"
-            return x
-        inner.__name__ = "id"
-        return Op(inner, args=[tensor], shape=shape)
-
     class random:
         def bernoulli(rng, p, shape):
-            return Op("random.bernoulli", args=[rng, p, shape], shape=shape)
+            return Op("random.bernoulli", args=[rng, p, shape], output_shapes=np.asarray(shape)).output_tracers

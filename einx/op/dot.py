@@ -53,15 +53,16 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     def to_einsum(axes):
         return " ".join(get_einsum_variable(a.name) for a in axes)
 
-    input_axes = set(a.name for expr in exprs_in for a in einx.expr.stage3.get_axes(expr))
+    input_axis_names = set(a.name for expr in exprs_in for a in einx.expr.stage3.get_axes(expr))
 
     einsum_str = ", ".join(to_einsum(einx.expr.stage3.get_axes(expr)) for expr in exprs_in) \
-               + " -> " + to_einsum([a for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axes])
+               + " -> " + to_einsum([a for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names])
 
     tensor = backend.einsum(einsum_str, *tensors_in)
+    expr = einx.expr.stage3.List([a.__deepcopy__() for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names])
 
     # Transpose and broadcast missing output dimensions
-    tensor = util.transpose_broadcast(expr_out_flat, tensor, expr_out)
+    tensor = util.transpose_broadcast(expr, tensor, expr_out_flat)[0]
 
     # Unflatten output expression
     assert not tensor.shape is None

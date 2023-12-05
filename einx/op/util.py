@@ -119,6 +119,7 @@ def assignment(exprs_in, exprs_out):
 def transpose_broadcast(expr_in, tensor, expr_out, broadcast=True, backend=None):
     if backend is None:
         backend = einx.backend.get([tensor])
+    assert einx.expr.stage3.is_flat(expr_in) and einx.expr.stage3.is_flat(expr_out), f"'{expr_in}' and '{expr_out}' must be flat"
 
     # Transpose axes if necessary
     in_axes = [a.name for a in einx.expr.stage3.get_axes(expr_in)]
@@ -141,7 +142,9 @@ def transpose_broadcast(expr_in, tensor, expr_out, broadcast=True, backend=None)
         if broadcast and tensor.shape != expr_out.shape:
             tensor = backend.broadcast_to(tensor, expr_out.shape)
 
-    return tensor
+    if not broadcast:
+        expr_out = einx.expr.stage3.List([(axis if axis.name in in_axes else einx.expr.stage3.Axis(None, 1)) for axis in expr_out])
+    return tensor, expr_out
 
 def _unflatten(exprs_in, tensors_in, expr_out, backend):
     expr_out_flat = einx.expr.stage3.decompose(expr_out)

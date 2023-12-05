@@ -1,9 +1,10 @@
 from functools import partial
+from .base import base_backend
 
 def make_jax_backend():
     import jax as jax_
     import jax.numpy as jnp
-    class jax:
+    class jax(base_backend):
         @staticmethod
         def to_tensor(tensor):
             return jnp.asarray(tensor)
@@ -25,7 +26,6 @@ def make_jax_backend():
         zeros = jnp.zeros
         ones = jnp.ones
 
-        elementwise = lambda *args, op, **kwargs: op(*args, **kwargs)
         add = jnp.add
         subtract = jnp.subtract
         multiply = jnp.multiply
@@ -44,7 +44,6 @@ def make_jax_backend():
         maximum = jnp.maximum
         minimum = jnp.minimum
 
-        reduce = lambda *args, op, **kwargs: op(*args, **kwargs)
         sum = jnp.sum
         mean = jnp.mean
         var = jnp.var
@@ -56,7 +55,6 @@ def make_jax_backend():
         min = jnp.amin
         max = jnp.amax
 
-        map = lambda *args, op, **kwargs: op(*args, **kwargs)
         flip = jnp.flip
         roll = jnp.roll
 
@@ -67,10 +65,6 @@ def make_jax_backend():
         allclose = jnp.allclose
 
         vmap = jax_.vmap
-
-        def assert_shape(tensor, shape):
-            assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
-            return tensor
 
         class random:
             def bernoulli(rng, p, shape):

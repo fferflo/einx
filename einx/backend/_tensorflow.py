@@ -1,9 +1,10 @@
 from functools import partial
+from .base import base_backend
 
 def make_tensorflow_backend():
     import tensorflow as tf
     import tensorflow.experimental.numpy as tnp
-    class tensorflow:
+    class tensorflow(base_backend):
         @staticmethod
         def to_tensor(tensor):
             tensor = tf.convert_to_tensor(tensor)
@@ -28,7 +29,6 @@ def make_tensorflow_backend():
         zeros = lambda shape, dtype="float32": tf.zeros(shape, dtype=dtype)
         ones = lambda shape, dtype="float32": tf.ones(shape, dtype=dtype)
 
-        elementwise = lambda *args, op, **kwargs: op(*args, **kwargs)
         add = tnp.add
         subtract = tnp.subtract
         multiply = tnp.multiply
@@ -47,7 +47,6 @@ def make_tensorflow_backend():
         maximum = tnp.maximum
         minimum = tnp.minimum
 
-        reduce = lambda *args, op, **kwargs: op(*args, **kwargs)
         sum = tnp.sum
         mean = tnp.mean
         var = tnp.var
@@ -59,9 +58,16 @@ def make_tensorflow_backend():
         min = tnp.min
         max = tnp.max
 
-        map = lambda *args, op, **kwargs: op(*args, **kwargs)
-        flip = tnp.flip
-        roll = tnp.roll
+        def flip(x, axis):
+            if isinstance(axis, int):
+                axis = [axis]
+            return tf.reverse(x, axis)
+        def roll(x, axis, shift):
+            if isinstance(axis, int):
+                axis = [axis]
+            if isinstance(shift, int):
+                shift = [shift]
+            return tf.roll(x, tuple(shift), axis=tuple(axis))
 
         sqrt = tf.math.sqrt
         rsqrt = tf.math.rsqrt
@@ -100,9 +106,5 @@ def make_tensorflow_backend():
                 return tuple(xs)
             inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
             return inner
-
-        def assert_shape(tensor, shape):
-            assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
-            return tensor
 
     return tensorflow

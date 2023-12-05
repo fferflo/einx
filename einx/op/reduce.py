@@ -4,66 +4,11 @@ import numpy as np
 from functools import partial
 
 _op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min"]
-_all = all # Is overwritten below
-_any = any
+_any = any # Is overwritten below
 
 @einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
 def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    if op is None:
-        raise TypeError("op cannot be None")
-    if isinstance(op, str):
-        op = getattr(backend, op)
-    else:
-        op = partial(backend.reduce, op=op)
-    if len(exprs_in) != len(tensors_in):
-        raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
-    if _any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_out for expr in root.all()):
-        raise ValueError(f"Marker '{expr}' in output expression is not allowed")
-
-    # Call tensor factories
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
-
-    # Flatten expressions
-    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
-    exprs_out_flat = util.flatten(exprs_out)
-    assert _all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
-    assert _all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
-    if len(exprs_in) != len(exprs_out_flat):
-        raise ValueError("Got different number of input and output expressions (after flattening)")
-
-    # Reduce input dimensions
-    exprs_in2 = []
-    tensors_in2 = []
-    any_reduced = False
-    for expr_in, tensor_in in zip(exprs_in, tensors_in):
-        # Find reduced axes
-        reduced_axis_indices = tuple(i for i, axis in enumerate(expr_in) if einx.expr.stage3.is_marked(axis))
-        any_reduced = any_reduced or len(reduced_axis_indices) > 0
-        if len(reduced_axis_indices) > 0:
-            # Apply reduction
-            tensor_in = op(tensor_in, axis=reduced_axis_indices if len(reduced_axis_indices) > 1 else reduced_axis_indices[0])
-            expr_in = einx.expr.stage3.remove(expr_in, lambda expr: isinstance(expr, einx.expr.stage3.Marker))
-        exprs_in2.append(expr_in)
-        tensors_in2.append(tensor_in)
-    exprs_in = exprs_in2
-    tensors_in = tensors_in2
-    if not any_reduced:
-        raise ValueError("No (non-trivial) axes are reduced")
-
-    # Order inputs to align with output expressions
-    indices = util.assignment(exprs_in, exprs_out_flat)
-    exprs_in = [exprs_in[i] for i in indices]
-    tensors_in = [tensors_in[i] for i in indices]
-
-    # Transpose and broadcast missing output dimensions
-    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out) for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
-
-    # Unflatten output expressions
-    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend)
-
-    return tensors, exprs_out
+    return einx.vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, backend=backend)
 
 @einx.lru_cache
 def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
@@ -130,10 +75,10 @@ def reduce_stage0(description, *tensors, op, keepdims=None, backend=None, cse=Tr
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def reduce(arg0, *args, **kwargs):
-    """Applies a reduction operation on each given tensor.
+    """Applies a reduction operation on the given tensors.
 
-    The function flattens all input tensors, applies the given reduction operation on each tensor and rearranges
-    the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    The function flattens all input tensors, applies the given reduction operation and rearranges
+    the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 
     The `description` argument specifies the input and output expressions, as well as reduced axes. It must meet one of the following formats:
 
@@ -191,7 +136,7 @@ def reduce(arg0, *args, **kwargs):
         >>> einx.var("[...] c", x).shape
         (3,)
     """
-    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
+    if isinstance(arg0, str):
         return reduce_stage0(arg0, *args, **kwargs)
     else:
         return reduce_stage3(arg0, *args, **kwargs)

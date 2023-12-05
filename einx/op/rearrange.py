@@ -28,7 +28,7 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     tensors_in = [tensors_in[i] for i in indices]
 
     # Transpose and broadcast missing output dimensions
-    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out) for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
+    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out)[0] for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
 
     # Unflatten output expressions
     tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend)
@@ -116,7 +116,7 @@ def rearrange(arg0, *args, **kwargs):
         >>> einx.rearrange("(b + c + d) -> (d + c + b)", x, b=2, c=2)
         array([4, 5, 2, 3, 0, 1])
     """
-    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
+    if isinstance(arg0, str):
         return rearrange_stage0(arg0, *args, **kwargs)
     else:
         return rearrange_stage3(arg0, *args, **kwargs)

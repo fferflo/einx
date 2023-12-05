@@ -6,7 +6,7 @@ is characterized by the following features:
 
 * Ellipses can repeat any type of expression, e.g. ``(a b)...``.
 * ``[]``-notation allows expressing vectorization in an intuitive and concise way (see :ref:`Bracket notation <inspectingoperations>`).
-* Expressions can be composed arbitrarily, e.g. by nesting ellipses, concatenations and axis-compositions.
+* Expressions can be composed arbitrarily by nesting ellipses, concatenations and axis-compositions.
 * Concatenations are represented as first-class expressions in Einstein notation.
 * Specializations provide ease-of-use for some main abstractions using numpy naming, e.g. ``einx.mean`` and ``einx.where``.
 * Full support for rearranging expressions in all operations (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).

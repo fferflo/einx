@@ -8,8 +8,6 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
         backend = einx.backend.get(tensors_in)
     if op is None:
         raise TypeError("op cannot be None")
-    if isinstance(op, str):
-        op = getattr(backend, op)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
 
@@ -124,8 +122,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
             if out_axis is None:
                 raise ValueError(f"All vmapped axes must appear in the output expression, but '{v}' does not appear in '{expr_out}'") # TODO: test
 
-        out_shapes = [tuple(axisname_to_value[n] for n in axislist) for axislist in axes_names_out_without_broadcast]
-        vmaps.append((in_axes, out_axes, out_shapes))
+        vmaps.append((in_axes, out_axes))
 
         for axes_names in axes_names_in + axes_names_out_without_broadcast:
             if v in axes_names:
@@ -135,21 +132,19 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
         if verbose:
             print(f"Now has remaining input axes {axes_names_in} and output axes {axes_names_out_without_broadcast}")
 
-    for in_axes, out_axes, out_shapes in reversed(vmaps):
+    for in_axes, out_axes in reversed(vmaps):
         op = backend.vmap(op, in_axes=in_axes, out_axes=out_axes)
 
     # Apply op to tensors
     if verbose:
         print("\nSending shapes to backend.vmap:", [str(a.shape) for a in tensors_in])
-    tensors = op(*tensors_in)
-    tensors = [backend.assert_shape(tensor, expr.shape) for tensor, expr in zip(tensors, exprs_out_flat_without_broadcast)]
-
+    tensors = backend.apply(op, args=tensors_in, kwargs={}, output_shapes=tuple(np.asarray(expr.shape) for expr in exprs_out_flat_without_broadcast))
     if verbose:
         for tensor, expr in zip(tensors, exprs_out_flat_without_broadcast):
             print("Got overall flat tensor_out:", tensor.shape, expr)
 
     # Transpose and broadcast missing output dimensions
-    tensors = [util.transpose_broadcast(expr_out_wb, tensor, expr_out) for expr_out_wb, tensor, expr_out in zip(exprs_out_flat_without_broadcast, tensors, exprs_out_flat)]
+    tensors = [util.transpose_broadcast(expr_out_wb, tensor, expr_out)[0] for expr_out_wb, tensor, expr_out in zip(exprs_out_flat_without_broadcast, tensors, exprs_out_flat)]
     if verbose:
         print("Got overall transposed+broadcasted tensors_out:")
         for tensor, expr in zip(tensors, exprs_out_flat):
@@ -211,7 +206,7 @@ def vmap_stage0(description, *tensors, op, backend=None, cse=True, **parameters)
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def vmap(arg0, *args, **kwargs):
-    """Vectorizes a function and applies it over batched tensors.
+    """Applies a function to the marked axes of the input tensors using vectorization.
 
     The function flattens all input tensors, applies the vectorized operation on the tensors and rearranges
     the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
@@ -265,7 +260,7 @@ def vmap(arg0, *args, **kwargs):
         >>> einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot).shape
         (5, 3,)
     """
-    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
+    if isinstance(arg0, str):
         return vmap_stage0(arg0, *args, **kwargs)
     else:
         return vmap_stage3(arg0, *args, **kwargs)

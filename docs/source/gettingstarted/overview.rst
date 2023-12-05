@@ -6,7 +6,7 @@ Introduction
 
 einx allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
 `einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
-For an introduction to Einstein-notation see
+For an introduction to the basics of Einstein-notation see
 `this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ and a
 :doc:`comparison with index-based notation </gettingstarted/cheatsheet>`.
 
@@ -27,18 +27,18 @@ einx can be integrated easily into existing code and seamlessly works with tenso
 einx provides a hierarchy of powerful abstractions:
 
 1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
-   broadcasted axes, concatenating and splitting the tensors as required.
+   broadcasted axes, concatenating and splitting as required.
 
 2. :func:`einx.reduce`, :func:`einx.elementwise`, :func:`einx.map`, :func:`einx.dot` apply backend operations on the tensors in addition to 
    arbitrary rearranging (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 
-   * :func:`einx.reduce` applies reduction operations such as
+   * :func:`einx.reduce` applies reduction operations like
      `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.mean <https://numpy.org/doc/stable/reference/generated/numpy.mean.html>`_
      or `np.any <https://numpy.org/doc/stable/reference/generated/numpy.any.html>`_.
-   * :func:`einx.elementwise` applies element-by-element operations such as
+   * :func:`einx.elementwise` applies element-by-element operations like
      `np.add <https://numpy.org/doc/stable/reference/generated/numpy.add.html>`_, `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.multiply.html>`_
      or `np.where <https://numpy.org/doc/stable/reference/generated/numpy.where.html>`_.
-   * :func:`einx.map` applies operations along axes of tensors that do not change their axis length such as
+   * :func:`einx.map` applies operations along axes of tensors that do not change their axis length like
      `jax.nn.softmax <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.softmax.html>`_, 
      `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.flip.html>`_ or `np.roll <https://numpy.org/doc/stable/reference/generated/numpy.roll.html>`_.
    * :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
@@ -56,7 +56,7 @@ Einstein expressions
 --------------------
 
 An einx expression that describes a tensor's shape consists of named and unnamed axes (``a``, ``8``), compositions ``(a b)``, ellipses ``a...``
-and concatenations ``(a + b)``. Unlike in einops, an ellipsis always repeats the expression that appears directly in front of it
+and concatenations ``(a + b)``. An ellipsis always repeats the expression that appears directly in front of it (unlike in einops)
 
 ..  code::
 
@@ -130,10 +130,6 @@ axes are batch axes and vectorized over. This corresponds to the ``axis`` argume
     einx.sum("b... (g [c])", x)
     # requires reshapes in numpy
 
-    einx.flip("... [b c]", x)
-    # same as
-    np.flip(x, axis=(-2, -1))
-
 Operations are sensitive to the positioning of brackets, e.g. allowing for flexible ``keepdims=True`` behavior out-of-the-box:
 
 ..  code::
@@ -159,6 +155,9 @@ Other examples of bracket notation:
     # Mean pooling with kernel_size=4 and stride=4 (must be evenly divisible)
     einx.mean("b (s [s2])... c", x, s2=4)
 
+    # Reverse elements along the last two axes
+    einx.flip("... [b c]", x)
+
 ``einx.vmap`` allows vectorizing arbitrary functions using the same bracket notation, e.g.:
 
 ..  code::
@@ -182,6 +181,9 @@ The arguments that are passed to ``op`` have shapes that match the marked subexp
 
     einx.dot("a b, b c -> a c", x, y)
     einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
+
+    einx.flip("a [b]", x)
+    einx.vmap("a [b] -> a [b]", x, op=np.flip)
 
 While using the option without ``einx.vmap`` is often faster, ``einx.vmap`` also allows vectorizing functions that do not inherently support
 batch axes (e.g. `map_coordinates <https://jax.readthedocs.io/en/latest/_autosummary/jax.scipy.ndimage.map_coordinates.html>`_).

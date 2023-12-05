@@ -17,7 +17,7 @@ def instantiate(x, shape, backend, **kwargs):
     if x is None:
         raise TypeError("instantiate cannot be called on None")
     if backend == einx.backend.tracer:
-        return einx.backend.tracer.Op(instantiate, [x], {"shape": shape} | kwargs, shape=shape, pass_backend=True)
+        return einx.backend.tracer.Op(instantiate, [x], {"shape": shape} | kwargs, output_shapes=np.asarray(shape), pass_backend=True).output_tracers
     else:
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)

@@ -1,7 +1,8 @@
 import numpy as np
 from functools import partial
+from .base import base_backend
 
-class numpy:
+class numpy(base_backend):
     @staticmethod
     def to_tensor(tensor):
         return np.asarray(tensor)
@@ -23,7 +24,6 @@ class numpy:
     zeros = np.zeros
     ones = np.ones
 
-    elementwise = lambda *args, op, **kwargs: op(*args, **kwargs)
     add = np.add
     subtract = np.subtract
     multiply = np.multiply
@@ -42,7 +42,6 @@ class numpy:
     maximum = np.maximum
     minimum = np.minimum
 
-    reduce = lambda *args, op, **kwargs: op(*args, **kwargs)
     sum = np.sum
     mean = np.mean
     var = np.var
@@ -54,7 +53,6 @@ class numpy:
     min = np.amin
     max = np.amax
 
-    map = lambda *args, op, **kwargs: op(*args, **kwargs)
     flip = np.flip
     roll = np.roll
 
@@ -85,7 +83,3 @@ class numpy:
             return xs
         inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
         return inner
-    
-    def assert_shape(tensor, shape):
-        assert tensor.shape == shape, f"Expected shape {shape}, got {tensor.shape}"
-        return tensor
