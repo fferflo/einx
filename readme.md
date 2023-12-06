@@ -72,9 +72,9 @@ patch_embed     = einn.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=64)
 dropout         = einn.Dropout("[...]",       drop_rate=0.2)
 spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
-
-# See scripts/train_{torch|flax|haiku}.py for example trainings on CIFAR10
 ```
+
+See `scripts/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
 #### Example: Einstein expression trees
 
