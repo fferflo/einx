@@ -4,11 +4,10 @@ How does einx compare with einops?
 einx is fully compatible with einops-style notation used in ``einops.{rearrange|repeat|reduce|einsum}``. Beyond this, einx
 is characterized by the following features:
 
-* Ellipses can repeat any type of expression, e.g. ``(a b)...``.
-* ``[]``-notation allows expressing vectorization in an intuitive and concise way (see :ref:`Bracket notation <inspectingoperations>`).
-* Expressions can be composed arbitrarily by nesting ellipses, concatenations and axis-compositions.
+* Einstein expressions are fully composable (i.e. can be nested arbitrarily). Ellipses can repeat any type of subexpression, e.g. ``(a b)...``.
+* ``[]``-notation allows expressing vectorization in an intuitive and concise way, similar to the ``axis`` argument in Numpy functions (see :ref:`Bracket notation <inspectingoperations>`).
 * Concatenations are represented as first-class expressions in Einstein notation.
-* Specializations provide ease-of-use for some main abstractions using Numpy naming conventions, e.g. ``einx.mean`` and ``einx.where``.
+* Specializations provide ease-of-use for some main abstractions using Numpy naming convention, e.g. ``einx.mean`` and ``einx.where``.
 * Full support for rearranging expressions in all operations (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 * ``einx.vmap`` and ``einx.vmap_with_axis`` functions for applying arbitrary operations in Einstein notation.
 * Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
@@ -16,7 +15,7 @@ is characterized by the following features:
 
 A comparison of operations expressed in einx-notation and einops-notation:
 
-.. list-table:: 
+.. list-table::
    :widths: 50 60
    :header-rows: 0
 

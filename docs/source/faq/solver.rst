@@ -97,7 +97,7 @@ extends to nested ellipsis with depth > 1 analogously.
 Stage 3: Determining axis values
 --------------------------------
 
-In the last step, the values of all axes (i.e. their lengths) are solved for using the constraints provided by the input tensors and additional parameters. For example, the above
+In the last step, the values of all axes (i.e. their lengths) are determined using the constraints provided by the input tensors and additional parameters. For example, the above
 expression with an input tensor of shape ``(2, 4, 8, 3)`` and additional constraint ``r=4`` results in the following final Einstein expression tree:
 
 .. figure:: /images/stage3-tree.png
