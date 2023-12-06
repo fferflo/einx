@@ -46,6 +46,8 @@ class Net(nn.Module):
 net = Net()
 inputs, labels = next(iter(trainloader))
 params = net.init({"dropout": next_rng(), "params": next_rng()}, jnp.asarray(inputs), training=True)
+if not "stats" in params:
+    params["stats"] = {}
 
 optimizer = optax.adam(3e-4)
 opt_state = optimizer.init(params["params"])
