@@ -120,7 +120,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, verbose=
             print(f"Applying backend.vmap to axis {v}, with input axis indices {in_axes} and output axis indices {out_axes}")
         for out_axis, expr_out in zip(out_axes, exprs_out_flat):
             if out_axis is None:
-                raise ValueError(f"All vmapped axes must appear in the output expression, but '{v}' does not appear in '{expr_out}'") # TODO: test
+                raise ValueError(f"All vmapped axes must appear in the output expression, but '{v}' does not appear in '{expr_out}'")
 
         vmaps.append((in_axes, out_axes))
 

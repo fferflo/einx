@@ -12,8 +12,6 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
         if any(isinstance(expr, einx.expr.stage3.Marker) for expr in root.all()):
             raise ValueError(f"Marker is not allowed, but got {root}")
 
-    # TODO: implicitly determine second input expr if it is not given?
-
     # Call tensor factories
     output_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
     def get_fans(idx):

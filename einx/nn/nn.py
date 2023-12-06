@@ -43,8 +43,6 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
         inv_std = backend.rsqrt(var + epsilon)
         x, _ = einx.multiply([expr_in, expr_stats], [x, inv_std], expr_in)
 
-    # TODO: need optimizer like opt_einsum that can optimize elementwise expressions like: (x - mean) * scale * inv_std + bias
-
     # Apply scale and bias
     if not scale is None:
         x = einx.multiply(params, x, scale, **kwargs)

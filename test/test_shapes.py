@@ -293,6 +293,8 @@ def test_shape_vmap(backend):
     assert einx.vmap("b ([c d]) -> b [2] 1", x, op=func, c=16).shape == (16, 2, 1)
     assert einx.vmap("b [(c d)|2]", x, op=func, c=16).shape == (16, 2)
     assert einx.vmap("b ([c d|2])", x, op=func, c=16).shape == (16, 2)
+    with pytest.raises(Exception):
+        einx.vmap("b ([c d]) -> [2]", x, op=func, c=16)
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_map(backend):
