@@ -88,3 +88,15 @@ def test_values(backend):
         einx.roll("a [b]", x, shift=2),
         backend.to_tensor([[2, 3, 0, 1]]),
     )
+
+    x = backend.to_tensor(np.arange(10))
+    y = backend.to_tensor(np.arange(10)[::-1].copy())
+    z = backend.to_tensor(np.arange(10))
+    assert backend.allclose(
+        einx.get_at("[h], h2 -> h2", x, y),
+        y,
+    )
+    assert backend.allclose(
+        einx.set_at("[h], h2, h2 -> [h]", x, y, z),
+        y,
+    )

@@ -55,6 +55,15 @@ def make_jax_backend():
         min = jnp.amin
         max = jnp.amax
 
+        def get_at(tensor, coordinates):
+            return tensor[coordinates]
+        def set_at(tensor, coordinates, updates):
+            return tensor.at[coordinates].set(updates)
+        def add_at(tensor, coordinates, updates):
+            return tensor.at[coordinates].add(updates)
+        def subtract_at(tensor, coordinates, updates):
+            return tensor.at[coordinates].add(-updates)
+
         flip = jnp.flip
         roll = jnp.roll
 

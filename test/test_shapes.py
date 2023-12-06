@@ -297,7 +297,27 @@ def test_shape_vmap(backend):
         einx.vmap("b ([c d]) -> [2]", x, op=func, c=16)
 
 @pytest.mark.parametrize("backend", backends)
-def test_shape_map(backend):
+def test_shape_index(backend):
+    x = backend.ones((4, 16, 16, 3))
+    y = backend.cast(backend.ones((4, 128, 2)), "int32" if backend.name != "torch" else "long")
+    z = backend.ones((4, 128, 3))
+    assert einx.get_at("b [h w] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, p [2] -> b p c", x, y[0]).shape == (4, 128, 3)
+    for op in [einx.set_at, einx.add_at, einx.subtract_at]:
+        assert op("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, p [2], p c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
+
+    x = backend.ones((16, 4, 3, 16))
+    y = backend.cast(backend.ones((2, 4, 128)), "int32" if backend.name != "torch" else "long")
+    z = backend.ones((3, 4, 128))
+    assert einx.get_at("[w] b c [h], [2] b p -> b p c", x, y).shape == (4, 128, 3)
+    assert einx.get_at("[w] b c [h], [2] p -> b p c", x, y[:, 0]).shape == (4, 128, 3)
+    for op in [einx.set_at, einx.add_at, einx.subtract_at]:
+        assert op("[w] b c [h], [2] b p, c b p -> b [w h] c", x, y, z).shape == (4, 16, 16, 3)
+        assert op("[w] b c [h], [2] p, c p -> b [w h] c", x, y[:, 0], z[:, 0]).shape == (4, 16, 16, 3)
+
+@pytest.mark.parametrize("backend", backends)
+def test_shape_vmap_with_axis(backend):
     x = backend.zeros((10, 10), "float32")
     assert einx.flip("a [b]", x).shape == (10, 10)
     assert einx.roll("a [b]", x, shift=5).shape == (10, 10)

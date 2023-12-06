@@ -53,6 +53,18 @@ class numpy(base_backend):
     min = np.amin
     max = np.amax
 
+    def get_at(tensor, coordinates):
+        return tensor[coordinates]
+    def set_at(tensor, coordinates, updates):
+        tensor[coordinates] = updates
+        return tensor
+    def add_at(tensor, coordinates, updates):
+        tensor[coordinates] += updates
+        return tensor
+    def subtract_at(tensor, coordinates, updates):
+        tensor[coordinates] -= updates
+        return tensor
+
     flip = np.flip
     roll = np.roll
 

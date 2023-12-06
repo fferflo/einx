@@ -198,12 +198,12 @@ def vmap_with_axis(arg0, *args, **kwargs):
 vmap_with_axis.parse = parse
 vmap_with_axis._op_names = _op_names
 
-def flip(description, tensor, **parameters):
+def flip(description, tensor, **kwargs):
     """Alias for :func:`einx.vmap_with_axis` with ``op="flip"``
     """
-    return vmap_with_axis(description, tensor, op="flip", **parameters)
+    return vmap_with_axis(description, tensor, op="flip", **kwargs)
 
-def roll(description, tensor, shift, **parameters):
+def roll(description, tensor, shift, **kwargs):
     """Alias for :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``.
     """
-    return vmap_with_axis(description, tensor, op="roll", kwargs={"shift": shift}, **parameters)
+    return vmap_with_axis(description, tensor, op="roll", kwargs={"shift": shift}, **kwargs)

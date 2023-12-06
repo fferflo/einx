@@ -235,6 +235,7 @@ Many easy-to-use specializations are also included as top-level functions in the
 * ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`` (see :func:`einx.reduce`).
 * ``einx.{add|multiply|logical_and|where|equal|...}`` (see :func:`einx.elementwise`).
 * ``einx.{flip|roll|...}`` (see :func:`einx.vmap_with_axis`).
+* ``einx.{get_at|set_at|add_at|...}`` (see :func:`einx.index`).
 
 See the :doc:`API reference </api>` for a list of functions.
 
@@ -355,5 +356,6 @@ Related libraries and features
 * `einindex <https://github.com/malmaud/einindex>`_
 * `einshape <https://github.com/google-deepmind/einshape>`_
 * `einop <https://github.com/cgarciae/einop>`_
+* `eingather <https://twitter.com/francoisfleuret/status/1661372730241953793>`_
 * `Named tensors in PyTorch <https://pytorch.org/docs/stable/named_tensor.html>`_
 * `Named axes in Jax <https://jax.readthedocs.io/en/latest/notebooks/xmap_tutorial.html>`_

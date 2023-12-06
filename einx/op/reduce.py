@@ -105,8 +105,6 @@ def reduce(arg0, *args, **kwargs):
     Returns:
         The result of the reduction operation if ``graph=False``, otherwise the graph representation of the operation.
 
-    The following specializations of this function are provided in the same namespace: ``sum``, ``mean``, ``var``, ``std``, ``prod``, ``count_nonzero``, ``any``, ``all``, ``max``, ``min``.
-
     Examples:
         Compute mean along rows of a matrix:
 

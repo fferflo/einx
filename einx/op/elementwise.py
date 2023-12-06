@@ -122,8 +122,6 @@ def elementwise(arg0, *args, **kwargs):
     Returns:
         The result of the elementwise operation if `graph=False`, otherwise the graph representation of the operation.
 
-    The following specializations of this function without the ``op`` parameter are provided in the same namespace: ``add``, ``subtract``, ``multiply``, ``true_divide``, ``floor_divide``, ``divide``, ``logical_and``, ``logical_or``, ``where``, ``less``, ``less_equal``, ``greater``, ``greater_equal``, ``equal``, ``not_equal``, ``maximum``, ``minimum``.
-    
     Examples:
         Compute a sum of two vectors:
 

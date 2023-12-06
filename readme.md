@@ -23,34 +23,28 @@ x = {np.asarray|torch.as_tensor|jnp.asarray|tf.convert_to_tensor}(...)
 
 einx.sum("a [b]", x)                              # Sum-reduction along columns
 einx.flip("([a] b)", x)                           # Reverse values along sub-axis
-
 einx.mean("b [s...] c", x)                        # Global mean-pooling
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
+einx.add("b... [c]", x, b)                        # Add bias
 
-einx.dot("b... [c1|c2]", x, w)                    # Linear layer: x * w
-einx.add("b... [c]", x, b)                        # Linear layer: x + b
+# Examples: Matmul in linear layers
+einx.dot("b...      [c1|c2]",  x, w)              # - Regular
+einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
+einx.dot("b... ([g c1|g c2])", x, w)              # - Grouped: Different weights per group
+einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 
-# Grouped linear layer
-einx.dot("b... ( g  [c1|c2])", x, w) # Same weights per group
-einx.dot("b... ([g c1|g c2])", x, w) # Different weights per group
+einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling using vmap
+einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vmap
 
-einx.dot("b [s...|s2] c", x, w)                   # Spatial mixing as in MLP-mixer
-
-einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling using vectorized map
-einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vectorized map
-
-einx.rearrange("a, b -> (a + b)", x, y)           # Concatenate
 einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
 einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
 
-# Layer normalization
+einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
+
+# Examples: Layer normalization
 mean = einx.mean("b... [c]", x, keepdims=True)
 var = einx.var("b... [c]", x, keepdims=True)
 x = (x - mean) * torch.rsqrt(var + epsilon)
-
-# Lazy tensor construction
-w = torch.nn.parameter.UninitializedParameter()
-einx.dot("b... [c1|c2]", x, w, c2=32) # Calls w.materialize(shape)
 ```
 
 #### Examples: Deep learning modules

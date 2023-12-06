@@ -12,6 +12,7 @@ Main abstractions
 
 .. autofunction:: einx.reduce
 .. autofunction:: einx.elementwise
+.. autofunction:: einx.index
 
 Numpy-like functions
 ====================
@@ -50,6 +51,14 @@ Element-by-element operations
 .. autofunction:: einx.not_equal
 .. autofunction:: einx.maximum
 .. autofunction:: einx.minimum
+
+Indexing operations
+-------------------
+
+.. autofunction:: einx.get_at
+.. autofunction:: einx.set_at
+.. autofunction:: einx.add_at
+.. autofunction:: einx.subtract_at
 
 Miscellaneous operations
 ------------------------

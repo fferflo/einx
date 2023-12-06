@@ -300,6 +300,9 @@ def reduce(tensor, axis, keepdims=False, op=None):
 def map(tensor, axis, op, *args, **kwargs):
     return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, output_shapes=np.asarray(tensor.shape)).output_tracers
 
+def index(tensor, coordinates, update=None, op=None):
+    return Op(op, args=[tensor, coordinates, update], output_shapes=np.asarray(coordinates[0].shape)).output_tracers
+
 class tracer:
     Input = Input
     Constant = Constant
@@ -402,6 +405,9 @@ class tracer:
     all = partial(reduce, op="all")
     min = partial(reduce, op="min")
     max = partial(reduce, op="max")
+
+    get_at = partial(index, op="get_at")
+    set_at = partial(index, op="set_at")
 
     flip = partial(map, op="flip")
     roll = partial(map, op="roll")

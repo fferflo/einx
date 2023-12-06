@@ -5,7 +5,10 @@ class base_backend:
     @classmethod
     def apply(backend, op, args, kwargs, output_shapes):
         if isinstance(op, str):
-            op = getattr(backend, op)
+            x = backend
+            for name in op.split("."):
+                x = getattr(x, name)
+            op = x
         result = op(*args, **kwargs)
         def assert_shape(tensor, out_shape):
             in_shape = np.asarray(tensor.shape)

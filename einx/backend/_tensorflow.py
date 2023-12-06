@@ -58,6 +58,15 @@ def make_tensorflow_backend():
         min = tnp.min
         max = tnp.max
 
+        def get_at(tensor, coordinates):
+            return tensor[coordinates]
+        def set_at(tensor, coordinates, updates):
+            return tf.tensor_scatter_nd_update(tensor, tf.stack(coordinates, axis=-1), updates)
+        def add_at(tensor, coordinates, updates):
+            return tf.tensor_scatter_nd_add(tensor, tf.stack(coordinates, axis=-1), updates)
+        def subtract_at(tensor, coordinates, updates):
+            return tf.tensor_scatter_nd_sub(tensor, tf.stack(coordinates, axis=-1), updates)
+
         def flip(x, axis):
             if isinstance(axis, int):
                 axis = [axis]

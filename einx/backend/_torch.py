@@ -70,6 +70,18 @@ def make_torch_backend():
         min = torch_.min
         max = torch_.max
 
+        def get_at(tensor, coordinates):
+            return tensor[coordinates]
+        def set_at(tensor, coordinates, updates):
+            tensor[coordinates] = updates
+            return tensor
+        def add_at(tensor, coordinates, updates):
+            tensor[coordinates] += updates
+            return tensor
+        def subtract_at(tensor, coordinates, updates):
+            tensor[coordinates] -= updates
+            return tensor
+
         def flip(tensor, axis):
             if isinstance(axis, int):
                 axis = [axis]
