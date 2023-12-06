@@ -13,9 +13,9 @@ einx allows formulating many tensor operations as concise expressions using few 
 
 * Composable :ref:`Einstein expressions <einsteinexpressions>` with ``[]``-:ref:`notation <bracketnotation>` compatible with einops-notation
   (see :doc:`Comparison with einops </faq/einops>`).
+* Generalized :doc:`neural network layers </gettingstarted/neuralnetworks>` that are formulated using einx expressions.
 * Numpy-like naming convention: ``einx.{sum|any|max|count_nonzero|where|add|logical_and|flip|...}``
 * :ref:`Inspection of backend operations <inspectingoperations>` in index-based notation that are invoked in a given einx call.
-* Generalized :doc:`neural network layers </gettingstarted/neuralnetworks>` that are formulated using einx expressions.
 
 einx can be integrated easily into existing code and works with tensor frameworks Numpy, Torch, Jax and Tensorflow:
 

@@ -2,12 +2,12 @@
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html). **tl;dr**:
 
-- Introduces [composable Einstein expressions](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#einstein-expressions) with [`[]`-notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation) that are compatible with einops-notation (see [Comparison with einops](https://einx.readthedocs.io/en/latest/faq/einops.html)).
+- Introduces composable Einstein expressions with [`[]`-notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation) that are compatible with einops-notation (see [Comparison with einops](https://einx.readthedocs.io/en/latest/faq/einops.html)).
+- Provides generalized neural network layers formulated in einx notation (see [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)).
 - Integrates easily with existing code, and supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
 - Adds no overhead when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html), and marginal overhead in eager mode by caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance)).
 - Uses Numpy-like naming convention: `einx.{sum|any|max|count_nonzero|where|add|logical_and|flip|...}`
 - Allows inspecting the backend calls in index-based notation that are made for a given einx operation (see [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations)).
-- Provides generalized neural network layers formulated in einx notation (see [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)).
 
 **Getting started:** [Go to overview and documentation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
 
