@@ -76,6 +76,14 @@ droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 # See scripts/train_{torch|flax|haiku}.py for example trainings on CIFAR10
 ```
 
+#### Example: Einstein expression trees
+
+Internally, einx uses *Einstein expression trees* to represent the shapes of tensors. For example, the expression `b (s [r])... c` for a tensor with shape `(2, 4, 8, 3)` and an additional constraint `r=4` results in:
+
+<img src="docs/source/images/stage3-tree.png" width="500"/>
+
+See [How does einx parse Einstein expressions?](https://einx.readthedocs.io/en/latest/faq/solver.html) for more details.
+
 #### Example: Inspection
 
 einx allows inspecting the backend calls in index-based notation that are made for a given einx operation (by passing `graph=True`). For example:
@@ -93,14 +101,6 @@ Graph reduce_stage0("b... (g [c])", I0, op="sum", g=2):
 ```
 
 See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations) for more details.
-
-#### Example: Einstein expression trees
-
-Internally, einx uses *Einstein expression trees* to represent the shapes of tensors. For example, the expression `b (s [r])... c` for a tensor with shape `(2, 4, 8, 3)` and an additional constraint `r=4` results in:
-
-<img src="docs/source/images/stage3-tree.png" width="500"/>
-
-See [How does einx parse Einstein expressions?](https://einx.readthedocs.io/en/latest/faq/solver.html) for more details.
 
 ## Installation
 
