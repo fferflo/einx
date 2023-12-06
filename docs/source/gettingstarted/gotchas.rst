@@ -20,3 +20,7 @@ motivated by the fact that the function computes a generalized dot-product, and 
 This is already common practice in jax-based frameworks like `Flax <https://github.com/google/flax>`_ and `Haiku <https://github.com/google-deepmind/dm-haiku>`_,
 but may require modification of `PyTorch <https://pytorch.org/>`_ training scripts. ``torch.compile`` should be applied after this
 first forward pass (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
+
+5. **einx does not support dynamic shapes** that can occur for example when tracing some types of functions
+(e.g. `tf.unique <https://www.tensorflow.org/api_docs/python/tf/unique>`_) in Tensorflow using ``tf.function``. As a workaround, the shape can be specified statically
+using `tf.ensure_shape <https://www.tensorflow.org/api_docs/python/tf/ensure_shape>`_.

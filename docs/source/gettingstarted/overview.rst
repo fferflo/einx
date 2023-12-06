@@ -17,7 +17,7 @@ einx allows formulating many tensor operations as concise expressions using few 
 * :ref:`Inspection of backend operations <inspectingoperations>` in index-based notation that are invoked in a given einx call.
 * Generalized :doc:`neural network layers </gettingstarted/neuralnetworks>` that are formulated using einx expressions.
 
-einx can be integrated easily into existing code and seamlessly works with Numpy, Torch, Jax and Tensorflow:
+einx can be integrated easily into existing code and works with tensor frameworks Numpy, Torch, Jax and Tensorflow:
 
 ..  code::
 
@@ -344,3 +344,16 @@ An example of an operation that requires concatenation of tensors:
         X4 := reshape(X5, (10, 10, 1))
         X2 := concatenate([X3, X4], 2)
         return X2
+
+Related libraries and features
+------------------------------
+
+* `einops <https://github.com/arogozhnikov/einops>`_
+* `einsum in Numpy <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
+* `eindex <https://github.com/arogozhnikov/eindex>`_
+* `torchdim <https://github.com/facebookresearch/torchdim>`_
+* `einindex <https://github.com/malmaud/einindex>`_
+* `einshape <https://github.com/google-deepmind/einshape>`_
+* `einop <https://github.com/cgarciae/einop>`_
+* `Named tensors in PyTorch <https://pytorch.org/docs/stable/named_tensor.html>`_
+* `Named axes in Jax <https://jax.readthedocs.io/en/latest/notebooks/xmap_tutorial.html>`_
