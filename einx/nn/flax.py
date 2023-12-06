@@ -14,6 +14,7 @@ class _Norm(nn.Module):
     bias: bool = True
     decay_rate: float = None
     epsilon: float = 1e-5
+    fastvar: bool = True
     dtype: str = "float32"
     kwargs: dict = None
 
@@ -32,6 +33,7 @@ class _Norm(nn.Module):
             scale=(lambda shape: self.param("scale", nn.initializers.ones_init(), shape, self.dtype)) if self.scale else None,
             bias=(lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype)) if self.bias else None,
             epsilon=self.epsilon,
+            fastvar=self.fastvar,
             **(self.kwargs if not self.kwargs is None else {}),
         )
 
@@ -46,7 +48,7 @@ class _Norm(nn.Module):
 
         return x
 
-def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, dtype="float32", **kwargs):
+def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, fastvar=True, dtype="float32", **kwargs):
     """Normalization layer.
 
     Args:
@@ -57,12 +59,13 @@ def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, d
         scale: Whether to apply a learnable scale according to ``params``. Defaults to ``True``.
         bias: Whether to apply a learnable bias according to ``params``. Defaults to ``True``.
         epsilon: A small float added to the variance to avoid division by zero. Defaults to ``1e-5``.
+        fastvar: Whether to use a fast variance computation. Defaults to ``True``.
         dtype: Data type of the weights. Defaults to ``"float32"``.
         decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
     
-    return _Norm(stats, params=params, mean=mean, var=var, scale=scale, bias=bias, decay_rate=decay_rate, epsilon=epsilon, dtype=dtype, kwargs=kwargs)
+    return _Norm(stats, params=params, mean=mean, var=var, scale=scale, bias=bias, decay_rate=decay_rate, epsilon=epsilon, fastvar=fastvar, dtype=dtype, kwargs=kwargs)
 
 class _Linear(nn.Module):
     expr: str

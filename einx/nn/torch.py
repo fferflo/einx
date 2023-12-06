@@ -41,18 +41,20 @@ class Norm(torch.nn.Module):
         scale: Whether to apply a learnable scale according to ``params``. Defaults to ``True``.
         bias: Whether to apply a learnable bias according to ``params``. Defaults to ``True``.
         epsilon: A small float added to the variance to avoid division by zero. Defaults to ``1e-5``.
+        fastvar: Whether to use a fast variance computation. Defaults to ``True``.
         dtype: Data type of the weights. Defaults to ``"float32"``.
         decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, epsilon=1e-5, dtype="float32", decay_rate=None, **kwargs):
+    def __init__(self, stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, epsilon=1e-5, fastvar=True, dtype="float32", decay_rate=None, **kwargs):
         super().__init__()
         self.stats = stats
         self.params = params
         self.use_mean = mean
         self.use_var = var
         self.epsilon = epsilon
+        self.fastvar = fastvar
         self.decay_rate = decay_rate
         self.kwargs = kwargs
 
@@ -72,6 +74,7 @@ class Norm(torch.nn.Module):
             scale=self.scale,
             bias=self.bias,
             epsilon=self.epsilon,
+            fastvar=self.fastvar,
             backend=einx.backend.get("torch"),
             **self.kwargs,
         )
