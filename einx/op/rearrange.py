@@ -68,7 +68,7 @@ def rearrange_stage0(description, *tensors, backend=None, cse=True, **parameters
 def rearrange(arg0, *args, **kwargs):
     """Rearranges the input tensors to match the output expressions.
 
-    (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    See :doc:`How does einx handle input and output tensors? </faq/flatten>`.
 
     The `description` argument specifies the input and output expressions. It must meet the following format:
     ``input1, input2, ... -> output1, output2, ...``

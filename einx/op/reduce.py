@@ -75,7 +75,7 @@ def reduce_stage0(description, *tensors, op, keepdims=None, backend=None, cse=Tr
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def reduce(arg0, *args, **kwargs):
-    """Applies a reduction operation on the given tensors.
+    """Applies a reduction operation on the given tensors. Specializes :func:`einx.vmap_with_axis`.
 
     The function flattens all input tensors, applies the given reduction operation and rearranges
     the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
@@ -143,11 +143,11 @@ def reduce(arg0, *args, **kwargs):
 reduce._op_names = _op_names
 reduce.parse = parse
 
-
 def _make(name):
     def func(*args, **kwargs):
         return reduce(*args, op=name, **kwargs)
     func.__name__ = name
+    func.__doc__ = f"Alias for :func:`einx.reduce` with ``op=\"{name}\"``"
     globals()[name] = func
 
 for name in _op_names:

@@ -88,7 +88,7 @@ def elementwise_stage0(description, *tensors, op, backend=None, cse=True, **para
     return tensor
 
 def elementwise(arg0, *args, **kwargs):
-    """Applies an element-by-element operation over the given tensors.
+    """Applies an element-by-element operation over the given tensors. Specializes :func:`einx.vmap_with_axis`.
 
     The function flattens all input tensors, applies the given element-by-element operation yielding a single output tensor, and rearranges
     the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
@@ -173,6 +173,7 @@ def _make(name):
     def func(*args, **kwargs):
         return elementwise(*args, op=name, **kwargs)
     func.__name__ = name
+    func.__doc__ = f"Alias for :func:`einx.elementwise` with ``op=\"{name}\"``"
     globals()[name] = func
 
 for name in _op_names:

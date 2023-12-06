@@ -167,6 +167,7 @@ def vmap_with_axis(arg0, *args, **kwargs):
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
         op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
+        kwargs: Additional keyword arguments that are passed to the ``op``.
         backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
         graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
@@ -197,8 +198,12 @@ def vmap_with_axis(arg0, *args, **kwargs):
 vmap_with_axis.parse = parse
 vmap_with_axis._op_names = _op_names
 
-def flip(description, tensor, **kwargs):
-    return vmap_with_axis(description, tensor, op="flip", **kwargs)
+def flip(description, tensor, **parameters):
+    """Alias for :func:`einx.vmap_with_axis` with ``op="flip"``
+    """
+    return vmap_with_axis(description, tensor, op="flip", **parameters)
 
-def roll(description, tensor, shift, **kwargs):
-    return vmap_with_axis(description, tensor, op="roll", kwargs={"shift": shift}, **kwargs)
+def roll(description, tensor, shift, **parameters):
+    """Alias for :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``.
+    """
+    return vmap_with_axis(description, tensor, op="roll", kwargs={"shift": shift}, **parameters)
