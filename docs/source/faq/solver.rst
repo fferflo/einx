@@ -12,8 +12,8 @@ einx functions accept a description string that specifies the shapes of input an
 
 To identify the backend operations that are required to execute this statement, einx first parses the description string and determines an *Einstein expression tree*
 for each input and output tensor. The tree represents a full description of the tensor's shape and axes marked with brackets. The nodes represent different types of
-subexpressions such as axis lists, compositions, ellipses and concatenations. The leaves of the tree are the named and unnamed axes of the tensor. The expressions trees
-are then used to determine the required rearranging steps and axes along which backend operations are applied.
+subexpressions such as axis lists, compositions, ellipses and concatenations. The leaves of the tree are the named and unnamed axes of the tensor. The expression trees
+are used to determine the required rearranging steps and axes along which backend operations are applied.
 
 einx uses a multi-step process to convert expression strings into expression trees:
 
@@ -36,7 +36,7 @@ be implicitly determined from the input expression by removing marked axes, and 
 
     einx.mean("b (s [r])... c -> b s... c", x, r=4)
     # same as
-    einx.mean("b (s [r])... c", x, r=2)
+    einx.mean("b (s [r])... c", x, r=4)
 
 Another example of abbreviations in :func:`einx.dot`:
 
