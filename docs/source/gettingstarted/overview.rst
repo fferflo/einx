@@ -9,16 +9,15 @@ Introduction
 ------------
 
 einx allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
-`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
-(see :doc:`comparison </faq/einops>`). einx introduces:
+`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_. einx introduces:
 
-* Powerful and composable :ref:`Einstein expressions <einsteinexpressions>`.
-* Numpy-like naming convention: ``einx.{sum|mean|any|max|count_nonzero|where|add|logical_and|flip|...}``
-* ``[]``-:ref:`notation <bracketnotation>` similar to the ``axis`` argument in Numpy functions.
+* Composable :ref:`Einstein expressions <einsteinexpressions>` with ``[]``-:ref:`notation <bracketnotation>` compatible with einops-notation
+  (see :doc:`Comparison with einops </faq/einops>`).
+* Numpy-like naming convention: ``einx.{sum|any|max|count_nonzero|where|add|logical_and|flip|...}``
 * :ref:`Inspection of backend operations <inspectingoperations>` in index-based notation that are invoked in a given einx call.
 * Generalized :doc:`neural network layers </gettingstarted/neuralnetworks>` that are formulated using einx expressions.
 
-einx can be integrated easily into existing code and seamlessly works with tensors from different frameworks (Numpy, Torch, Jax, Tensorflow):
+einx can be integrated easily into existing code and seamlessly works with Numpy, Torch, Jax and Tensorflow:
 
 ..  code::
 
@@ -32,16 +31,19 @@ einx can be integrated easily into existing code and seamlessly works with tenso
     x = torch.ones(3, 4)
     y = einx.sum("a [b]", x)
 
+It incurs no overhead in just-in-time compiled code, and only a marginal overhead in eager mode by caching operations on the first call (see :ref:`Performance <performance>`).
+
 .. _einsteinexpressions:
 
 Einstein expressions
 --------------------
 
 For an introduction to the basics of Einstein-notation for tensor manipulation see
-`this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ and a
-:doc:`comparison with index-based notation </gettingstarted/cheatsheet>`.
+`this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_, a
+:doc:`comparison with index-based notation </gettingstarted/cheatsheet>` and an :doc:`overview of how einx parses Einstein expressions </faq/solver>`. The following gives a short
+summary of the most important concepts.
 
-An Einstein expression describes a tensor's shape and consists of named and unnamed axes (``a``, ``8``), axis lists ``a b``, compositions ``(a b)``, ellipses ``a...``
+An Einstein expression describes a tensor's shape and consists of named and unnamed axes (``a``, ``1``), axis lists ``a b``, compositions ``(a b)``, ellipses ``a...``
 and concatenations ``(a + b)``.
 
 An axis **list** specifies the axes of a tensor in order, separated by spaces:
@@ -50,13 +52,13 @@ An axis **list** specifies the axes of a tensor in order, separated by spaces:
 >>> einx.rearrange("a b c  -> a c b", x).shape
 (2, 4, 3)
 
-A **composition** collapses multiple axes into a single axis:
+A **composition** represents multiple axes as a single axis in `row-major order <https://en.wikipedia.org/wiki/Row-_and_column-major_order>`_:
 
 >>> x = np.ones((2, 3, 4)) # Expression: a b c
 >>> einx.rearrange("a b c  -> (a b) c", x).shape
 (6, 4)
 
-This uses a `reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_ operation which interprets the composed dimensions as a single list of values.
+This uses a `reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_ operation which does not change the underlying data.
 The value of the new axis is the product of the composed axes. See `this einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_
 for hands-on illustrations of axis composition using a batch of images. Axes can be decomposed analogously:
 
@@ -79,13 +81,13 @@ Ellipses can be composed with other expressions arbitrarily which allows formula
 ..  code::
 
     # Mean-pooling with stride 4 (if evenly divisible)
-    einx.mean("b (s [s2])... c", x, s2=4)
+    einx.mean("b (s [s2])... c", x, s2=4) # [] marks axes along which the mean is computed
 
     # Divide an into a list of patches with size 4
     einx.rearrange("(s s2)... c -> (s...) s2... c", x, s2=4)
 
 To be fully compatible with einops-style notation where an ellipsis can only appear once without a preceding expression, einx implicitly
-converts anonymous ellipses by adding a name in front:
+converts anonymous ellipses by adding an axis in front:
 
 ..  code::
 
@@ -107,7 +109,7 @@ einx introduces axis **concatenations** as a way to specify operations such as `
     # Append number to channels
     einx.rearrange("... c, 1 -> ... (c + 1)", x, [42])
 
-einx uses a `SymPy <https://www.sympy.org/en/index.html>`_ solver to determine the values of named axes in Einstein expressions.
+einx uses a `SymPy <https://www.sympy.org/en/index.html>`_-based solver to determine the values of named axes in Einstein expressions (see :doc:`How does einx parse Einstein expressions? </faq/solver>`).
 In many cases, the shapes of the input tensors provide enough constraints to determine the values of all named axes. For other cases, einx functions accept
 ``**parameters`` that can be used to specify the values of some or all named axes and provide **additional constraints** to the solver:
 
@@ -119,6 +121,16 @@ In many cases, the shapes of the input tensors provide enough constraints to det
     einx.rearrange("(a b) -> a b", x, b=2)      # Succeeds: a determined by solver
     einx.rearrange("(a b) -> a b", x, a=5, b=2) # Succeeds
     einx.rearrange("(a b) -> a b", x, a=5, b=5) # Fails: Conflicting constraints
+
+Internally, einx uses **Einstein expression trees** to represent the shapes of tensors, for example:
+
+.. figure:: /images/stage3-tree.png
+  :height: 240
+  :align: center
+
+  Einstein expression tree for ``b (s [r])... c`` for tensor with shape ``(2, 4, 8, 3)`` and constraint ``r=4``.
+
+For more details, see :doc:`How does einx parse Einstein expressions? </faq/solver>`
 
 .. _bracketnotation:
 
@@ -169,7 +181,7 @@ Other examples of bracket notation:
     # Reverse elements along the last two axes
     einx.flip("... [b c]", x)
 
-``einx.vmap`` allows vectorizing arbitrary functions using the same bracket notation, e.g.:
+:func:`einx.vmap` allows vectorizing arbitrary functions using the same bracket notation, e.g.:
 
 ..  code::
 
@@ -180,7 +192,7 @@ Other examples of bracket notation:
     # Apply op to batched tensors x and y
     einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=op)
 
-The arguments that are passed to ``op`` have shapes that match the marked subexpressions. Other einx functions can similarly be formulated using ``einx.vmap``:
+The arguments that are passed to ``op`` have shapes that match the marked subexpressions. Other einx functions can similarly be formulated using :func:`einx.vmap`:
 
 ..  code::
 
@@ -196,7 +208,7 @@ The arguments that are passed to ``op`` have shapes that match the marked subexp
     einx.flip("a [b]", x)
     einx.vmap("a [b] -> a [b]", x, op=np.flip)
 
-While using the option without ``einx.vmap`` is often faster, ``einx.vmap`` also allows vectorizing functions that do not inherently support
+While using the option without :func:`einx.vmap` is often faster, :func:`einx.vmap` also allows vectorizing functions that do not inherently support
 batch axes (e.g. `map_coordinates <https://jax.readthedocs.io/en/latest/_autosummary/jax.scipy.ndimage.map_coordinates.html>`_).
 
 .. _apisummary:
@@ -210,8 +222,8 @@ einx provides several powerful abstractions:
    broadcasted axes, concatenating and splitting as required.
 
 2. :func:`einx.vmap_with_axis` applies functions that accept the ``axis`` argument and follow
-   `numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
-   `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_).
+   `numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
+   `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_).
 
 3. :func:`einx.vmap` applies arbitrary functions using vectorization
    (see `this jax tutorial <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_ for an introduction to vectorization).
@@ -240,6 +252,8 @@ called to create the corresponding tensor when the shape is resolved.
 
 This is especially useful in the context of deep learning modules, where the shapes of a layer's weights are chosen to match with the desired
 input and output shapes (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
+
+.. _performance:
 
 Performance
 -----------
@@ -277,8 +291,8 @@ inspected to verify that the expected index-based calls are made. For example:
         X1 := sum(X2, axis=1)
         return X1
 
-The ``instantiate`` function executes :ref:`tensor factories <lazytensorconstruction>` if they are given, and converts tensors to the requested backend. The ``einx.sum("a [b]", x)`` call
-thus reduces to a single ``backend.sum`` call with ``axis=1``.
+The ``instantiate`` function executes :ref:`tensor factories <lazytensorconstruction>` and converts tensors to the requested backend if required.
+The ``einx.sum("a [b]", x)`` call thus corresponds to a single ``backend.sum`` call with ``axis=1``.
 
 Another example of a sum-reduction that requires a reshape operation:
 

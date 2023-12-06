@@ -23,6 +23,7 @@ It is inspired by `einops <https://github.com/arogozhnikov/einops>`_ and `einsum
    :maxdepth: 1
 
    faq/flatten.rst
+   faq/solver.rst
    faq/backend.rst
    faq/einops.rst
 
