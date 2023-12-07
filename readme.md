@@ -35,7 +35,7 @@ import einx
 x = {np.asarray|torch.as_tensor|jnp.asarray|tf.convert_to_tensor}(...)
 
 einx.sum("a [b]", x)                              # Sum-reduction along columns
-einx.flip("([a] b)", x)                           # Reverse values along sub-axis
+einx.flip("([a] b)", x, a=5)                      # Reverse values along sub-axis
 einx.mean("b [s...] c", x)                        # Global mean-pooling
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
 einx.add("b... [c]", x, b)                        # Add bias
