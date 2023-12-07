@@ -47,7 +47,7 @@ var = einx.var("b... [c]", x, keepdims=True)
 x = (x - mean) * torch.rsqrt(var + epsilon)
 ```
 
-#### Examples: Deep learning modules
+#### Examples: Deep learning modules (optional)
 
 ```python
 import einx.nn.{torch|flax|haiku} as einn
