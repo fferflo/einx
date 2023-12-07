@@ -8,16 +8,27 @@ Overview
 Introduction
 ------------
 
-einx allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
-`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_. einx introduces:
 
-* Composable :ref:`Einstein expressions <einsteinexpressions>` with ``[]``-:ref:`notation <bracketnotation>` compatible with einops-notation
-  (see :doc:`Comparison with einops </faq/einops>`).
-* Generalized :doc:`neural network layers </gettingstarted/neuralnetworks>` that are formulated using einx expressions.
-* Numpy-like naming convention: ``einx.{sum|any|max|count_nonzero|where|add|logical_and|flip|...}``
-* :ref:`Inspection of backend operations <inspectingoperations>` in index-based notation that are invoked in a given einx call.
 
-einx can be integrated easily into existing code and works with tensor frameworks Numpy, Torch, Jax and Tensorflow:
+
+einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
+`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
+
+*Main features:*
+
+- Fully composable :ref:`Einstein expressions <einsteinexpressions>` with ``[]``-:ref:`notation <bracketnotation>`. Compatible with einops-notation.
+- Powerful abstractions: :func:`einx.rearrange`, :func:`einx.vmap`, :func:`einx.vmap_with_axis`
+- Ease of use with numpy-like specializations ``einx.{sum|any|max|where|add|flip|get_at|...}`` and shorthand Einstein notation.
+- Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
+- No overhead when used with just-in-time compilation (e.g. `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_,
+  `torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_). Marginal overhead in eager mode due to tracing and caching operations (see :ref:`Performance <performance>`).
+
+*Optional:*
+
+- Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku. (See :doc:`Neural networks </gettingstarted/neuralnetworks>`)
+- Inspecting backend operations that are made for a given einx call (See :ref:`Inspection <inspectingoperations>`).
+
+Example:
 
 ..  code::
 
@@ -30,8 +41,6 @@ einx can be integrated easily into existing code and works with tensor framework
     import torch
     x = torch.ones(3, 4)
     y = einx.sum("a [b]", x)
-
-It incurs no overhead in just-in-time compiled code, and only a marginal overhead in eager mode by caching operations on the first call (see :ref:`Performance <performance>`).
 
 .. _einsteinexpressions:
 
@@ -46,7 +55,7 @@ summary of the most important concepts.
 An Einstein expression describes a tensor's shape and consists of named and unnamed axes (``a``, ``1``), axis lists ``a b``, compositions ``(a b)``, ellipses ``a...``
 and concatenations ``(a + b)``.
 
-An axis **list** specifies the axes of a tensor in order, separated by spaces:
+An axis **list** specifies the axes of a tensor in order, separated by spaces. It can be used for example to transpose the dimensions of a tensor:
 
 >>> x = np.ones((2, 3, 4)) # Expression: a b c
 >>> einx.rearrange("a b c  -> a c b", x).shape
@@ -59,7 +68,7 @@ A **composition** represents multiple axes as a single axis in `row-major order 
 (6, 4)
 
 This uses a `reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_ operation which does not change the underlying data.
-The value of the new axis is the product of the composed axes. See `this einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_
+The length of the new axis is the product of the composed axes. See `this einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_
 for hands-on illustrations of axis composition using a batch of images. Axes can be decomposed analogously:
 
 >>> x = np.ones((6, 4)) # Expression: (a b) c
@@ -130,15 +139,16 @@ Internally, einx uses **Einstein expression trees** to represent the shapes of t
 
   Einstein expression tree for ``b (s [r])... c`` for tensor with shape ``(2, 4, 8, 3)`` and constraint ``r=4``.
 
-For more details, see :doc:`How does einx parse Einstein expressions? </faq/solver>`
+Einstein expressions are fully composable, and every einx function features complete support for rearranging tensors between input and output expressions.
+For more details, see :doc:`How does einx parse Einstein expressions? </faq/solver>` and :doc:`How does einx handle input and output tensors? </faq/flatten>`.
 
 .. _bracketnotation:
 
 Bracket notation
 ----------------
 
-einx introduces the ``[]``-notation to specify how operations should be vectorized. ``[]`` denotes axes that an operation is applied on, while all other
-axes are batch axes and vectorized over. This corresponds to the ``axis`` argument in index-based notation:
+einx introduces the ``[]``-notation to specify how operations should be vectorized. ``[]`` denotes axes that an operation is applied on, other
+axes are considered batch axes and vectorized over. This corresponds to the ``axis`` argument in index-based notation:
 
 ..  code::
 
@@ -152,6 +162,8 @@ axes are batch axes and vectorized over. This corresponds to the ``axis`` argume
 
     einx.sum("b... (g [c])", x)
     # requires reshapes in numpy
+
+See :doc:`Cheatsheet </gettingstarted/cheatsheet>` for more comparisons between Einstein and index-based notation.
 
 Operations are sensitive to the positioning of brackets, e.g. allowing for flexible ``keepdims=True`` behavior out-of-the-box:
 
@@ -230,14 +242,14 @@ einx provides several powerful abstractions:
 
 4. :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
 
-Many easy-to-use specializations are also included as top-level functions in the ``einx.*`` namespace following Numpy naming conventions:
+Many easy-to-use specializations are also included as top-level functions in the ``einx.*`` namespace following a Numpy-like naming convention:
 
 * ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`` (see :func:`einx.reduce`).
 * ``einx.{add|multiply|logical_and|where|equal|...}`` (see :func:`einx.elementwise`).
 * ``einx.{flip|roll|...}`` (see :func:`einx.vmap_with_axis`).
 * ``einx.{get_at|set_at|add_at|...}`` (see :func:`einx.index`).
 
-See the :doc:`API reference </api>` for a list of functions.
+See the :doc:`API reference </api>` for a complete list of available functions.
 
 .. _lazytensorconstruction:
 

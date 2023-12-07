@@ -1,7 +1,8 @@
 Cheatsheet
 ##########
 
-**Einstein-notation in einx and index-based notation in Numpy**
+**Simple tensor operations in Einstein notation and index-based notation**. More complex operations often require only slight modifications in the Einstein
+expression, while the complexity of index-based notation grows rapidly, making it less expressive and more error-prone.
 
 .. list-table:: 
    :widths: 10 45 45
@@ -57,39 +58,15 @@ Cheatsheet
        | ``einx.dot("[a b] -> [a c]", x, y)``
        | ``einx.dot("[a b|a c]", x, y)``
      - ``np.einsum("ab,abc->ac", x, y)``
+   * - Indexing
+     - ``einx.get_at("[h w] c, p [2] -> p c", x, y)``
+     - ``x[y[:, 0], y[:, 1]]``
+   * -
+     - ``einx.set_at("[h] c, p [1], p c -> [h] c", x, y, z)``
+     - ``x[y[:, 0]] = z``
 
-
-**Common neural network operations using einx.***
-
-.. list-table::
-   :widths: 40 60
-   :header-rows: 0
-
-   * - Linear layer: x * w + b
-     - | ``x = einx.dot("b... [c1|c2]", x, w, c2=64)``
-       | ``x = einx.add("b... [c]", x, b)``
-
-   * - | Grouped linear layer
-       | (same weights per group)
-     - | ``x = einx.dot("b... (g [c1|c2])", x, w, g=8, c2=64)``
-       | ``x = einx.add("b... (g [c])", x, b, g=8)``
-
-   * - | Grouped linear layer
-       | (different weights per group)
-     - | ``x = einx.dot("b... ([g c1|g c2])", x, w, g=8, c2=64)``
-       | ``x = einx.add("b... [c]", x, b)``
-
-   * - | Spatial mixing (as in `MLP-Mixer <https://arxiv.org/abs/2105.01601>`_)
-     - | ``einx.dot("b [s...|s2] c", x, w, s2=64)``
-       | ``einx.dot("b [s2|s...] c", x, w, s=(16, 16))``
-
-   * - Global spatial mean pooling
-     - ``einx.mean("b [...] c", x)``
-   * - | Sum-pooling with kernel_size=stride=2
-       | (if evenly divisible)
-     - ``einx.sum("b (s [s2])... c", x, s2=2)``
-
-**Common neural network operations using einx.nn.***
+**Deep learning modules**. The layer types can be used to implement a wide variety of neural network modules and provide an intuitive and concise description of the
+underlying operation.
 
 ``import einx.nn.{torch|flax|haiku} as einn``
 
@@ -114,6 +91,13 @@ Cheatsheet
 
    * - Channel mixing
      - ``einn.Linear("b... [c1|c2]", c2=64)``
+
+   * - | Grouped channel mixing
+       | (same weights per group)
+     - ``einn.Linear("b... (g [c1|c2])", c2=64)``
+   * - | Grouped channel mixing
+       | (different weights per group)
+     - ``einn.Linear("b... ([g c1|g c2])", c2=64)``
 
    * - Spatial mixing (as in `MLP-Mixer <https://arxiv.org/abs/2105.01601>`_)
      - | ``einn.Linear("b [s...|s2] c", s2=64)``

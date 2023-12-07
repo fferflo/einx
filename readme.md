@@ -2,16 +2,27 @@
 
 ![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)
 
-einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html). **tl;dr**:
+einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
-- Introduces composable Einstein expressions with [`[]`-notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation) that are compatible with einops-notation (see [Comparison with einops](https://einx.readthedocs.io/en/latest/faq/einops.html)).
-- Provides generalized neural network layers formulated in einx notation (see [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)).
-- Integrates easily with existing code, and supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- Adds no overhead when used with just-in-time compilation like [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html) or [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html), and marginal overhead in eager mode by caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance)).
-- Uses Numpy-like naming convention: `einx.{sum|any|max|count_nonzero|where|add|logical_and|flip|...}`
-- Allows inspecting the backend calls in index-based notation that are made for a given einx operation (see [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations)).
+*Main features:*
 
-**Getting started:** [Go to overview and documentation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
+- Fully composable Einstein expressions with [`[]`-notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation). Compatible with einops-notation.
+- Powerful abstractions: [`einx.rearrange`](https://einx.readthedocs.io/en/latest/api.html#einx.rearrange), [`einx.vmap`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap), [`einx.vmap_with_axis`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap_with_axis)
+- Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}` and shorthand Einstein notation.
+- Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
+- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance)).
+
+*Optional:*
+
+- Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku. (See [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html))
+- Inspecting backend operations that are made for a given einx call (See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations)).
+
+**Getting started:**
+
+* [Overview](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
+* [How does einx compare with einops?](https://einx.readthedocs.io/en/latest/faq/einops.html)
+* [Cheatsheet](https://einx.readthedocs.io/en/latest/gettingstarted/cheatsheet.html)
+* [API reference](https://einx.readthedocs.io/en/latest/api.html)
 
 :warning: **This library is currently experimental and may undergo breaking changes.** :warning:
 
