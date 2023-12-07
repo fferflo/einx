@@ -346,8 +346,8 @@ An example of an operation that requires concatenation of tensors:
         X2 := concatenate([X3, X4], 2)
         return X2
 
-Related libraries and features
-------------------------------
+Related libraries
+-----------------
 
 * `einops <https://github.com/arogozhnikov/einops>`_
 * `einsum in Numpy <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
