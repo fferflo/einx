@@ -325,7 +325,11 @@ class tracer:
     def cast(tensor, dtype):
         return Op("cast", args=[tensor], kwargs={"dtype": dtype}, output_shapes=np.asarray(tensor.shape)).output_tracers
     def reshape(tensor, shape):
-        return Op("reshape", args=[tensor, shape], output_shapes=np.asarray(shape)).output_tracers
+        if isinstance(tensor, OpOutput) and tensor.op.op == "reshape":
+            # Merge consecutive reshapes
+            return Op("reshape", args=[tensor.op.args[0], shape], output_shapes=np.asarray(shape)).output_tracers
+        else:
+            return Op("reshape", args=[tensor, shape], output_shapes=np.asarray(shape)).output_tracers
 
     def transpose(tensor, perm):
         shape = [tensor.shape[i] for i in perm]
