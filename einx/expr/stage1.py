@@ -95,10 +95,11 @@ class UnnamedAxis(Expression):
 class Ellipsis(Expression):
     anonymous_variable_name = "_anonymous_ellipsis_variable"
 
-    def __init__(self, inner, begin_pos=-1, end_pos=-1):
+    def __init__(self, inner, begin_pos=-1, end_pos=-1, ellipsis_id=None):
         Expression.__init__(self, begin_pos, end_pos)
         self.inner = inner
         self.inner.parent = self
+        self.ellipsis_id = id(self) if ellipsis_id is None else ellipsis_id
 
     def all(self):
         yield self
@@ -108,7 +109,7 @@ class Ellipsis(Expression):
         return str(self.inner) + _ellipsis
 
     def __deepcopy__(self):
-        return Ellipsis(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
+        return Ellipsis(self.inner.__deepcopy__(), self.begin_pos, self.end_pos, self.ellipsis_id)
 
     @property
     def direct_children(self):
@@ -457,7 +458,7 @@ def _expr_map(expr, f):
         else:
             return [Marker(List.maybe(x))]
     elif isinstance(expr, Ellipsis):
-        return [Ellipsis(List.maybe(_expr_map(expr.inner, f)))]
+        return [Ellipsis(List.maybe(_expr_map(expr.inner, f)), ellipsis_id=expr.ellipsis_id)]
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
 
@@ -493,3 +494,30 @@ def any_parent_is(expr, pred, include_self=True):
 
 def is_marked(expr):
     return any_parent_is(expr, lambda expr: isinstance(expr, Marker))
+
+def _get_marked(expr):
+    if isinstance(expr, NamedAxis):
+        return []
+    elif isinstance(expr, UnnamedAxis):
+        return []
+    elif isinstance(expr, Ellipsis):
+        inner = _get_marked(expr.inner)
+        if len(inner) > 0:
+            return [Ellipsis(List.maybe(inner), ellipsis_id=expr.ellipsis_id)]
+        else:
+            return []
+    elif isinstance(expr, Marker):
+        return [expr.inner.__deepcopy__()]
+    elif isinstance(expr, Concatenation):
+        return [Concatenation.maybe([x for c in expr.children for x in _get_marked(c)])]
+    elif isinstance(expr, Composition):
+        return [Composition(List.maybe(_get_marked(expr.inner)))]
+    elif isinstance(expr, List):
+        return [List.maybe([x for c in expr.children for x in _get_marked(c)])]
+    elif isinstance(expr, Choice):
+        raise ValueError("Expression cannot contain choice")
+    else:
+        raise TypeError(f"Invalid expression type {type(expr)}")
+
+def get_marked(expr):
+    return List.maybe(_get_marked(expr))

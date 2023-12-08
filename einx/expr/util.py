@@ -3,7 +3,7 @@ import numpy as np
 import einx
 
 class Condition:
-    def __init__(self, expr: str, value=None, shape=None, depth=None):
+    def __init__(self, expr, value=None, shape=None, depth=None):
         self.expr = expr
 
         self.value = np.asarray(value) if not value is None else None

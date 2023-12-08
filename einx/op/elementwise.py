@@ -41,43 +41,36 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
         if len(exprs_in) == 1 and len(tensor_shapes) == 2:
             # Expression contains markers -> add second input expression from marked subexpressions
-
-            expr_in1 = einx.expr.solve(
-                [einx.expr.Condition(expr=exprs_in[0], value=tensor_shapes[0], depth=0)] \
-              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
-                cse=cse,
-                cse_concat=False,
-            )[0]
-
-            expr_in2 = einx.expr.stage3.get_marked(expr_in1)
-            if not tensor_shapes[1] is None and expr_in2.shape != tensor_shapes[1]:
-                raise einx.expr.stage3.SolveError(f"Failed to solve axis values. Expected shape {expr_in2.shape} for second input tensor, got {tensor_shapes[1]}")
-            expr_in1 = einx.expr.stage3.demark(expr_in1)
+            expr_in1 = einx.expr.stage1.parse(exprs_in[0])
+            expr_in2 = einx.expr.stage1.get_marked(expr_in1)
+            expr_in1 = einx.expr.stage1.demark(expr_in1)
             exprs_in = [expr_in1, expr_in2]
-        else:
-            if len(exprs_in) != len(tensor_shapes):
-                raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensor_shapes)}")
 
-            exprs_in = einx.expr.solve(
+        if len(exprs_in) != len(tensor_shapes):
+            raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensor_shapes)}")
+
+        exprs_in = einx.expr.solve(
                 [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)] \
               + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
-                cse=cse,
-                cse_concat=False,
-            )[:len(exprs_in)]
+            cse=cse,
+            cse_concat=False,
+        )[:len(exprs_in)]
 
-        # Implicitly determine output expression: Check if one input expression is parent of all others
-        children_str = [str(einx.expr.stage3.remove_unnamed_trivial_axes(expr)) for expr in exprs_in]
-        for i, parent in enumerate(exprs_in):
-            parent_str = str(parent)
-            for j, child_str in enumerate(children_str):
-                if i != j and not child_str in parent_str:
+        # Implicitly determine output expression: Check if one input expression contains the axis names of all others, and this choice is unique
+        in_axis_names = [set(expr.name for expr in root.all() if isinstance(expr, einx.expr.stage3.Axis) and not expr.is_unnamed) for root in exprs_in]
+
+        valid_parents = set()
+        for i, parent in enumerate(in_axis_names):
+            for j, child in enumerate(in_axis_names):
+                if i != j and not child.issubset(parent):
                     break
             else:
                 # Found valid parent
-                expr_out = parent.__deepcopy__()
-                break
-        else:
+                valid_parents.add(exprs_in[i])
+
+        if len(valid_parents) != 1:
             raise ValueError(f"Could not implicitly determine output expression for input expressions {[str(expr) for expr in exprs_in]}")
+        expr_out = next(iter(valid_parents)).__deepcopy__()
 
     return exprs_in, expr_out
 

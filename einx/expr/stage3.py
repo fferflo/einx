@@ -295,9 +295,13 @@ def solve(expressions, values):
     def map(expr):
         if isinstance(expr, stage2.NamedAxis):
             assert id(expr) in axis_values
+            if axis_values[id(expr)] <= 0:
+                raise SolveValueException(expressions, values, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
             return Axis(expr.name, axis_values[id(expr)])
         elif isinstance(expr, stage2.UnnamedAxis):
             assert id(expr) in axis_values
+            if axis_values[id(expr)] <= 0:
+                raise SolveValueException(expressions, values, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
             return Axis(None, axis_values[id(expr)])
         elif isinstance(expr, stage2.List):
             return List([map(child) for child in expr.children])

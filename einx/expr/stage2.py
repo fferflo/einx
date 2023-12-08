@@ -233,6 +233,15 @@ def solve(expressions, shapes, depths):
                     symbolic_axis_depths[axis.name] = solver.Variable(axis.name, axis.name)
                 equations.append((symbolic_expr_depths[id(axis)], symbolic_axis_depths[axis.name]))
 
+    # Add equations: Ellipses with the same id must have the same depth
+    symbolic_ellipsis_depths = {}
+    for root in expressions:
+        for ellipsis in root.all():
+            if isinstance(ellipsis, stage1.Ellipsis):
+                if not ellipsis.ellipsis_id in symbolic_ellipsis_depths:
+                    symbolic_ellipsis_depths[ellipsis.ellipsis_id] = solver.Variable(ellipsis.ellipsis_id, str(ellipsis))
+                equations.append((symbolic_expr_depths[id(ellipsis)], symbolic_ellipsis_depths[ellipsis.ellipsis_id]))
+
     # Solve
     try:
         expr_depths = solver.solve(equations)
@@ -325,6 +334,16 @@ def solve(expressions, shapes, depths):
                         symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"{axis.name},{depth}", f"{axis.name} at depth {depth}")
                     equations.append((symbolic_expr_expansions[(id(axis), depth)], symbolic_axis_expansions[(axis.name, depth)]))
 
+    # Add equations: Ellipses with the same id must have the same expansions
+    symbolic_ellipsis_expansions = {}
+    for root in expressions:
+        for ellipsis in root.all():
+            if isinstance(ellipsis, stage1.Ellipsis):
+                for depth in range(expr_depths[id(ellipsis)] + 1):
+                    if not ellipsis.ellipsis_id in symbolic_ellipsis_expansions:
+                        symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)] = solver.Variable(f"{ellipsis.ellipsis_id},{depth}", f"{ellipsis} at depth {depth}")
+                    equations.append((symbolic_expr_expansions[(id(ellipsis), depth)], symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)]))
+
     # Solve
     try:
         solutions = solver.solve(equations)
@@ -399,6 +418,8 @@ def solve(expressions, shapes, depths):
             if key in expansion_values:
                 # Ellipsis is expanded
                 expansion = expansion_values[key]
+                if expansion < 0:
+                    raise SolveExpansionException(expressions, shapes, depths, f"Ellipsis '{expr}' has negative expansion {expansion}")
                 return [c for i in range(expansion) for c in map(expr.inner, ellipsis_indices=ellipsis_indices + [(i, expansion)])]
             else:
                 # Ellipsis is not expanded
