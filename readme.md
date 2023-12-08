@@ -15,7 +15,6 @@ einx is a Python library that allows formulating many tensor operations as conci
 *Optional:*
 
 - Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku. (See [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html))
-- Inspecting backend operations that are made for a given einx call (See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html#inspecting-operations)).
 
 **Getting started:**
 
@@ -63,7 +62,7 @@ var = einx.var("b... [c]", x, keepdims=True)
 x = (x - mean) * torch.rsqrt(var + epsilon)
 ```
 
-#### Examples: Deep learning modules (optional)
+#### Examples: Deep learning modules
 
 ```python
 import einx.nn.{torch|flax|haiku} as einn

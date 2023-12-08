@@ -8,7 +8,7 @@
 
 project = 'einx'
 copyright = '2023, Florian Fervers'
-author = 'Florian Fervers'
+author = '<a href="https://fferflo.github.io/">Florian Fervers</a>'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
