@@ -4,13 +4,13 @@ How does einx parse Einstein expressions?
 Overview
 --------
 
-einx functions accept a description string that specifies the shapes of input and output tensors and the requested operation in Einstein notation. For example:
+einx functions accept a operation string that specifies the shapes of input and output tensors and the requested operation in Einstein notation. For example:
 
 ..  code::
 
     einx.mean("b (s [r])... c -> b s... c", x, r=4) # Mean-pooling with stride 4
 
-To identify the backend operations that are required to execute this statement, einx first parses the description string and determines an *Einstein expression tree*
+To identify the backend operations that are required to execute this statement, einx first parses the operation string and determines an *Einstein expression tree*
 for each input and output tensor. The tree represents a full description of the tensor's shape and axes marked with brackets. The nodes represent different types of
 subexpressions such as axis lists, compositions, ellipses and concatenations. The leaves of the tree are the named and unnamed axes of the tensor. The expression trees
 are used to determine the required rearranging steps and axes along which backend operations are applied.
@@ -29,7 +29,7 @@ The operation string is first split into separate expression strings for each te
 for the input and output tensor, respectively. Inputs and outputs are separated by ``->``, and multiple tensors on each side are separated by ``,``. The order of the tensors
 matches the order of the parameters and return values of the einx function.
 
-Most functions also accept abbreviated operation strings to avoid redundancy and facilitate more concise expressions. For example, in ``einx.mean`` the output expression can
+Most functions also accept shorthand operation strings to avoid redundancy and facilitate more concise expressions. For example, in ``einx.mean`` the output expression can
 be implicitly determined from the input expression by removing marked axes, and can therefore be omitted (see :func:`einx.reduce`):
 
 ..  code::
@@ -38,7 +38,7 @@ be implicitly determined from the input expression by removing marked axes, and 
     # same as
     einx.mean("b (s [r])... c", x, r=4)
 
-Another example of abbreviations in :func:`einx.dot`:
+Another example of shorthand notation in :func:`einx.dot`:
 
 ..  code::
 
@@ -48,7 +48,7 @@ Another example of abbreviations in :func:`einx.dot`:
     # same as
     einx.dot("a [b|c]", x, y)
 
-See the documentation of the respective functions for all allowed abbreviations.
+See :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>` and the documentation of the respective functions for allowed shorthand notation.
 
 Stage 1: Parsing the expression string
 --------------------------------------
@@ -73,7 +73,7 @@ To expand the ellipses in a stage-1 expression, einx first determines the *depth
 
 In a second step, the *expansion* of all ellipses, i.e. the number of repetitions, is determined using the constraints provided by the input tensors. For example, given a tensor with
 rank 4, the ellipsis in ``b (s [r])... c`` has an expansion of 2. einx ensures that the expansion of all axes is consistent over different expressions: E.g. an
-expression ``s..., s... -> s...`` would raise an exception if the two input tensors have different rank.
+operation ``s..., s... -> s...`` would raise an exception if the two input tensors have different rank.
 
 The expression ``b (s [r])... c`` is expanded to ``b (s.0 [r.0]) (s.1 [r.1]) c`` for a 4D input tensor:
 
@@ -112,9 +112,9 @@ The value of axis lists and axis concatenations is determined as the product and
 Solver
 ------
 
-We use a `SymPy <https://www.sympy.org/en/index.html>`_-based solver to determine the depth and expansion of all expressions in stage 2, and the values of all axes in stage 3 by providing
+einx uses a `SymPy <https://www.sympy.org/en/index.html>`_-based solver to determine the depth and expansion of all expressions in stage 2, and the values of all axes in stage 3 by providing
 equations representing the respective constraints.
 
-Instead of directly applying the solver to these equations, we first determine *equivalence classes* of axes that are known to have
-the same value (from equations like ``a = b`` and ``a = 1``) and for each equivalence class pass a single variable to `SymPy <https://www.sympy.org/en/index.html>`_.
+Instead of directly applying the solver to these equations, einx first determines *equivalence classes* of axes that are known to have
+the same value (from equations like ``a = b`` and ``a = 1``) and for each equivalence class passes a single variable to `SymPy <https://www.sympy.org/en/index.html>`_.
 This speeds up the solver and allows raising more expressive exceptions when conflicting constraints are found.

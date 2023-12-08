@@ -12,9 +12,12 @@ It is inspired by `einops <https://github.com/arogozhnikov/einops>`_ and `einsum
    :caption: Getting Started
    :maxdepth: 3
 
-   gettingstarted/installation.rst
    gettingstarted/overview.rst
+   gettingstarted/installation.rst
+   gettingstarted/einsteinnotation.rst
+   gettingstarted/tensormanipulation.rst
    gettingstarted/neuralnetworks.rst
+   gettingstarted/performance.rst
    gettingstarted/gotchas.rst
    gettingstarted/cheatsheet.rst
 

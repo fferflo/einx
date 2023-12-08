@@ -8,8 +8,8 @@ that defines which backend to use for the computation. For ``backend=None`` (the
 ..  code:: python
 
     x = np.ones((2, 3))
-    einx.sum("a [b]", x, backend=einx.backend.numpy) # Uses numpy backend
-    einx.sum("a [b]", x)                             # Implicitly uses numpy backend
+    einx.sum("a [b]", x, backend=einx.backend.get("numpy")) # Uses numpy backend
+    einx.sum("a [b]", x)                                    # Implicitly uses numpy backend
 
 Numpy tensors can be mixed with other frameworks in the same operation, in which case the latter backend is used for computations. Frameworks other than
 Numpy cannot be mixed in the same operation.

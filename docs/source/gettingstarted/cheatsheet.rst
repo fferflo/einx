@@ -1,11 +1,10 @@
 Cheatsheet
 ##########
 
-**Simple tensor operations in Einstein notation and index-based notation**. More complex operations often require only slight modifications in the Einstein
-expression, while the complexity of index-based notation grows rapidly, making it less expressive and more error-prone.
+**Simple tensor operations in Einstein notation and index-based notation**.
 
 .. list-table:: 
-   :widths: 10 45 45
+   :widths: 10 48 45
    :header-rows: 1
 
    * -
@@ -62,11 +61,10 @@ expression, while the complexity of index-based notation grows rapidly, making i
      - ``einx.get_at("[h w] c, p [2] -> p c", x, y)``
      - ``x[y[:, 0], y[:, 1]]``
    * -
-     - ``einx.set_at("[h] c, p [1], p c -> [h] c", x, y, z)``
-     - ``x[y[:, 0]] = z``
+     - ``einx.set_at("[h] c, p, p c -> [h] c", x, y, z)``
+     - ``x[y] = z``
 
-**Deep learning modules**. The layer types can be used to implement a wide variety of neural network modules and provide an intuitive and concise description of the
-underlying operation.
+**Deep learning modules**.
 
 ``import einx.nn.{torch|flax|haiku} as einn``
 

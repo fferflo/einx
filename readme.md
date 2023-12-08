@@ -6,20 +6,23 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 *Main features:*
 
-- Fully composable Einstein expressions with [`[]`-notation](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#bracket-notation). Compatible with einops-notation.
+- Fully composable Einstein expressions with `[]`-notation. Compatible with einops-notation.
 - Powerful abstractions: [`einx.rearrange`](https://einx.readthedocs.io/en/latest/api.html#einx.rearrange), [`einx.vmap`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap), [`einx.vmap_with_axis`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap_with_axis)
 - Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}` and shorthand Einstein notation.
 - Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#performance)).
+- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
 
 *Optional:*
 
 - Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku. (See [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html))
-- Inspecting backend operations that are made for a given einx call (See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations)).
+- Inspecting backend operations that are made for a given einx call (See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html#inspecting-operations)).
 
 **Getting started:**
 
 * [Overview](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
+* [Tutorial: Einstein notation](https://einx.readthedocs.io/en/latest/gettingstarted/einsteinnotation.html)
+* [Tutorial: Tensor manipulation](https://einx.readthedocs.io/en/latest/gettingstarted/tensormanipulation.html)
+* [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)
 * [How does einx compare with einops?](https://einx.readthedocs.io/en/latest/faq/einops.html)
 * [Cheatsheet](https://einx.readthedocs.io/en/latest/gettingstarted/cheatsheet.html)
 * [API reference](https://einx.readthedocs.io/en/latest/api.html)
@@ -107,7 +110,7 @@ Graph reduce_stage0("b... (g [c])", I0, op="sum", g=2):
     return X1
 ```
 
-See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html#inspecting-operations) for more details.
+See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html#inspecting-operations) for more details.
 
 ## Installation
 

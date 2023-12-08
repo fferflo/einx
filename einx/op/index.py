@@ -100,7 +100,7 @@ def index_stage0(description, *tensors, op=None, backend=None, cse=True, **param
     return tensor
 
 def index(arg0, *args, **kwargs):
-    """Updates and/ or returns values from an array at the given coordinates.
+    """Updates and/ or returns values from an array at the given coordinates. Specializes :func:`einx.vmap`.
 
     The `description` argument specifies the input and output expressions and must meet one of the following formats:
 

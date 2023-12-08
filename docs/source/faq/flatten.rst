@@ -1,7 +1,7 @@
 How does einx handle input and output tensors?
 ##############################################
 
-einx functions accept a description string that specifies Einstein expressions for the input and output tensors. The expressions potentially
+einx functions accept an operation string that specifies Einstein expressions for the input and output tensors. The expressions potentially
 contain nested compositions and concatenations that prevent the backend functions from directly accessing the required axes. To resolve this, einx
 first flattens the input tensors in each operation such that they contain only a flat list of axes. After the backend operation is applied, the
 resulting tensors are unflattened to match the requested output expressions.
