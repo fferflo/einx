@@ -21,7 +21,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 * [Overview](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
 * [Tutorial: Einstein notation](https://einx.readthedocs.io/en/latest/gettingstarted/einsteinnotation.html)
 * [Tutorial: Tensor manipulation](https://einx.readthedocs.io/en/latest/gettingstarted/tensormanipulation.html)
-* [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)
+* [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)
 * [How does einx compare with einops?](https://einx.readthedocs.io/en/latest/faq/einops.html)
 * [Cheatsheet](https://einx.readthedocs.io/en/latest/gettingstarted/cheatsheet.html)
 * [API reference](https://einx.readthedocs.io/en/latest/api.html)
@@ -37,7 +37,7 @@ import einx
 x = {np.asarray|torch.as_tensor|jnp.asarray|tf.convert_to_tensor}(...)
 
 einx.sum("a [b]", x)                              # Sum-reduction along columns
-einx.flip("([a] b)", x, a=5)                      # Reverse values along sub-axis
+einx.flip("... (g [c])", x, c = 2)                # Flip pairs of values along the last axis
 einx.mean("b [s...] c", x)                        # Global mean-pooling
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
 einx.add("b... [c]", x, b)                        # Add bias

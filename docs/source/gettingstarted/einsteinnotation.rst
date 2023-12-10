@@ -1,6 +1,11 @@
 Tutorial: Einstein notation
 ###########################
 
+This tutorial introduces the Einstein notation that is used in einx. It is inspired by and compatible with the notation used in `einops <https://github.com/arogozhnikov/einops>`_,
+but follows a novel design based on a full composability of expressions, and the introduction of ``[]``-notation and intuitive shorthands. When combined, these features
+allow for a concise and expressive formulation of a large variety of tensor operations. (See :doc:`How does einx compare with einops? </faq/einops>` for a complete list 
+of differences.)
+
 Introduction
 ------------
 
@@ -38,11 +43,11 @@ Graph rearrange_stage0("a b c -> a c b", I0):
     X1 := transpose(X2, (0, 2, 1))
     return X1
 
-We can see that einx performs the expected call to ``np.transpose``.
+The graph shows that einx performs the expected call to ``np.transpose``.
 
 .. note::
 
-    The ``instantiate`` function converts tensors to the correct backend and executes :ref:`tensor factories <lazytensorconstruction>` if required.
+    The ``instantiate`` function converts tensors to a different backend and executes :ref:`tensor factories <lazytensorconstruction>` if required. Otherwise, it is a no-op.
 
 Axis composition
 ----------------
@@ -53,29 +58,28 @@ Multiple axes can be wrapped in parentheses to indicate that they represent an *
 >>> einx.matches("(a b) c", x)
 True
 
-The composition is an axis itself and represents multiple composed axes in `row-major order <https://en.wikipedia.org/wiki/Row-_and_column-major_order>`_. The length of the
-composed axis is the product of the subaxis lengths.
-
-.. note::
-
-    See `this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ for hands-on illustrations of axis
-    composition using a batch of images.
+The composition ``(a b)`` is an axis itself and comprises the subaxes ``a`` and ``b`` which are layed out in
+`row-major order <https://en.wikipedia.org/wiki/Row-_and_column-major_order>`_. This corresponds to ``a`` chunks of ``b`` elements each.
+The length of the composed axis is the product of the subaxis lengths.
 
 We can use :func:`einx.rearrange` to compose and decompose axes in a tensor by passing the respective Einstein expressions:
 
+>>> # Stack 2 chunks of 3 elements into a single dimension with length 6
 >>> x = np.ones((2, 3, 4))
 >>> einx.rearrange("a b c -> (a b) c", x).shape
 (6, 4)
 
+>>> # Divide a dimension of length 6 into 2 chunks of 3 elements each
 >>> x = np.ones((6, 4))
 >>> einx.rearrange("(a b) c -> a b c", x, a=2).shape
 (2, 3, 4)
 
-Since the decomposition is ambiguous w.r.t. the values of ``a`` and ``b`` (e.g. both ``a=2 b=3`` and ``a=1 b=6`` would be valid), additional constraints have to be passed
+Since the decomposition is ambiguous w.r.t. the values of ``a`` and ``b`` (for example ``a=2 b=3`` and ``a=1 b=6`` would be valid), additional constraints have to be passed
 to find unique axis values, e.g. ``a=2`` as in the example above.
 
-The graph of these functions shows that composition and decomposition boil down to a `np.reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_
-operation with the requested shape.
+Composing and decomposing axes is a cheap operation and e.g. preferred over calling ``np.split``. The graph of these functions shows
+that it uses a `np.reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_
+operation with the requested shape:
 
 >>> print(einx.rearrange("(a b) c -> a b c", x, a=2, graph=True))
 Graph rearrange_stage0("(a b) c -> a b c", I0, a=2):
@@ -89,8 +93,13 @@ Graph rearrange_stage0("a b c -> (a b) c", I0):
     X1 := reshape(X2, (6, 4))
     return X1
 
-Axis compositions are used for example when dividing a tensor along one or more axes into evenly sized chunks (e.g. dividing the channels of neural network activations into groups as in 
-group normalization or multi-headed attention, dividing an image into patches if the image resolution is evenly divisible by the patch size).
+.. note::
+
+    See `this great einops tutorial <https://nbviewer.org/github/arogozhnikov/einops/blob/master/docs/1-einops-basics.ipynb>`_ for hands-on illustrations of axis
+    composition using a batch of images.
+
+Axis compositions are used for example to divide the channels of a tensor into equally sized groups (as in multi-headed attention),
+or to divide an image into patches by decomposing the spatial dimensions (if the image resolution is evenly divisible by the patch size).
 
 Ellipsis
 --------
@@ -108,12 +117,12 @@ The number of repetitions is determined from the rank of the input tensors:
 
 Using ellipses e.g. for spatial dimensions often results in simpler and more readable expressions, and allows using the same expression for tensors with different dimensionality:
 
->>> # Divide an image into a list of patches with size 8
+>>> # Divide an image into a list of patches with size p=8
 >>> x = np.ones((256, 256, 3), dtype="uint8")
 >>> einx.rearrange("(s p)... c -> (s...) p... c", x, p=8)
 (1024, 8, 8, 3)
 
->>> # Divide a volume into a list of cubes with size 8
+>>> # Divide a volume into a list of cubes with size p=8
 >>> x = np.ones((256, 256, 256, 3), dtype="uint8")
 >>> einx.rearrange("(s p)... c -> (s...) p... c", x, p=8)
 (32768, 8, 8, 8, 3)
@@ -129,7 +138,7 @@ Graph rearrange_stage0("(s p)... c -> (s...) p... c", I0, p=8):
     X1 := reshape(X2, (1024, 8, 8, 3))
     return X1
 
-To be fully compatible with einops-style notation (where an ellipsis can only appear once at root level without a preceding expression), einx implicitly
+In einops-style notation, an ellipsis can only appear once at root level without a preceding expression. To be fully compatible with einops notation, einx implicitly
 converts anonymous ellipses by adding an axis in front:
 
 ..  code::
@@ -150,6 +159,12 @@ True
 True
 >>> einx.matches("a 1 c", x)
 False
+
+Unnamed axes can be used for example as an alternative to ``np.expand_dims``, ``np.squeeze``, ``np.newaxis``, ``np.broadcast_to``:
+
+>>> x = np.ones((2, 1, 3))
+>>> einx.rearrange("a 1 b -> 1 1 a b 1 5 6", x).shape
+(1, 1, 2, 3, 1, 5, 6)
 
 Since each unnamed axis is given a unique name, multiple unnamed axes do not refer to the same underlying tensor dimension. This can lead to unexpected behavior:
 
@@ -178,7 +193,7 @@ This can be used for example to concatenate tensors that do not have compatible 
 >>> einx.rearrange("h w c, h w -> h w (c + 1)", x, y).shape
 (256, 256, 4)
 
-The graph shows that einx first reshapes ``y`` by adding a channel dimension, and then concatenates the tensors along that axis.
+The graph shows that einx first reshapes ``y`` by adding a channel dimension, and then concatenates the tensors along that axis:
 
 >>> print(einx.rearrange("h w c, h w -> h w (c + 1)", x, y, graph=True))
 Graph rearrange_stage0("h w c, h w -> h w (c + 1)", I0, I1):
@@ -206,7 +221,7 @@ Additional constraints
 ----------------------
 
 einx uses a `SymPy <https://www.sympy.org/en/index.html>`_-based solver to determine the values of named axes in Einstein expressions (see :doc:`How does einx parse Einstein expressions? </faq/solver>`).
-In many cases, the shapes of the input tensors provide enough constraints to determine the values of all named axes. For other cases, einx functions accept
+In many cases, the shapes of the input tensors provide enough constraints to determine the values of all named axes in the solver. For other cases, einx functions accept
 ``**parameters`` that can be used to specify the values of some or all named axes and provide additional constraints to the solver:
 
 ..  code::
@@ -235,7 +250,8 @@ einx introduces the ``[]``-notation to denote axes that an operation is applied 
     # same as
     np.sum(x, axis=tuple(range(1, x.ndim)))
 
-:func:`einx.sum` is part of a family of functions that specialize :func:`einx.reduce` and apply a reduction operation to the input tensor. In this case, ``[]`` denotes axes
+:func:`einx.sum` is part of a family of functions that specialize :func:`einx.reduce` and apply a reduction operation to the input tensor
+(see :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>`). In this case, ``[]`` denotes axes
 that are reduced.
 
 Bracket notation is fully compatible with expression rearranging and can therefore be placed anywhere inside a nested Einstein expression:
@@ -247,11 +263,11 @@ Bracket notation is fully compatible with expression rearranging and can therefo
 
 >>> # Mean-pooling with stride 4 (if evenly divisible)
 >>> x = np.ones((4, 256, 256, 3))
->>> einx.mean("b (s [s2])... c", x, s2=4).shape
+>>> einx.mean("b (s [ds])... c", x, ds=4).shape
 (4, 64, 64, 3)
 
->>> print(einx.mean("b (s [s2])... c", x, s2=4, graph=True))
-Graph reduce_stage0("b (s [s2])... c", I0, op="mean", s2=4):
+>>> print(einx.mean("b (s [ds])... c", x, ds=4, graph=True))
+Graph reduce_stage0("b (s [ds])... c", I0, op="mean", ds=4):
     X3 := instantiate(I0, shape=(4, 256, 256, 3))
     X2 := reshape(X3, (4, 64, 4, 64, 4, 3))
     X1 := mean(X2, axis=(2, 4))
@@ -271,7 +287,7 @@ Operations are sensitive to the positioning of brackets, e.g. allowing for flexi
 
 In the second example, ``c`` is reduced within the composition ``(c)``, resulting in an empty composition ``()``, i.e. a trivial axis with size 1.
 
-The operation :func:`einx.vmap` can be used to apply arbitrary functions to tensors. Analogous to the above examples, ``[]`` denotes axes that the custom function is applied on:
+The operation :func:`einx.vmap` can be used to apply arbitrary functions to tensors. Analogous to the above examples, ``[]`` denotes axes that the function is applied on:
 
 >>> x = np.ones((16, 8))
 >>> def op(x): # c1 -> c2
@@ -283,7 +299,7 @@ The operation :func:`einx.vmap` can be used to apply arbitrary functions to tens
 
     :func:`einx.vmap` does not know the shape of the function output until the function is invoked, and thus requires specifying the additional constraint ``c2=7``.
 
-Here, the bracket notation also allows using a shorthand with ``[..|..]``-notation where two expressions are specified jointly:
+The bracket notation also allows using a shorthand with ``[..|..]``-notation where two expressions are specified jointly:
 
 ..  code::
 

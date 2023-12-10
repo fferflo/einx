@@ -9,8 +9,8 @@ einx provides several powerful abstractions that allow implementing a wide varie
 1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
    broadcasted axes, concatenating and splitting as required.
 
-2. :func:`einx.vmap_with_axis` applies functions that accept the ``axis`` argument and/ or follow
-   `numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
+2. :func:`einx.vmap_with_axis` applies functions that accept the ``axis`` argument and follow
+   `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
    `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_).
 
 3. :func:`einx.vmap` applies arbitrary functions using vectorization.
@@ -26,7 +26,7 @@ For ease-of-use, many specializations are included as top-level functions in the
 * ``einx.{flip|roll|...}`` (see :func:`einx.vmap_with_axis`).
 * ``einx.{get_at|set_at|add_at|...}`` (see :func:`einx.index`).
 
-See the :doc:`API reference </api>` for a complete list of available functions.
+This tutorial gives an overview of most functions and their usage. For a complete list of available functions, see the :doc:`API reference </api>`.
 
 Rearranging
 -----------
@@ -92,17 +92,13 @@ In the most general case, the operation string represents both input and output 
 
 .. code::
 
-   einx.sum("a b c -> a c", x)
-   # same as
-   einx.sum("a [b] c -> a c", x)
+   einx.sum("a b c -> a c", x) # Expands to: "a [b] c -> a c"
 
 When no output is given, it is determined implicitly by removing marked subexpressions from the input:
 
 ..  code::
 
-   einx.sum("a [b] c", x)
-   # same as
-   einx.sum("a [b] c -> a c", x)
+   einx.sum("a [b] c", x) # Expands to: "a [b] c -> a c"
 
 :func:`einx.reduce` also allows custom reduction operations that accept the ``axis`` argument similar to `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_:
 
@@ -158,28 +154,19 @@ The output is determined implicitly if one of the input expressions contains the
 
 .. code::
 
-   einx.add("a b, a", x, y)
-   # same as
-   einx.add("a b, a -> a b", x)
+   einx.add("a b, a", x, y)         # Expands to: "a b, a -> a b"
 
-   einx.where("b a, b, a", x, y, z)
-   # same as
-   einx.where("b a, b, a -> b a", x)
+   einx.where("b a, b, a", x, y, z) # Expands to "b a, b, a -> b a"
 
-   einx.subtract("a b, b a", x, y)
-   # Raises an exception
+   einx.subtract("a b, b a", x, y)  # Raises an exception
 
-   einx.add("a b, a b", x, y)
-   # same as
-   einx.add("a b, a b -> a b", x)
+   einx.add("a b, a b", x, y)       # Expands to: "a b, a b -> a b"
 
 Bracket notation can be used to indicate that the second input is a subexpression of the first:
 
 .. code::
 
-   einx.add("a [b]", x, y)
-   # same as
-   einx.add("a b, b", x, y)
+   einx.add("a [b]", x, y) # Expands to: "a b, b"
 
 :func:`einx.elementwise` fully supports Einstein expression rearranging:
 
@@ -191,7 +178,7 @@ Bracket notation can be used to indicate that the second input is a subexpressio
 Indexing ops
 ------------
 
-einx provides a family of functions that perform multi-dimensional indexing and update/retrieve values from tensors at specific locations:
+einx provides a family of functions that perform multi-dimensional indexing and update/retrieve values from tensors at specific coordinates:
 
 .. code::
 
@@ -205,7 +192,7 @@ einx provides a family of functions that perform multi-dimensional indexing and 
    y = image[coordinates[:, 0], coordinates[:, 1]]
 
    # Update values at specific locations in an image
-   einx.set_at("[h w] c, i [2], i c -> [h w] c", image, coordinates, updates)
+   y = einx.set_at("[h w] c, i [2], i c -> [h w] c", image, coordinates, updates)
    # same as
    image[coordinates[:, 0], coordinates[:, 1]] = updates
    y = image
@@ -217,33 +204,47 @@ Indexing functions are specializations of :func:`einx.index` and fully support E
 
 .. code::
 
-   einx.add_at("b [h w] c, [2] b i, c i -> c [h w] b", image, coordinates, updates)
+   einx.add_at("b ([h w]) c, ([2] b) i, c i -> c [h w] b", image, coordinates, updates)
 
 Vectorization
 -------------
 
-Both :func:`einx.reduce` and :func:`einx.elementwise` are adaptations of :func:`einx.vmap_with_axis` which invokes backend functions that accept the ``axis`` argument
-and/ or follow `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ for multiple inputs. These functions apply an operation along some dimensions,
-and repeat the operation over all other dimensions:
+Both :func:`einx.reduce` and :func:`einx.elementwise` are adaptations of :func:`einx.vmap_with_axis`. The purpose of :func:`einx.vmap_with_axis`
+is to augment backend functions providing a numpy-like interface (e.g. ``np.sum``) such that they can be called using Einstein notation.
+For exmaple, :func:`einx.sum` wraps ``np.sum`` using :func:`einx.vmap_with_axis`:
 
 .. code::
 
    y = einx.sum("a [b]", x)
+   # internally calls
    y = np.sum(x, axis=1)
-   # Apply sum operation to second dimension and repeat over first dimension
 
-This could naively be implemented by simply looping over the first dimension manually:
+Functions such as ``np.sum`` can be used with :func:`einx.vmap_with_axis` if they accept the ``axis`` argument (or work on scalars)
+and follow `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ for multiple inputs.
+
+The ``axis`` argument specifies axes that the operation is applied to, and the operation is repeated implicitly over all other dimensions.
+In the above example, the sum is computed over elements in a row, and this is repeated for all rows.
+
+A naive implementation without ``np.sum`` could simply loop over the first dimension manually to perform the same operation:
 
 .. code::
 
-   y = np.zeros((x.shape[0],))
-   for i in range(x.shape[0]):
-       y[i] = sum(x[i])
+   for r in range(x.shape[0]):
+       y[r] = sum(x[r, :])
 
-Since Python loops are notoriously slow, Numpy provides a highly optimized *vectorized* implementation in C (i.e. ``np.sum``) that allows specifying which dimensions to apply the operation
-to using the ``axis`` parameter, and automatically vectorizes over all other axes. The bracket notation in Einstein expressions serves a similar purpose: Operations are applied to 
-axes that are marked with ``[]``, while other axes are vectorized over. The purpose of :func:`einx.vmap_with_axis` is to augment the backend function (e.g. ``np.sum``) such
-that it accepts inputs in Einstein notation by passing the correct ``axis`` argument and rearranging the inputs and outputs as required.
+However, since Python loops are notoriously slow, Numpy provides the highly optimized *vectorized* implementation ``np.sum`` that allows specifying which dimensions to apply the operation
+to, and which dimensions to vectorize/ "loop" over.
+
+The bracket notation in Einstein expressions serves a similar purpose as the ``axis`` parameter: Operations are applied to 
+axes that are marked with ``[]``, and other axes are vectorized over. :func:`einx.vmap_with_axis` takes care of vectorization by 
+rearranging the inputs and outputs as required and determining the correct ``axis`` argument to pass to the backend function. This allows
+applying operations to tensors with arbitrary Einstein expressions:
+
+.. code::
+
+   y = einx.sum("a ([b] c)", x, c=2)
+   # cannot be expressed in a single call to np.sum
+   y = np.sum(x, axis=???)
 
 :func:`einx.vmap` allows for more general vectorization than :func:`einx.vmap_with_axis` by applying arbitrary functions in vectorized form. Consider a function that accepts two tensors
 and computes the mean and max:
@@ -266,7 +267,7 @@ value of ``op`` should match the marked subexpressions in the output. :func:`ein
 
 .. note::
 
-    einx implements a simple ``vmap`` function for the Numpy backend that uses Python loops for testing/ debugging purposes.
+    einx implements a simple ``vmap`` function for the Numpy backend for testing/ debugging purposes using a Python loop.
 
 Analogous to other einx functions, :func:`einx.vmap` fully supports Einstein expression rearranging:
 
@@ -275,7 +276,7 @@ Analogous to other einx functions, :func:`einx.vmap` fully supports Einstein exp
 >>> einx.vmap("b1 [c], b2 ([d] b1) -> [2] b1 b2", x, y, op=op).shape
 (2, 4, 5)
 
-Since most backend operations that accept an ``axis`` argument operate on the entire input tensor when ``axis`` is not given, calls using :func:`einx.vmap_with_axis` can
+Since most backend operations that accept an ``axis`` argument operate on the entire input tensor when ``axis`` is not given, :func:`einx.vmap_with_axis` can often
 analogously be expressed using :func:`einx.vmap`:
 
 >>> x = np.ones((4, 16))
@@ -291,7 +292,7 @@ analogously be expressed using :func:`einx.vmap`:
 >>> einx.vmap          ("a b, a -> a b", x, y, op=np.add).shape
 (4, 16)
 
-While :func:`einx.vmap` provides more general vectorization capabilities, :func:`einx.vmap_with_axis` is often more efficient since it relies on specialized implementations.
+While :func:`einx.vmap` provides more general vectorization capabilities, :func:`einx.vmap_with_axis` is often faster since it relies on specialized implementations.
 
 General dot-product
 -------------------
@@ -340,16 +341,14 @@ Graph dot_stage0("b (g c1), c1 c2 -> b (g c2)", I0, I1, g=2):
 .. note::
 
    :func:`einx.dot` passes the ``in_axis``, ``out_axis`` and ``batch_axis`` arguments to :ref:`tensor factories <lazytensorconstruction>`, e.g. to determine the fan-in and fan-out
-   of neural network layers and initialize the weights accordingly (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
+   of neural network layers and initialize the weights accordingly (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
 
-:func:`einx.dot` supports shorthand notation usings brackets as follows. When given two input tensors, the expression of the second input can be determined implicitly by marking
+:func:`einx.dot` supports shorthand notation usings brackets as follows. When given two input tensors, the expression of the second input is determined implicitly by marking
 its components in the input and output expression:
 
 .. code::
 
-   einx.dot("a [b] -> a [c]", x, y)
-   # same as
-   einx.dot("a b, b c -> a c", x, y)
+   einx.dot("a [b] -> a [c]", x, y) # Expands to: "a b, b c -> a c"
 
 This dot-product can be interpreted as a linear map that maps from ``b`` to ``c`` channels and is repeated over dimension ``a``, which motivates the usage of bracket notation in this manner.
 
@@ -357,21 +356,14 @@ Axes marked multiple times appear only once in the implicit second input express
 
 .. code::
 
-   einx.dot("[a b] -> [a c]", x, y)
-   # same as
-   einx.dot("a b, a b c -> a c", x, y)
+   einx.dot("[a b] -> [a c]", x, y) # Expands to: "a b, a b c -> a c"
 
 This can further be abbreviated using ``[..|..]``-notation:
 
 .. code::
 
-   einx.dot("a [b|c]", x, y)
-   # same as
-   einx.dot("a [b] -> a [c]", x, y)
-
-   einx.dot("[a b|a c]", x, y)
-   # same as
-   einx.dot("[a b] -> [a c]", x, y)
+   einx.dot("a [b|c]", x, y)   # Expands to: "a [b] -> a [c]"
+   einx.dot("[a b|a c]", x, y) # Expands to: "[a b] -> [a c]"
 
 The graph representation shows that the expression forwarded to the ``einsum`` call is as expected:
 
@@ -397,4 +389,4 @@ called to create the corresponding tensor when the shape is resolved.
     einx.dot("b... [c1|c2]", x, np.ones, c2=32) # Second input is constructed using np.ones
 
 This is especially useful in the context of deep learning modules, where the shapes of a layer's weights are chosen to match with the desired
-input and output shapes (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
+input and output shapes (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).

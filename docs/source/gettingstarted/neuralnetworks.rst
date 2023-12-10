@@ -1,5 +1,5 @@
-Neural networks
-###############
+Tutorial: Neural networks
+#########################
 
 einx provides several neural network layer types for deep learning frameworks (`PyTorch <https://pytorch.org/>`_, `Flax <https://github.com/google/flax>`_,
 `Haiku <https://github.com/google-deepmind/dm-haiku>`_) in the ``einx.nn.*`` namespace 
@@ -21,9 +21,9 @@ For example, consider the following linear layer:
     x = einx.dot("b... [c1|c2]", x, w) # x * w
     x = einx.add("b... [c2]", x, b)    # x + b
 
-The parameters ``w`` and ``b`` represent the layer weights. Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually, we define ``w`` and ``b`` as tensor factories that
+The arguments ``w`` and ``b`` represent the layer weights. Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually, we define ``w`` and ``b`` as tensor factories that
 are called inside the einx functions once the shapes are determined. For example, in the Haiku framework ``hk.get_parameter`` is used to create new weights
-and can be defined as a tensor factory as follows:
+in the current module and can be defined as a tensor factory as follows:
 
 ..  code::
 
@@ -39,7 +39,7 @@ and can be defined as a tensor factory as follows:
             return x
 
 Unlike a tensor, the tensor factory does not provide shape constraints to the expression solver and requires that we define the missing axes (``c2``) manually. Here,
-this corresponds to specifying the ``out_channels`` parameter of the linear layer. All other axis values are determined implicitly from the input shapes.
+this corresponds to specifying the number of output channels of the linear layer. All other axis values are determined implicitly from the input shapes.
 
 The weights are created once a layer is run on the first input batch. This is common practice in jax-based frameworks like Flax and Haiku where a model
 is typically first invoked with a dummy batch to instantiate all weights.
@@ -69,10 +69,14 @@ used to determine the fan-in and fan-out of the layer and initialize the weights
 Layers
 ------
 
-einx provides the layer types ``einn.{Linear|Norm|Dropout}`` that are implemented as outlined above. In all cases, the constructor accepts Einstein expressions that
-describe the desired operation and optionally ``**parameters`` providing additional constraints to the expression solver.
+einx provides the layer types ``einn.{Linear|Norm|Dropout}`` that are implemented as outlined above.
 
-The abstractions can be used to implement a wide variety of different layers:
+**einn.Norm** implements a normalization layer with optional exponential moving average (EMA) over the computed statistics. The first parameter is an Einstein expression for
+the axes along which the statistics for normalization are computed. The second parameter is an Einstein expression for the axes corresponding to the bias and scale terms, and
+defaults to ``b... [c]``. The different sub-steps can be toggled by passing ``True`` or ``False`` for the ``mean``, ``variance``, ``scale`` and ``bias`` parameters. The EMA is used only if 
+``decay_rate`` is passed. Additional parameters can be specified as constraints for the Einstein expression.
+
+A variety of normalization layers can be implemented using this abstraction:
 
 ..  code::
 
@@ -82,17 +86,41 @@ The abstractions can be used to implement a wide variety of different layers:
     batchnorm       = einn.Norm("[b...] c", decay_rate=0.9)
     rmsnorm         = einn.Norm("b... [c]", mean=False, bias=False)
 
+**einn.Linear** implements a linear layer with optional bias term. The first parameter is an operation string that is forwarded to :func:`einx.dot` to multiply the weight matrix.
+A bias is added corresponding to the marked output expressions, and is disabled by passing ``bias=False``.
+
+..  code::
+
     channel_mix     = einn.Linear("b... [c1|c2]", c2=64)
     spatial_mix1    = einn.Linear("b [s...|s2] c", s2=64)
     spatial_mix2    = einn.Linear("b [s2|s...] c", s=(64, 64))
     patch_embed     = einn.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=64)
 
+**einn.Dropout** implements a stochastic dropout. The first parameter specifies the shape of the mask in Einstein notation that is applied to the input tensor.
+
+..  code::
+
     dropout         = einn.Dropout("[...]",       drop_rate=0.2)
     spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
     droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 
-As described above, all layers have to be invoked with a dummy batch first to instantiate the weights. In PyTorch, ``torch.compile`` should be applied after this
-first forward pass.
+The following is an example of a simple fully-connected network for image classification using ``einn`` in Flax:
+
+..  code::
+
+    from flax import linen as nn
+    import einx.nn.flax as einn
+
+    class Net(nn.Module):
+        @nn.compact
+        def __call__(self, x, training):
+            for c in [1024, 512, 256]:
+                x = einn.Linear("b [...|c]", c=c)(x)
+                x = einn.Norm("[b] c", decay_rate=0.99)(x, training=training)
+                x = nn.gelu(x)
+                x = einn.Dropout("[...]", drop_rate=0.2)(x, training=training)
+            x = einn.Linear("b [...|c]", c=10)(x) # 10 classes
+            return x
 
 Example trainings on CIFAR10 are provided in ``scripts/train_{torch|flax|haiku}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
 with other layers or used as submodules in the respective framework seamlessly.

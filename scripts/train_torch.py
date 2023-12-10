@@ -40,12 +40,8 @@ class Net(nn.Module):
 
 net = Net()
 
-# Run once to initialize parameters (see: https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html)
-inputs, labels = next(iter(trainloader))
-net(inputs)
-
-# Just-in-time compile
-net = torch.compile(net)
+# Currently not tested well and should be avoided (see Gotchas):
+# net = torch.compile(net)
 
 optimizer = optim.Adam(net.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()

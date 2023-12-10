@@ -1,16 +1,21 @@
 How does einx compare with einops?
 ##################################
 
-einx is fully compatible with einops-style notation used in ``einops.{rearrange|repeat|reduce|einsum}``. Beyond this, einx
-is characterized by the following features:
+einx uses Einstein notation that is inspired by and compatible with the notation used in `einops <https://github.com/arogozhnikov/einops>`_,
+but follows a novel design:
 
-* Einstein expressions are fully composable (i.e. can be nested arbitrarily). Ellipses can repeat any type of subexpression, e.g. ``(a b)...``.
-* ``[]``-notation allows expressing vectorization in an intuitive and concise way, similar to the ``axis`` argument in Numpy functions (see :ref:`Bracket notation <bracketnotation>`).
-* Concatenations are represented as first-class expressions in Einstein notation.
-* Specializations provide ease-of-use for main abstractions using Numpy naming convention, e.g. ``einx.mean`` and ``einx.where``.
+* Full composability of Einstein expressions: Axis lists, compositions, ellipses and concatenations can be nested arbitrarily (e.g. ``(a b)...``).
+* Introduction of ``[]``-notation that allows expressing vectorization in an intuitive and concise way, similar to the ``axis`` argument in Numpy functions (see :ref:`Bracket notation <bracketnotation>`).
+* Introduction of concatenations as first-class expressions in Einstein notation.
+
+When combined, these features allow for a concise and expressive formulation of a large variety of tensor operations.
+
+The einx library provides the following additional features:
+
+* ``einx.vmap`` and ``einx.vmap_with_axis`` allow applying arbitrary operations using Einstein notation.
+* Specializations provide ease-of-use for main abstractions using Numpy naming convention, e.g. ``einx.sum`` and ``einx.multiply``.
 * Full support for rearranging expressions in all operations (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
-* ``einx.vmap`` and ``einx.vmap_with_axis`` functions for applying arbitrary operations in Einstein notation.
-* Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Neural networks </gettingstarted/neuralnetworks>`).
+* Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
 * Support for inspecting the backend calls made by einx in index-based notation (see :ref:`Inspecting operations <inspectingoperations>`).
 
 A non-exhaustive comparison of operations expressed in einx-notation and einops-notation:

@@ -22,6 +22,10 @@ einx uses a multi-step process to convert expression strings into expression tre
 * **Stage 2**: Expand all ellipses by repeating the respective subexpression, resulting in a stage-2 tree.
 * **Stage 3**: Determine a value for each axis (i.e. the axis length) using the provided constraints, resulting in a stage-3 tree, i.e. the final Einstein expression tree.
 
+For a given operation string and signature of input arguments, the required backend operations are traced and cached in a graph representation. Every subsequent call with the same
+signature will reuse the cached graph and therefore incur no additional overhead other than for cache lookup and graph execution (see
+:doc:`Performance </gettingstarted/performance>`).
+
 Stage 0: Splitting the operation string
 ---------------------------------------
 
@@ -53,7 +57,7 @@ See :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>` an
 Stage 1: Parsing the expression string
 --------------------------------------
 
-The expression string for each tensor is parsed into a stage-1 tree using a simple lexer and parser. The tree is a nested structure of nodes that represent the different types of
+The expression string for each tensor is parsed into a (stage-1) expression tree using a simple lexer and parser. The tree is a nested structure of nodes that represent the different types of
 subexpressions:
 
 .. figure:: /images/stage1-tree.png
@@ -92,7 +96,7 @@ Parameters that are passed as additional constraints to the einx function, such 
 are included when solving for the depth and expansion of all expressions. Unlike the root
 expressions describing the input tensors, these parameters can be given both in expanded (``r=(4, 4)``) and unexpanded form (``r=4``). In the first case, the values of ``r.0`` and ``r.1``
 are defined explicitly and an additional constraint for the expansion of ``r`` is included. In the second case, the same value is used for the repetitions ``r.0`` and ``r.1``. This
-extends to nested ellipsis with depth > 1 analogously.
+extends to nested ellipses with depth > 1 analogously.
 
 Stage 3: Determining axis values
 --------------------------------

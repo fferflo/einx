@@ -17,12 +17,11 @@ einx is a Python library that allows formulating many tensor operations as conci
 - Powerful abstractions: :func:`einx.rearrange`, :func:`einx.vmap`, :func:`einx.vmap_with_axis`
 - Ease of use with numpy-like specializations ``einx.{sum|any|max|where|add|flip|get_at|...}`` and shorthand Einstein notation.
 - Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- No overhead when used with just-in-time compilation (e.g. `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_,
-  `torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_). Marginal overhead in eager mode due to tracing and caching operations (see :doc:`Performance </gettingstarted/performance>`).
+- No overhead when used with just-in-time compilation (e.g. `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_). Marginal overhead in eager mode due to tracing and caching operations (see :doc:`Performance </gettingstarted/performance>`).
 
 *Optional:*
 
-- Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku. (See :doc:`Neural networks </gettingstarted/neuralnetworks>`)
+- Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku.
 - Inspecting backend operations that are made for a given einx call (See :ref:`Inspection <inspectingoperations>`).
 
 ..  code::
@@ -42,7 +41,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 - :doc:`Installation </gettingstarted/installation>`
 - :doc:`Tutorial: Einstein notation </gettingstarted/einsteinnotation>`
 - :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>`
-- :doc:`Neural Networks </gettingstarted/neuralnetworks>`
+- :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`
 
 Related libraries
 -----------------

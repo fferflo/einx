@@ -163,6 +163,9 @@ def vmap_with_axis(arg0, *args, **kwargs):
 
         Example: ``a [b1|b2]`` resolves to ``a [b1] -> a [b2]``. ``a [b]`` resolves to ``a [b] -> a [b]``.
 
+    When the function is applied on scalars, the ``axis`` argument is not passed. For multiple input tensors, the function must follow
+    `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_.
+
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
