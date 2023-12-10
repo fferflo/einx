@@ -330,3 +330,23 @@ def test_shape_vmap_with_axis(backend):
 
     assert einx.flip("a ([b c])", x, b=2).shape == (10, 10)
     assert einx.roll("a ([b c])", x, shift=(5, 5,), b=2).shape == (10, 10)
+
+@pytest.mark.parametrize("backend", backends)
+def test_shape_solve(backend):
+    x = backend.ones((2, 3, 4))
+    assert einx.matches("a b c", x)
+    assert not einx.matches("a b", x)
+    with pytest.raises(Exception):
+        einx.check("a b c d", x)
+    einx.check("a b c", x)
+
+    x = backend.ones((6, 4))
+    assert einx.matches("(a b) c", x)
+
+    x = backend.ones((2, 3, 4))
+    assert einx.matches("a b...", x)
+
+    x = backend.ones((5, 4))
+    assert einx.matches("(a + b) c", x)
+    assert einx.matches("(a + b) c", x, a=2)
+    assert not einx.matches("(a + b) c", x, a=10)
