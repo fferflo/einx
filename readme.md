@@ -10,7 +10,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 - Powerful abstractions: [`einx.rearrange`](https://einx.readthedocs.io/en/latest/api.html#einx.rearrange), [`einx.vmap`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap), [`einx.vmap_with_axis`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap_with_axis)
 - Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}` and shorthand Einstein notation.
 - Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), [`torch.compile`](https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
+- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
 
 *Optional:*
 
@@ -42,6 +42,11 @@ einx.mean("b [s...] c", x)                        # Global mean-pooling
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
 einx.add("b... [c]", x, b)                        # Add bias
 
+einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
+
+einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
+einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
+
 # Examples: Matmul in linear layers
 einx.dot("b...      [c1|c2]",  x, w)              # - Regular
 einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
@@ -50,11 +55,6 @@ einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-m
 
 einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling using vmap
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vmap
-
-einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
-einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
-
-einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
 
 # Examples: Layer normalization
 mean = einx.mean("b... [c]", x, keepdims=True)
@@ -83,7 +83,7 @@ spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 ```
 
-See `scripts/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
+See `scripts/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
 #### Example: Einstein expression trees
 
