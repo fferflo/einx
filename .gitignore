@@ -3,3 +3,4 @@ docs/build
 scripts/cifar10
 dist/*
 act
+__pycache__
