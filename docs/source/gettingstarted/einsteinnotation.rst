@@ -47,7 +47,7 @@ The graph shows that einx performs the expected call to ``np.transpose``.
 
 .. note::
 
-    The ``instantiate`` function converts tensors to a different backend and executes :ref:`tensor factories <lazytensorconstruction>` if required. Otherwise, it is a no-op.
+    The ``instantiate`` function converts tensors to different backends and executes :ref:`tensor factories <lazytensorconstruction>` if required. Otherwise, it is a no-op.
 
 Axis composition
 ----------------

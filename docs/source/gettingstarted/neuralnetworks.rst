@@ -73,8 +73,8 @@ einx provides the layer types ``einn.{Linear|Norm|Dropout}`` that are implemente
 
 **einn.Norm** implements a normalization layer with optional exponential moving average (EMA) over the computed statistics. The first parameter is an Einstein expression for
 the axes along which the statistics for normalization are computed. The second parameter is an Einstein expression for the axes corresponding to the bias and scale terms, and
-defaults to ``b... [c]``. The different sub-steps can be toggled by passing ``True`` or ``False`` for the ``mean``, ``variance``, ``scale`` and ``bias`` parameters. The EMA is used only if 
-``decay_rate`` is passed. Additional parameters can be specified as constraints for the Einstein expression.
+defaults to ``b... [c]``. The different sub-steps can be toggled by passing ``True`` or ``False`` for the ``mean``, ``var``, ``scale`` and ``bias`` parameters. The EMA is used only if 
+``decay_rate`` is passed.
 
 A variety of normalization layers can be implemented using this abstraction:
 

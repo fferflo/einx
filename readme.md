@@ -6,9 +6,9 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 *Main features:*
 
-- Fully composable Einstein expressions with `[]`-notation. Compatible with einops-notation.
+- Fully composable Einstein expressions with `[]`-notation and intuitive shorthands. Compatible with einops-notation.
 - Powerful abstractions: [`einx.rearrange`](https://einx.readthedocs.io/en/latest/api.html#einx.rearrange), [`einx.vmap`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap), [`einx.vmap_with_axis`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap_with_axis)
-- Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}` and shorthand Einstein notation.
+- Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}`.
 - Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
 - No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
 
@@ -47,16 +47,17 @@ einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
 einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
 einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
 
-# Examples: Matmul in linear layers
+# Matmul in linear layers
 einx.dot("b...      [c1|c2]",  x, w)              # - Regular
 einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
 einx.dot("b... ([g c1|g c2])", x, w)              # - Grouped: Different weights per group
 einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 
-einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling using vmap
-einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul using vmap
+# Vectorizing map
+einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling
+einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
 
-# Examples: Layer normalization
+# Layer normalization
 mean = einx.mean("b... [c]", x, keepdims=True)
 var = einx.var("b... [c]", x, keepdims=True)
 x = (x - mean) * torch.rsqrt(var + epsilon)

@@ -5,9 +5,6 @@
 Introduction
 ############
 
-Overview
---------
-
 einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
 `einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
 
@@ -23,18 +20,6 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 - Generalized neural network layers using Einstein notation. Supports PyTorch, Flax and Haiku.
 - Inspecting backend operations that are made for a given einx call (See :ref:`Inspection <inspectingoperations>`).
-
-..  code::
-
-    import einx
-
-    import numpy as np
-    x = np.ones((3, 4))
-    y = einx.sum("a [b]", x)
-
-    import torch
-    x = torch.ones(3, 4)
-    y = einx.sum("a [b]", x)
 
 **Next steps:**
 
