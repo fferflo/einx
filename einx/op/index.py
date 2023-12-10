@@ -1,6 +1,7 @@
 import einx
 from functools import partial
 from . import util
+import numpy as np
 
 _op_names = ["get_at", "set_at", "add_at", "subtract_at"]
 
@@ -25,6 +26,9 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     if op is None:
         raise TypeError("op cannot be None")
     with_update = len(exprs_in) == 3
+    for expr in exprs_in[0]:
+        if isinstance(expr, einx.expr.stage3.Axis) and expr.is_unnamed and expr.value == 1:
+            raise ValueError("Tensor expression cannot contain unnamed axes with value 1")
 
     marked_coordinate_axes = [expr for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     if len(marked_coordinate_axes) > 1:
@@ -63,7 +67,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     new_marked_coordinate_axis_names = [expr.name for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     axis = new_marked_coordinate_axis_names.index(coordinate_axis_name) if not coordinate_axis_name is None else None
 
-    tensors_out, exprs_out = einx.vmap_stage3(exprs_in, tensors_in, [expr_out], op=_index, kwargs={"axis": axis, "op": op}, pass_backend=True, backend=backend)
+    tensors_out, exprs_out = einx.vmap_stage3(exprs_in, tensors_in, [expr_out], op=_index, flat=True, kwargs={"axis": axis, "op": op}, pass_backend=True, backend=backend)
     assert len(tensors_out) == 1 and len(exprs_out) == 1
     return tensors_out[0], exprs_out[0]
 

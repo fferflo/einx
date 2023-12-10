@@ -3,7 +3,7 @@ from . import util
 import numpy as np
 
 @einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
-def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, kwargs={}, pass_backend=False, verbose=False):
+def vmap_stage3(exprs_in, tensors_in, exprs_out, flat=False, backend=None, op=None, kwargs={}, pass_backend=False, verbose=False):
     if backend is None:
         backend = einx.backend.get(tensors_in)
     if op is None:
@@ -38,8 +38,9 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, kwargs={
 
     if verbose:
         print("Expressions used in op:")
-        print("    IN:", [str(e) for e in exprs_in_funcargs])
-        print("    OUT:", [str(e) for e in exprs_out_funcargs])
+        if not flat:
+            print("    IN:", [str(e) for e in exprs_in_funcargs])
+            print("    OUT:", [str(e) for e in exprs_out_funcargs])
         print("    IN_FLAT:", [str(e) for e in exprs_in_funcargs_flat])
         print("    OUT_FLAT:", [str(e) for e in exprs_out_funcargs_flat])
 
@@ -58,36 +59,44 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, backend=None, op=None, kwargs={
             print("Input types to vmapped function:", [type(t) for t in tensors_in_flat])
         assert len(tensors_in_flat) == len(exprs_in_funcargs_flat)
 
-        tensors_in = util.unflatten(exprs_in_funcargs_flat, tensors_in_flat, exprs_in_funcargs, backend=backend)
-        if verbose:
-            print("Unflattened input tensors in op:", [str(a.shape) for a in tensors_in])
-        assert len(tensors_in) == len(exprs_in)
+        if not flat:
+            tensors_in = util.unflatten(exprs_in_funcargs_flat, tensors_in_flat, exprs_in_funcargs, backend=backend)
+            if verbose:
+                print("Unflattened input tensors in op:", [str(a.shape) for a in tensors_in])
+            assert len(tensors_in) == len(exprs_in)
 
-        if len(exprs_out_funcargs) == 1:
-            output_shapes = np.asarray(exprs_out_funcargs[0].shape)
+            exprs_out_expected = exprs_out_funcargs
         else:
-            output_shapes = tuple(np.asarray(expr.shape) for expr in exprs_out_funcargs)
+            tensors_in = tensors_in_flat
+
+            exprs_out_expected = exprs_out_funcargs_flat
+
+        if len(exprs_out_expected) == 1:
+            output_shapes = np.asarray(exprs_out_expected[0].shape)
+        else:
+            output_shapes = tuple(np.asarray(expr.shape) for expr in exprs_out_expected)
 
         tensors_out = backend.apply(op, args=tensors_in, kwargs=kwargs2, output_shapes=output_shapes)
         if not isinstance(tensors_out, (tuple, list)):
             tensors_out = (tensors_out,)
-        if len(tensors_out) != len(exprs_out_funcargs):
-            raise ValueError(f"Expected {len(exprs_out_funcargs)} output tensor(s) from vmapped function, but got {len(tensors_out)}")
+        if len(tensors_out) != len(exprs_out_expected):
+            raise ValueError(f"Expected {len(exprs_out_expected)} output tensor(s) from vmapped function, but got {len(tensors_out)}")
 
         if verbose:
             print("Unflattened output tensors in op:")
-            for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_funcargs, tensors_out)):
+            for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
                 print("    ", expr_out, tensor_out.shape)
 
-        for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_funcargs, tensors_out)):
+        for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
             if tensor_out.shape != expr_out.shape:
                 raise ValueError(f"Expected output shape {expr_out.shape} from {i}-th (zero-based) output of vmapped function, but got {tensor_out.shape}")
 
-        exprs_out_funcargs_flat2, tensors_out = util.flatten(exprs_out_funcargs, tensors_out, backend=backend)
+        if not flat:
+            exprs_out_funcargs_flat2, tensors_out = util.flatten(exprs_out_funcargs, tensors_out, backend=backend)
 
-        if verbose:
-            print("Flattened output tensors in op:", [str(a.shape) for a in tensors_out])
-        assert exprs_out_funcargs_flat2 == exprs_out_funcargs_flat, f"{[str(s) for s in exprs_out_funcargs_flat2]} != {[str(s) for s in exprs_out_funcargs_flat]}"
+            if verbose:
+                print("Flattened output tensors in op:", [str(a.shape) for a in tensors_out])
+            assert exprs_out_funcargs_flat2 == exprs_out_funcargs_flat, f"{[str(s) for s in exprs_out_funcargs_flat2]} != {[str(s) for s in exprs_out_funcargs_flat]}"
 
         if verbose:
             print("Returning types from vmapped function:", [type(t) for t in tensors_out])
@@ -211,9 +220,9 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, exprs_out
 
 @einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
-def vmap_stage0(description, *tensors, op, backend=None, cse=True, kwargs={}, pass_backend=False, **parameters):
+def vmap_stage0(description, *tensors, op, flat=False, backend=None, cse=True, kwargs={}, pass_backend=False, **parameters):
     exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensors, exprs_out = vmap_stage3(exprs_in, tensors, exprs_out, backend=backend, op=op, kwargs=kwargs, pass_backend=pass_backend)
+    tensors, exprs_out = vmap_stage3(exprs_in, tensors, exprs_out, flat=flat, backend=backend, op=op, kwargs=kwargs, pass_backend=pass_backend)
     return tensors[0] if len(exprs_out) == 1 else tensors
 
 def vmap(arg0, *args, **kwargs):
@@ -221,8 +230,6 @@ def vmap(arg0, *args, **kwargs):
 
     The function flattens all input tensors, applies the vectorized operation on the tensors and rearranges
     the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
-    Tensors are passed to and should be returned from the operation ``op`` in unflattened representation, i.e. matching
-    the layout of marked subexpressions in `description`.
 
     The `description` argument specifies the input and output expressions. It must meet one of the following formats:
 
@@ -241,7 +248,8 @@ def vmap(arg0, *args, **kwargs):
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        op: Function that will be vectorized. If `op` is a string, retrieves the attribute of `backend` with the same name.
+        op: Function that will be vectorized. If ``op`` is a string, retrieves the attribute of `backend` with the same name.
+        flat: Whether to pass the tensors to ``op`` in flattened form or matching the nested layout in the input expressions. Defaults to False.
         kwargs: Additional keyword arguments that are passed to the ``op``.
         pass_backend: Whether to pass the backend as keyword argument to ``op``. Defaults to False.
         backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
