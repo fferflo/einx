@@ -23,6 +23,8 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle
 
 
 
+
+
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
@@ -38,13 +40,14 @@ class Net(nn.Module):
     def forward(self, x):
         return self.blocks(x)
 
-net = Net()
+with torch.device("cuda"):
+    net = Net()
 
-# Currently not tested well and should be avoided (see Gotchas):
-# net = torch.compile(net)
+    # Currently not tested well and should be avoided (see Gotchas):
+    # net = torch.compile(net)
 
-optimizer = optim.Adam(net.parameters(), lr=3e-4)
-criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(net.parameters(), lr=3e-4)
+    criterion = nn.CrossEntropyLoss()
 
 print("Starting training")
 for epoch in range(100):
@@ -52,16 +55,17 @@ for epoch in range(100):
 
     # Train
     net.train()
-    for i, data in enumerate(trainloader, 0):
+    for i, data in enumerate(trainloader):
         inputs, labels = data
+        inputs, labels = inputs.cuda(), labels.cuda()
 
-        optimizer.zero_grad()
+        with torch.device("cuda"):
+            optimizer.zero_grad()
 
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        accuracy = (outputs.argmax(dim=1) == labels).float().mean()
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
     # Test
     net.eval()
@@ -70,9 +74,12 @@ for epoch in range(100):
     with torch.no_grad():
         for data in testloader:
             images, labels = data
-            outputs = net(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            images, labels = images.cuda(), labels.cuda()
+
+            with torch.device("cuda"):
+                outputs = net(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
 
     print(f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)")

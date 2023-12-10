@@ -81,7 +81,7 @@ for epoch in range(100):
     t0 = time.time()
 
     # Train
-    for i, data in enumerate(trainloader, 0):
+    for i, data in enumerate(trainloader):
         inputs, labels = data
         params, opt_state = update_step(params, opt_state, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
 
