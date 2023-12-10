@@ -15,10 +15,20 @@ class Expression:
         return tuple(x.value for x in self)
 
 class Composition(Expression):
+    @staticmethod
+    def maybe(inner):
+        if len(inner) == 0:
+            return Axis(None, 1)
+        elif isinstance(inner, List) and len(inner) == 1:
+            return inner.children[0]
+        else:
+            return Composition(inner)
+
     def __init__(self, inner):
         Expression.__init__(self, inner.value)
         self.inner = inner
         inner.parent = self
+        assert len(inner) > 0
 
     def __str__(self):
         return f"({self.inner})"
@@ -310,7 +320,7 @@ def solve(expressions, values):
         elif isinstance(expr, stage2.Marker):
             return Marker(map(expr.inner))
         elif isinstance(expr, stage2.Composition):
-            return Composition(map(expr.inner))
+            return Composition.maybe(map(expr.inner))
         else:
             assert False, type(expr)
     expressions = [map(root) for root in expressions]
@@ -359,7 +369,7 @@ def _expr_map(expr, f):
     if isinstance(expr, Axis):
         return [expr.__deepcopy__()]
     elif isinstance(expr, Composition):
-        return [Composition(List.maybe(_expr_map(expr.inner, f)))]
+        return [Composition.maybe(List.maybe(_expr_map(expr.inner, f)))]
     elif isinstance(expr, List):
         return [c2 for c1 in expr.children for c2 in _expr_map(c1, f)]
     elif isinstance(expr, Concatenation):
@@ -445,7 +455,7 @@ def _get_marked(expr):
     elif isinstance(expr, Concatenation):
         return [Concatenation.maybe([x for c in expr.children for x in _get_marked(c)])]
     elif isinstance(expr, Composition):
-        return [Composition(List.maybe(_get_marked(expr.inner)))]
+        return [Composition.maybe(List.maybe(_get_marked(expr.inner)))]
     elif isinstance(expr, List):
         return [List.maybe([x for c in expr.children for x in _get_marked(c)])]
     else:
