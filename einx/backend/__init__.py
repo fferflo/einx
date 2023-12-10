@@ -1,7 +1,8 @@
-import sys, einx
+import sys, einx, threading
 
 backends = []
 backend_factories = {}
+lock = threading.Lock()
 
 from ._numpy import numpy
 backends.append(numpy)
@@ -18,12 +19,12 @@ backend_factories["tensorflow"] = make_tensorflow_backend
 from .tracer import tracer
 backends.append(tracer)
 
-def update():
+def _update():
     for backend_name in list(backend_factories.keys()):
         if backend_name in sys.modules:
             backends.append(backend_factories[backend_name]())
             del backend_factories[backend_name]
-update()
+_update()
 
 
 type_to_backend = {}
@@ -31,7 +32,7 @@ type_to_backend = {}
 def _get1(tensor):
     tensor_backend = type_to_backend.get(type(tensor), None)
     if tensor_backend is None:
-        update()
+        _update()
 
         if tensor_backend is None:
             for tensor_backend in backends:
@@ -45,29 +46,30 @@ def _get1(tensor):
     return tensor_backend
 
 def get(arg):
-    if isinstance(arg, str):
-        name = arg
-        for backend in backends:
-            if backend.name == name:
-                return backend
-        update()
-        for backend in backends:
-            if backend.name == name:
-                return backend
-        raise ValueError(f"Backend {name} not found")
-    else:
-        tensors = arg
-        if len(tensors) == 1:
-            return _get1(tensors[0])
-        backend = None
-        for tensor in tensors:
-            if not tensor is None:
-                backend2 = _get1(tensor)
-                if backend2 != numpy:
-                    if not backend is None and backend != backend2:
-                        raise ValueError(f"Got tensors with conflicting backends: {backend.__name__} and {backend2.__name__}")
-                    backend = backend2
-        if backend is None:
-            return numpy
+    with lock:
+        if isinstance(arg, str):
+            name = arg
+            for backend in backends:
+                if backend.name == name:
+                    return backend
+            _update()
+            for backend in backends:
+                if backend.name == name:
+                    return backend
+            raise ValueError(f"Backend {name} not found")
         else:
-            return backend
+            tensors = arg
+            if len(tensors) == 1:
+                return _get1(tensors[0])
+            backend = None
+            for tensor in tensors:
+                if not tensor is None:
+                    backend2 = _get1(tensor)
+                    if backend2 != numpy:
+                        if not backend is None and backend != backend2:
+                            raise ValueError(f"Got tensors with conflicting backends: {backend.__name__} and {backend2.__name__}")
+                        backend = backend2
+            if backend is None:
+                return numpy
+            else:
+                return backend
