@@ -54,6 +54,8 @@ class Norm(torch.nn.Module):
                         torch.nn.init.zeros_(self.mean.data)
                 return self.mean
             self.get_mean = get_mean
+        else:
+            self.get_mean = None
         if var and not decay_rate is None:
             self.register_buffer("var", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
             def get_var(shape):
@@ -63,11 +65,13 @@ class Norm(torch.nn.Module):
                         torch.nn.init.ones_(self.var.data)
                 return self.var
             self.get_var = get_var
+        else:
+            self.get_var = None
         self.scale = Parameter(torch.nn.init.ones_, dtype) if scale else None
         self.bias = Parameter(torch.nn.init.zeros_, dtype) if bias else None
 
     def forward(self, x):
-        with torch.device(x.get_device()):
+        with x.device:
             use_ema = not self.decay_rate is None and not self.training
             x, mean, var = einx.nn.norm(
                 x,
@@ -122,7 +126,7 @@ class Linear(torch.nn.Module):
         self.kwargs = kwargs
 
     def forward(self, x):
-        with torch.device(x.get_device()):
+        with x.device:
             return einx.nn.linear(
                 x,
                 self.expr,
@@ -149,7 +153,7 @@ class Dropout(torch.nn.Module):
         self.kwargs = kwargs
 
     def forward(self, x):
-        with torch.device(x.get_device()):
+        with x.device:
             if self.training:
                 return einx.nn.dropout(
                     x,
