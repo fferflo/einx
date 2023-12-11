@@ -6,7 +6,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 *Main features:*
 
-- Fully composable Einstein expressions with `[]`-notation and intuitive shorthands. Compatible with einops-notation.
+- Fully composable Einstein expressions with `[]`-notation. Compatible with einops-notation.
 - Powerful abstractions: [`einx.rearrange`](https://einx.readthedocs.io/en/latest/api.html#einx.rearrange), [`einx.vmap`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap), [`einx.vmap_with_axis`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap_with_axis)
 - Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}`.
 - Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.

@@ -11,9 +11,9 @@ einx provides several powerful abstractions that allow implementing a wide varie
 
 2. :func:`einx.vmap_with_axis` applies functions that accept the ``axis`` argument and follow
    `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
-   `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_).
+   `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_) in Einstein notation.
 
-3. :func:`einx.vmap` applies arbitrary functions using vectorization.
+3. :func:`einx.vmap` applies arbitrary functions in Einstein notation using vectorization.
 
 4. :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
 
