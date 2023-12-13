@@ -116,8 +116,8 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
                         names.append(name)
         expr_in2 = " ".join(names)
 
-        expr_in1 = str(einx.expr.stage1.demark(expr_in1))
-        expr_out = str(einx.expr.stage1.demark(expr_out))
+        expr_in1 = einx.expr.stage1.demark(expr_in1)
+        expr_out = einx.expr.stage1.demark(expr_out)
         exprs_in = [expr_in1, expr_in2]
 
     if len(exprs_in) != len(tensor_shapes):
