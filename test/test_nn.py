@@ -2,7 +2,7 @@ import einx, importlib
 import numpy as np
 from functools import partial
 
-norms = [("[b...] c", {}), ("b [s...] (g [c])", {"g": 2})]
+norms = [("[b...] c", {}), ("b [s...] (g [c])", {"g": 2}), ("b [s...] c", {}), ("b... [c]", {}), ("b [s...] ([g] c)", {"g": 2})]
 
 if importlib.util.find_spec("torch"):
     import torch, einx.nn.torch
