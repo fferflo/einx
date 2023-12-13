@@ -30,7 +30,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 ## What does einx look like?
 
-#### Examples: Tensor manipulation
+#### Tensor manipulation
 
 ```python
 import einx
@@ -63,7 +63,7 @@ var = einx.var("b... [c]", x, keepdims=True)
 x = (x - mean) * torch.rsqrt(var + epsilon)
 ```
 
-#### Examples: Deep learning modules
+#### Deep learning modules
 
 ```python
 import einx.nn.{torch|flax|haiku} as einn
@@ -86,7 +86,7 @@ droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 
 See `scripts/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
-#### Example: Einstein expression trees
+#### Einstein expression trees
 
 Internally, einx uses *Einstein expression trees* to represent the shapes of tensors. For example, the expression `b (s [r])... c` for a tensor with shape `(2, 4, 8, 3)` and an additional constraint `r=4` is represented as:
 
@@ -94,7 +94,7 @@ Internally, einx uses *Einstein expression trees* to represent the shapes of ten
 
 See [How does einx parse Einstein expressions?](https://einx.readthedocs.io/en/latest/faq/solver.html) for more details.
 
-#### Example: Inspection
+#### Inspection
 
 einx allows inspecting the backend calls in index-based notation that are made for a given einx operation (by passing `graph=True`). For example:
 
