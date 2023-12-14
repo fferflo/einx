@@ -51,7 +51,7 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
 
     return x, mean, var
 
-@einx.lru_cache(trace=lambda k: k[0] in [0, 2, 3, "weight", "bias"])
+@einx.lru_cache(trace=lambda k, v: k[0] in [0, 2, 3, "weight", "bias"] and not isinstance(v, bool) and not v is None)
 def linear(x, expr, weight, bias=None, **kwargs):
     (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.param.get_shape(x), einx.param.get_shape(weight), **kwargs)
 
