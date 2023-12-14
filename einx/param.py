@@ -43,6 +43,8 @@ def instantiate(x, shape, backend, **kwargs):
             x = x(shape, **kwargs)
             if x is None:
                 raise ValueError("Tensor factory returned None")
+            if x.shape != shape:
+                raise ValueError(f"Tensor factory returned a tensor of shape {x.shape}, but expected {shape}")
         x = backend.to_tensor(x)
 
         assert x.shape == shape, f"Shape mismatch: {x.shape} != {shape} for {type(x)}"
