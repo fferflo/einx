@@ -86,7 +86,7 @@ class Linear(hk.Module):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=lambda shape: hk.get_parameter(name="bias", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0)) if self.bias else None,
+            bias=(lambda shape: hk.get_parameter(name="bias", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0))) if self.bias else None,
             weight=lambda shape: hk.get_parameter(name="weight", shape=shape, dtype=self.dtype, init=hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal")),
             **self.kwargs,
         )

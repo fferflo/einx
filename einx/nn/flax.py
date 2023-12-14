@@ -79,7 +79,7 @@ class _Linear(nn.Module):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype) if self.bias else None,
+            bias=(lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype)) if self.bias else None,
             weight=lambda shape, in_axis, out_axis, batch_axis: self.param("weight", nn.initializers.lecun_normal(in_axis, out_axis, batch_axis), shape, self.dtype),
             **(self.kwargs if not self.kwargs is None else {}),
         )
