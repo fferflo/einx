@@ -1,5 +1,6 @@
 import einx
 import numpy as np
+from collections import defaultdict
 
 @einx.lru_cache
 def _solve(description, *tensor_shapes, cse=True, **parameters):
@@ -18,9 +19,22 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
     except (einx.expr.stage2.SolveDepthException, einx.expr.stage2.SolveExpansionException, einx.expr.stage3.SolveValueException):
         return None
 
-    values = {expr.name: expr.value for root in exprs for expr in root.all() if isinstance(expr, einx.expr.stage3.Axis)}
+    values = defaultdict(list)
+    for root in exprs:
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Axis):
+                tokens = expr.name.split(".")
+                values[tokens[0]].append((tuple(int(t) for t in tokens[1:]), expr.value))
+    
+    values2 = {}
+    for name, xs in values.items():
+        shape = np.amax([coord for coord, value in xs], axis=0) + 1
+        value = np.zeros(shape, dtype="int32")
+        for coord, v in xs:
+            value[coord] = v
+        values2[name] = value
 
-    return values
+    return values2
 
 def solve(description, *tensors, cse=True, **parameters):
     return _solve(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
