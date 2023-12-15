@@ -211,107 +211,111 @@ class Marker(Expression):
 
 
 class SolveValueException(Exception):
-    def __init__(self, expressions, values, message):
-        self.expressions = expressions
-        self.values = values
+    def __init__(self, exprs1, exprs2, message):
+        self.exprs1 = exprs1
+        self.exprs2 = exprs2
         self.message = f"Failed to solve values of expressions. {message}\nInput:\n"
-        for expr, value in zip(expressions, values):
-            self.message += f"    '{expr}' has shape {einx.expr.util._to_str(value)}\n"
+        for expr1, expr2 in zip(exprs1, exprs2):
+            self.message += f"    '{einx.expr.util._to_str(expr1)} = {einx.expr.util._to_str(expr2)}'\n"
         super().__init__(self.message)
 
-def solve(expressions, values):
-    if any(not isinstance(expr, stage2.Expression) for expr in expressions):
+def solve(exprs1, exprs2):
+    exprs1 = list(exprs1)
+    exprs2 = list(exprs2)
+    if any(not expr is None and not isinstance(expr, stage2.Expression) for expr in exprs1 + exprs2):
         raise ValueError("Can only expand stage2.Expression")
-    if len(values) != len(expressions):
-        raise ValueError("Number of expressions and values must be equal")
-    values = [(np.asarray(value) if not value is None else None) for value in values]
+    if len(exprs1) != len(exprs2):
+        raise ValueError("Number of expressions must be equal")
 
     equations = []
 
     symbolic_expr_values = {}
-    for root in expressions:
-        for expr in root.all():
-            symbolic_expr_values[id(expr)] = solver.Variable(str(id(expr)), str(expr))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                symbolic_expr_values[id(expr)] = solver.Variable(str(id(expr)), str(expr))
 
     # Add equations: Relations between expressions and their children
-    for root in expressions:
-        for expr in root.all():
-            if isinstance(expr, stage2.List):
-                equations.append((
-                    solver.Product([symbolic_expr_values[id(c)] for c in expr.children]),
-                    symbolic_expr_values[id(expr)],
-                ))
-            elif isinstance(expr, stage2.Concatenation):
-                equations.append((
-                    solver.Sum([symbolic_expr_values[id(c)] for c in expr.children]),
-                    symbolic_expr_values[id(expr)],
-                ))
-            elif isinstance(expr, stage2.Marker) or isinstance(expr, stage2.Composition):
-                equations.append((
-                    symbolic_expr_values[id(expr)],
-                    symbolic_expr_values[id(expr.inner)],
-                ))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if isinstance(expr, stage2.List):
+                    equations.append((
+                        solver.Product([symbolic_expr_values[id(c)] for c in expr.children]),
+                        symbolic_expr_values[id(expr)],
+                    ))
+                elif isinstance(expr, stage2.Concatenation):
+                    equations.append((
+                        solver.Sum([symbolic_expr_values[id(c)] for c in expr.children]),
+                        symbolic_expr_values[id(expr)],
+                    ))
+                elif isinstance(expr, stage2.Marker) or isinstance(expr, stage2.Composition):
+                    equations.append((
+                        symbolic_expr_values[id(expr)],
+                        symbolic_expr_values[id(expr.inner)],
+                    ))
 
-    # Add equations: Root values
-    for i, (root, value) in enumerate(zip(expressions, values)):
-        if not value is None:
-            assert len(value) == len(root)
-            for expr, value in zip(root, value):
+    # Add equations: Same root values
+    for root1, root2 in zip(exprs1, exprs2):
+        if not root1 is None and not root2 is None:
+            assert len(root1) == len(root2)
+            for expr1, expr2 in zip(root1, root2):
                 equations.append((
-                    symbolic_expr_values[id(expr)],
-                    int(value),
+                    symbolic_expr_values[id(expr1)],
+                    symbolic_expr_values[id(expr2)],
                 ))
 
     # Add equations: Unnamed axes
-    for root in expressions:
-        for expr in root.all():
-            if isinstance(expr, stage2.UnnamedAxis):
-                equations.append((
-                    symbolic_expr_values[id(expr)],
-                    int(expr.value),
-                ))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if isinstance(expr, stage2.UnnamedAxis):
+                    equations.append((
+                        symbolic_expr_values[id(expr)],
+                        int(expr.value),
+                    ))
 
     # Add equations: Multiple occurrences of the same named axis must have the same value
     sympy_axis_values = {}
-    for root in expressions:
-        for axis in root.all():
-            if isinstance(axis, stage2.NamedAxis):
-                if not axis.name in sympy_axis_values:
-                    sympy_axis_values[axis.name] = solver.Variable(axis.name, axis.name)
-                equations.append((
-                    symbolic_expr_values[id(axis)],
-                    sympy_axis_values[axis.name],
-                ))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for axis in root.all():
+                if isinstance(axis, stage2.NamedAxis):
+                    if not axis.name in sympy_axis_values:
+                        sympy_axis_values[axis.name] = solver.Variable(axis.name, axis.name)
+                    equations.append((
+                        symbolic_expr_values[id(axis)],
+                        sympy_axis_values[axis.name],
+                    ))
 
     # Solve
     try:
         axis_values = solver.solve(equations)
     except solver.SolveException as e:
-        raise SolveValueException(expressions, values, str(e))
+        raise SolveValueException(exprs1, exprs2, values, str(e))
     axis_values = {int(k): int(v) for k, v in axis_values.items() if not str(k) in sympy_axis_values}
 
     failed_axes = set()
-    for root in expressions:
-        for expr in root.all():
-            if isinstance(expr, stage2.NamedAxis):
-                if not id(expr) in axis_values:
-                    failed_axes.add(str(expr))
-    if len(failed_axes) == 1:
-        raise SolveValueException(expressions, values, f"Found no unique solution for '{failed_axes.pop()}'")
-    elif len(failed_axes) > 1:
-        raise SolveValueException(expressions, values, f"Found no unique solutions for {failed_axes}")
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if isinstance(expr, stage2.NamedAxis):
+                    if not id(expr) in axis_values:
+                        failed_axes.add(str(expr))
+    if len(failed_axes) > 0:
+        raise SolveValueException(exprs1, exprs2, f"Found no unique solutions for {failed_axes}")
 
     # Map stage2 expressions to stage3 expressions
     def map(expr):
         if isinstance(expr, stage2.NamedAxis):
             assert id(expr) in axis_values
             if axis_values[id(expr)] <= 0:
-                raise SolveValueException(expressions, values, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
+                raise SolveValueException(exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
             return Axis(expr.name, axis_values[id(expr)])
         elif isinstance(expr, stage2.UnnamedAxis):
             assert id(expr) in axis_values
             if axis_values[id(expr)] <= 0:
-                raise SolveValueException(expressions, values, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
+                raise SolveValueException(exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
             return Axis(None, axis_values[id(expr)])
         elif isinstance(expr, stage2.List):
             return List([map(child) for child in expr.children])
@@ -323,9 +327,10 @@ def solve(expressions, values):
             return Composition.maybe(map(expr.inner))
         else:
             assert False, type(expr)
-    expressions = [map(root) for root in expressions]
+    exprs1 = [map(root) if not root is None else None for root in exprs1]
+    exprs2 = [map(root) if not root is None else None for root in exprs2]
 
-    return expressions
+    return exprs1, exprs2
 
 
 

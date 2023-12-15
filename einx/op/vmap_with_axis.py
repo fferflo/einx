@@ -131,9 +131,9 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         exprs_out = [expr_out]
 
     exprs = einx.expr.solve(
-          [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)] \
-        + [einx.expr.Condition(expr=expr_out, depth=0) for expr_out in exprs_out] \
-        + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+          [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)] \
+        + [einx.expr.Equation(expr_out) for expr_out in exprs_out] \
+        + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
         cse=cse,
         cse_concat=False,
     )[:len(exprs_in) + len(exprs_out)]

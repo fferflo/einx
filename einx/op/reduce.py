@@ -29,9 +29,9 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
             raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_shapes)}")
 
         exprs = einx.expr.solve(
-                [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
-              + [einx.expr.Condition(expr=expr_out, depth=0) for expr_out in exprs_out] \
-              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+                [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+              + [einx.expr.Equation(expr_out) for expr_out in exprs_out] \
+              + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
         )[:len(exprs_in) + len(exprs_out)]
         exprs_in, exprs_out = exprs[:len(exprs_in)], exprs[len(exprs_in):]
@@ -49,8 +49,8 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
             raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_shapes)}")
 
         exprs_in = einx.expr.solve(
-                [einx.expr.Condition(expr=expr_in, value=tensor_shape, depth=0) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
-              + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+                [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+              + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
         )[:len(exprs_in)]
 

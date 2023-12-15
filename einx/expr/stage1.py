@@ -32,6 +32,9 @@ class Composition(Expression):
     def __deepcopy__(self):
         return Composition(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
 
+    def expansion(self):
+        return 1
+
     @property
     def direct_children(self):
         yield self.inner
@@ -52,6 +55,9 @@ class Marker(Expression):
     def __deepcopy__(self):
         return Marker(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
 
+    def expansion(self):
+        return self.inner.expansion()
+
     @property
     def direct_children(self):
         yield self.inner
@@ -69,6 +75,9 @@ class NamedAxis(Expression):
 
     def __deepcopy__(self):
         return NamedAxis(self.name, self.begin_pos, self.end_pos)
+
+    def expansion(self):
+        return 1
 
     @property
     def direct_children(self):
@@ -88,6 +97,9 @@ class UnnamedAxis(Expression):
     def __deepcopy__(self):
         return UnnamedAxis(self.value, self.begin_pos, self.end_pos)
 
+    def expansion(self):
+        return 1
+
     @property
     def direct_children(self):
         yield from ()
@@ -106,10 +118,19 @@ class Ellipsis(Expression):
         yield from self.inner.all()
 
     def __str__(self):
-        return str(self.inner) + _ellipsis
+        n = str(self.inner)
+        if isinstance(self.inner, List) and len(self.inner.children) > 1:
+            n = "{" + n + "}"
+        return n + _ellipsis
 
     def __deepcopy__(self):
         return Ellipsis(self.inner.__deepcopy__(), self.begin_pos, self.end_pos, self.ellipsis_id)
+
+    def expansion(self):
+        if self.inner.expansion() == 0:
+            return 0
+        else:
+            return None
 
     @property
     def direct_children(self):
@@ -132,6 +153,9 @@ class Concatenation(Expression):
 
     def __deepcopy__(self):
         return Concatenation([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
+
+    def expansion(self):
+        return 1
 
     @property
     def direct_children(self):
@@ -162,6 +186,13 @@ class List(Expression):
     def __deepcopy__(self):
         return List([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
 
+    def expansion(self):
+        child_expansions = [c.expansion() for c in self.children]
+        if any(e is None for e in child_expansions):
+            return None
+        else:
+            return sum(child_expansions)
+
     @property
     def direct_children(self):
         yield from self.children
@@ -183,6 +214,13 @@ class Choice(Expression):
 
     def __deepcopy__(self):
         return Choice([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
+
+    def expansion(self):
+        child_expansions = set(c.expansion() for c in self.children)
+        if len(child_expansions) == 1:
+            return child_expansions.pop()
+        else:
+            return None
 
     @property
     def direct_children(self):

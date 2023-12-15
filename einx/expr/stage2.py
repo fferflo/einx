@@ -166,189 +166,245 @@ class Marker(Expression):
         yield from self.inner.all()
 
 
-
-class SolveDepthException(Exception):
-    def __init__(self, expressions, shapes, depths, message):
-        self.expressions = expressions
-        self.shapes = shapes
-        self.depths = depths
-        self.message = f"Failed to solve depths of expressions. {message}\nInput:\n"
-        for expr, shape, depth in zip(expressions, shapes, depths):
-            self.message += f"    '{expr}' has depth {depth}\n"
+class SolveException(Exception):
+    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message, type):
+        assert len({len(exprs1), len(exprs2), len(expansions1), len(expansions2), len(depths1), len(depths2)}) == 1
+        self.exprs1 = exprs1
+        self.exprs2 = exprs2
+        self.expansions1 = expansions1
+        self.expansions2 = expansions2
+        self.depths1 = depths1
+        self.depths2 = depths2
+        self.message = f"Failed to solve {type} of expressions. {message}\nInput:\n"
+        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
+            self.message += f"    "
+            self.message += f"{einx.expr.util._to_str(expr1)} (expansion={einx.expr.util._to_str(expansion1)} at depth={depth1})"
+            self.message += f" = "
+            self.message += f"{einx.expr.util._to_str(expr2)} (expansion={einx.expr.util._to_str(expansion2)} at depth={depth2})"
+            self.message += f"\n"
         super().__init__(self.message)
 
-class SolveExpansionException(Exception):
-    def __init__(self, expressions, shapes, depths, message):
-        self.expressions = expressions
-        self.shapes = shapes
-        self.depths = depths
-        self.message = f"Failed to solve expansion of expressions. {message}\nInput:\n"
-        for expr, shape, depth in zip(expressions, shapes, depths):
-            self.message += f"    '{expr}' has shape {einx.expr.util._to_str(shape)} at depth {depth}\n"
-        super().__init__(self.message)
+class SolveDepthException(SolveException):
+    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
+        super().__init__(exprs1, exprs2, expansions1, expansions2, depths1, depths2, message, "depths")
 
-def solve(expressions, shapes, depths):
-    if any(not isinstance(expr, stage1.Expression) for expr in expressions):
+class SolveExpansionException(SolveException):
+    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
+        super().__init__(exprs1, exprs2, expansions1, expansions2, depths1, depths2, message, "expansions")
+
+def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
+    exprs1 = list(exprs1)
+    exprs2 = list(exprs2)
+    expansions1 = list(expansions1)
+    expansions2 = list(expansions2)
+    depths1 = list(depths1)
+    depths2 = list(depths2)
+    if any(not expr is None and not isinstance(expr, stage1.Expression) for expr in exprs1 + exprs2):
         raise ValueError("Can only expand stage1.Expression")
-    if len(shapes) != len(expressions) or len(depths) != len(expressions):
-        raise ValueError("Number of expressions, shapes and depths must be equal")
-    depths = [d for d in depths]
-    shapes = [s for s in shapes]
+    if len({len(exprs1), len(exprs2), len(expansions1), len(expansions2), len(depths1), len(depths2)}) != 1:
+        raise ValueError("Number of expressions, expansions and depths must be equal")
 
     # Semantic check: Cannot contain choices
-    for root in expressions:
-        if any(isinstance(expr, stage1.Choice) for expr in root.all()):
+    for root in exprs1 + exprs2:
+        if not root is None and any(isinstance(expr, stage1.Choice) for expr in root.all()):
             raise ValueError(f"[|] Choice not allowed in expression '{root}'")
 
     # ##### 1. Find expression depths #####
     equations = []
 
     symbolic_expr_depths = {}
-    for root in expressions:
-        for expr in root.all():
-            symbolic_expr_depths[id(expr)] = solver.Variable(str(id(expr)), str(expr))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                symbolic_expr_depths[id(expr)] = solver.Variable(str(id(expr)), str(expr))
 
     # Add equations: Depth relations between subexpressions
-    for root in expressions:
-        for expr in root.all():
-            if isinstance(expr, stage1.Ellipsis):
-                # Ellipsis increases depth by one
-                equations.append((symbolic_expr_depths[id(expr)] + 1, symbolic_expr_depths[id(expr.inner)]))
-            else:
-                # All other expressions have the same depth as their children
-                for child in expr.direct_children:
-                    equations.append((symbolic_expr_depths[id(expr)], symbolic_expr_depths[id(child)]))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if isinstance(expr, stage1.Ellipsis):
+                    # Ellipsis increases depth by one
+                    equations.append((symbolic_expr_depths[id(expr)] + 1, symbolic_expr_depths[id(expr.inner)]))
+                else:
+                    # All other expressions have the same depth as their children
+                    for child in expr.direct_children:
+                        equations.append((symbolic_expr_depths[id(expr)], symbolic_expr_depths[id(child)]))
 
     # Add equations: Depth arguments
-    for root, depth in zip(expressions, depths):
-        if not depth is None:
+    for root, depth in zip(exprs1 + exprs2, depths1 + depths2):
+        if not root is None and not depth is None:
             equations.append((symbolic_expr_depths[id(root)], depth))
+
+    # Add equations: Root depths
+    for root1, root2, expansion1, expansion2 in zip(exprs1, exprs2, expansions1, expansions2):
+        if not root1 is None and not root2 is None and not expansion1 is None and not expansion2 is None:
+            equations.append((symbolic_expr_depths[id(root1)] + len(expansion1), symbolic_expr_depths[id(root2)] + len(expansion2)))
 
     # Add equations: Multiple occurrences of the same named axis must have the same depth
     symbolic_axis_depths = {}
-    for root in expressions:
-        for axis in root.all():
-            if isinstance(axis, stage1.NamedAxis):
-                if not axis.name in symbolic_axis_depths:
-                    symbolic_axis_depths[axis.name] = solver.Variable(axis.name, axis.name)
-                equations.append((symbolic_expr_depths[id(axis)], symbolic_axis_depths[axis.name]))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for axis in root.all():
+                if isinstance(axis, stage1.NamedAxis):
+                    if not axis.name in symbolic_axis_depths:
+                        symbolic_axis_depths[axis.name] = solver.Variable(axis.name, axis.name)
+                    equations.append((symbolic_expr_depths[id(axis)], symbolic_axis_depths[axis.name]))
 
     # Add equations: Ellipses with the same id must have the same depth
     symbolic_ellipsis_depths = {}
-    for root in expressions:
-        for ellipsis in root.all():
-            if isinstance(ellipsis, stage1.Ellipsis):
-                if not ellipsis.ellipsis_id in symbolic_ellipsis_depths:
-                    symbolic_ellipsis_depths[ellipsis.ellipsis_id] = solver.Variable(ellipsis.ellipsis_id, str(ellipsis))
-                equations.append((symbolic_expr_depths[id(ellipsis)], symbolic_ellipsis_depths[ellipsis.ellipsis_id]))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for ellipsis in root.all():
+                if isinstance(ellipsis, stage1.Ellipsis):
+                    if not ellipsis.ellipsis_id in symbolic_ellipsis_depths:
+                        symbolic_ellipsis_depths[ellipsis.ellipsis_id] = solver.Variable(ellipsis.ellipsis_id, str(ellipsis))
+                    equations.append((symbolic_expr_depths[id(ellipsis)], symbolic_ellipsis_depths[ellipsis.ellipsis_id]))
 
     # Solve
     try:
         expr_depths = solver.solve(equations)
     except solver.SolveException as e:
-        raise SolveDepthException(expressions, shapes, depths, str(e))
+        raise SolveDepthException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e))
     expr_depths = {int(k): int(v) for k, v in expr_depths.items() if not str(k) in symbolic_axis_depths}
 
+    # Raise exception on missing depths
     failed_exprs = set()
-    for root in expressions:
-        for expr in root.all():
-            if not id(expr) in expr_depths:
-                failed_exprs.add(str(expr))
-    if len(failed_exprs) == 1:
-        raise SolveDepthException(expressions, shapes, depths, f"Found no unique solution for '{failed_exprs.pop()}'")
-    elif len(failed_exprs) > 1:
-        raise SolveValueError(expressions, shapes, depths, f"Found no unique solutions for {failed_exprs}")
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if not id(expr) in expr_depths:
+                    failed_exprs.add(str(expr))
+    if len(failed_exprs) > 0:
+        raise SolveDepthException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, f"Found no unique solutions for {failed_exprs}")
 
-    for i, root in enumerate(expressions):
-        # Add missing dimensions to shapes
-        if not shapes[i] is None:
-            assert len(shapes[i]) >= 1
-            missing_depth = expr_depths[id(root)] - (len(shapes[i]) - 1)
-            if missing_depth < 0:
-                raise ValueError(f"Value passed for expression '{root}' has too many dimensions")
-            if missing_depth > 0:
-                shapes[i] = [None] * missing_depth + list(shapes[i])
+    # Raise exception on negative depths
+    failed_exprs = set()
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if expr_depths[id(expr)] < 0:
+                    failed_exprs.add(str(expr))
+    if len(failed_exprs) > 0:
+        raise SolveDepthException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, f"Got negative depths for {failed_exprs}")
 
-        # Add missing ellipses around root expressions
-        missing_depth = expr_depths[id(root)]
-        if missing_depth > 0:
-            for _ in range(missing_depth):
-                expressions[i] = stage1.Ellipsis(expressions[i], expressions[i].begin_pos, expressions[i].end_pos)
-                expr_depths[id(expressions[i])] = expr_depths[id(expressions[i].inner)] - 1
+    for exprs, expansions, depths in zip([exprs1, exprs2], [expansions1, expansions2], [depths1, depths2]):
+        for i in range(len(exprs)):
+            if not exprs[i] is None:
+                missing_depth = expr_depths[id(exprs[i])]
+                assert missing_depth >= 0
+
+                # Add missing dimensions to expansions
+                if not expansions[i] is None:
+                    assert len(expansions[i]) >= 1
+                    if missing_depth > 0:
+                        expansions[i] = [None] * missing_depth + list(expansions[i])
+
+                # Add missing ellipses around root expressions
+                if missing_depth > 0:
+                    for _ in range(missing_depth):
+                        exprs[i] = stage1.Ellipsis(exprs[i], exprs[i].begin_pos, exprs[i].end_pos)
+                        expr_depths[id(exprs[i])] = expr_depths[id(exprs[i].inner)] - 1
 
     # ##### 2. Find ellipsis expansions #####
     equations = []
 
     symbolic_expr_expansions = {}
-    for root in expressions:
-        for expr in root.all():
-            for depth in range(expr_depths[id(expr)] + 1):
-                key = (id(expr), depth)
-                symbolic_expr_expansions[key] = solver.Variable(f"{id(expr)},{depth}", f"{expr} at depth {depth}")
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                for depth in range(expr_depths[id(expr)] + 1):
+                    key = (id(expr), depth)
+                    symbolic_expr_expansions[key] = solver.Variable(f"{id(expr)},{depth}", f"{expr} at depth {depth}")
 
     # Add equations: Expansion of an expression at depth d (less than own depth) is equal to the expansion of each child at depth d
-    for root in expressions:
-        for expr in root.all():
-            for depth in range(expr_depths[id(expr)]):
-                for child in expr.direct_children:
-                    equations.append((symbolic_expr_expansions[(id(expr), depth)], symbolic_expr_expansions[(id(child), depth)]))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                for depth in range(expr_depths[id(expr)]):
+                    for child in expr.direct_children:
+                        equations.append((symbolic_expr_expansions[(id(expr), depth)], symbolic_expr_expansions[(id(child), depth)]))
 
     # Add equations: Relations between expressions and their children
-    for root in expressions:
-        for expr in root.all():
-            depth = expr_depths[id(expr)]
-            if isinstance(expr, stage1.List):
-                v = sum(symbolic_expr_expansions[(id(child), depth)] for child in expr.children)
-            elif isinstance(expr, stage1.Concatenation):
-                v = 1
-            elif isinstance(expr, stage1.NamedAxis):
-                v = 1
-            elif isinstance(expr, stage1.UnnamedAxis):
-                v = 1
-            elif isinstance(expr, stage1.Composition):
-                v = 1
-            elif isinstance(expr, stage1.Marker):
-                v = symbolic_expr_expansions[(id(expr.inner), depth)]
-            elif isinstance(expr, stage1.Ellipsis):
-                v = symbolic_expr_expansions[(id(expr.inner), depth)]
-            else:
-                assert False, f"{expr}"
-            equations.append((symbolic_expr_expansions[(id(expr), depth)], v))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                depth = expr_depths[id(expr)]
+                if isinstance(expr, stage1.List):
+                    v = sum(symbolic_expr_expansions[(id(child), depth)] for child in expr.children)
+                elif isinstance(expr, stage1.Concatenation):
+                    v = 1
+                elif isinstance(expr, stage1.NamedAxis):
+                    v = 1
+                elif isinstance(expr, stage1.UnnamedAxis):
+                    v = 1
+                elif isinstance(expr, stage1.Composition):
+                    v = 1
+                elif isinstance(expr, stage1.Marker):
+                    v = symbolic_expr_expansions[(id(expr.inner), depth)]
+                elif isinstance(expr, stage1.Ellipsis):
+                    v = symbolic_expr_expansions[(id(expr.inner), depth)]
+                else:
+                    assert False, f"{expr}"
+                equations.append((symbolic_expr_expansions[(id(expr), depth)], v))
 
-    # Add equations: Expansions stored in "shapes"
-    for expr, shape in zip(expressions, shapes):
-        if not shape is None:
-            for _ in range(len(shape) - 1):
-                expr = expr.inner
-            for depth in range(len(shape)):
-                if not shape[depth] is None:
-                    equations.append((symbolic_expr_expansions[(id(expr), depth)], int(shape[depth])))
+    # Add equations: Expansions stored in "expansions"
+    for expansion1, expansion2, expr1, expr2 in zip(expansions1, expansions2, exprs1, exprs2):
+        if not expansion1 is None and not expansion2 is None:
+            if len(expansion1) != len(expansion2) or any(not e1 is None and not e2 is None and e1 != e2 for e1, e2 in zip(expansion1, expansion2)):
+                raise SolveExpansionException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, 
+                    f"Expansion '{expansion1}' of expression '{expr1}' does not match expansion '{expansion2}' of expression '{expr2}'")
+
+        if not expansion1 is None and not expansion2 is None:
+            expansion = [e1 if not e1 is None else e2 for e1, e2 in zip(expansion1, expansion2)]
+        elif not expansion1 is None:
+            expansion = expansion1
+        elif not expansion2 is None:
+            expansion = expansion2
+        else:
+            expansion = None
+
+        if not expansion is None:
+            for depth, e in enumerate(expansion):
+                if not e is None:
+                    if not expr1 is None and depth <= expr_depths[id(expr1)]:
+                        equations.append((symbolic_expr_expansions[(id(expr1), depth)], int(e)))
+                    if not expr2 is None and depth <= expr_depths[id(expr2)]:
+                        equations.append((symbolic_expr_expansions[(id(expr2), depth)], int(e)))
 
     # Add equations: Multiple occurrences of the same named axis must have the same expansions
     symbolic_axis_expansions = {}
-    for root in expressions:
-        for axis in root.all():
-            if isinstance(axis, stage1.NamedAxis):
-                for depth in range(expr_depths[id(axis)] + 1):
-                    if not axis.name in symbolic_axis_expansions:
-                        symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"{axis.name},{depth}", f"{axis.name} at depth {depth}")
-                    equations.append((symbolic_expr_expansions[(id(axis), depth)], symbolic_axis_expansions[(axis.name, depth)]))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for axis in root.all():
+                if isinstance(axis, stage1.NamedAxis):
+                    for depth in range(expr_depths[id(axis)] + 1):
+                        if not axis.name in symbolic_axis_expansions:
+                            symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"{axis.name},{depth}", f"{axis.name} at depth {depth}")
+                        equations.append((symbolic_expr_expansions[(id(axis), depth)], symbolic_axis_expansions[(axis.name, depth)]))
 
     # Add equations: Ellipses with the same id must have the same expansions
     symbolic_ellipsis_expansions = {}
-    for root in expressions:
-        for ellipsis in root.all():
-            if isinstance(ellipsis, stage1.Ellipsis):
-                for depth in range(expr_depths[id(ellipsis)] + 1):
-                    if not ellipsis.ellipsis_id in symbolic_ellipsis_expansions:
-                        symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)] = solver.Variable(f"{ellipsis.ellipsis_id},{depth}", f"{ellipsis} at depth {depth}")
-                    equations.append((symbolic_expr_expansions[(id(ellipsis), depth)], symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)]))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for ellipsis in root.all():
+                if isinstance(ellipsis, stage1.Ellipsis):
+                    for depth in range(expr_depths[id(ellipsis)] + 1):
+                        if not ellipsis.ellipsis_id in symbolic_ellipsis_expansions:
+                            symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)] = solver.Variable(f"{ellipsis.ellipsis_id},{depth}", f"{ellipsis} at depth {depth}")
+                        equations.append((symbolic_expr_expansions[(id(ellipsis), depth)], symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)]))
+
+    # Add equations: Same root expansions
+    for root1, root2 in zip(exprs1, exprs2):
+        if not root1 is None and not root2 is None:
+            assert expr_depths[id(root1)] == expr_depths[id(root2)]
+            for depth in range(expr_depths[id(root1)] + 1):
+                equations.append((symbolic_expr_expansions[(id(root1), depth)], symbolic_expr_expansions[(id(root2), depth)]))
 
     # Solve
     try:
         solutions = solver.solve(equations)
     except solver.SolveException as e:
-        raise SolveExpansionException(expressions, shapes, depths, str(e))
+        raise SolveExpansionException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e))
     def to_key(k):
         return int(id_expr), int(depth)
     expansion_values = {}
@@ -362,14 +418,15 @@ def solve(expressions, shapes, depths):
         expansion_values[(id_expr, depth)] = int(v)
 
     failed_exprs = set()
-    for root in expressions:
-        for expr in root.all():
-            if not (id(root), expr_depths[id(root)]) in expansion_values:
-                failed_exprs.add(str(expr))
+    for root in exprs1 + exprs2:
+        if not root is None:
+            for expr in root.all():
+                if not (id(root), expr_depths[id(root)]) in expansion_values:
+                    failed_exprs.add(str(expr))
     if len(failed_exprs) == 1:
-        raise SolveExpansionException(expressions, shapes, depths, f"Found no unique solution for '{failed_exprs.pop()}'")
+        raise SolveExpansionException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, f"Found no unique solution for '{failed_exprs.pop()}'")
     elif len(failed_exprs) > 1:
-        raise SolveExpansionException(expressions, shapes, depths, f"Found no unique solutions for {failed_exprs}")
+        raise SolveExpansionException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, f"Found no unique solutions for {failed_exprs}")
 
     def is_unnamed(expr):
         for expr in expr.all():
@@ -419,7 +476,7 @@ def solve(expressions, shapes, depths):
                 # Ellipsis is expanded
                 expansion = expansion_values[key]
                 if expansion < 0:
-                    raise SolveExpansionException(expressions, shapes, depths, f"Ellipsis '{expr}' has negative expansion {expansion}")
+                    raise SolveExpansionException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, f"Ellipsis '{expr}' has negative expansion {expansion}")
                 return [c for i in range(expansion) for c in map(expr.inner, ellipsis_indices=ellipsis_indices + [(i, expansion)])]
             else:
                 # Ellipsis is not expanded
@@ -431,31 +488,34 @@ def solve(expressions, shapes, depths):
                     return [NamedAxis(str(expr), ellipsis_indices=ellipsis_indices)]
         else:
             assert False, f"{expr}"
-    expressions = [List.maybe(map(root, ellipsis_indices=[]), ellipsis_indices=[]) for root in expressions]
+    exprs1 = [List.maybe(map(root, ellipsis_indices=[]), ellipsis_indices=[]) if not root is None else None for root in exprs1]
+    exprs2 = [List.maybe(map(root, ellipsis_indices=[]), ellipsis_indices=[]) if not root is None else None for root in exprs2]
 
-    return expressions
+    return exprs1, exprs2
 
 
 
 
 def cse(expressions, cse_concat=True, verbose=False):
-    if any(not isinstance(expr, Expression) for expr in expressions):
-        raise TypeError("Can only perform common-subexpression-elimination on stage2.Expression")
+    expressions = list(expressions)
+    if any(not expr is None and not isinstance(expr, Expression) for expr in expressions):
+        raise TypeError(f"Expected expressions to be of type Expression")
 
     # Find possible expressions, identified by their string representation
     str_to_common_expr = defaultdict(list)
     for root in expressions:
-        for expr in root.all():
-            if not expr.parent is None:
-                str_expr = str(expr)
-                str_to_common_expr[str_expr].append([expr])
+        if not root is None:
+            for expr in root.all():
+                if not expr.parent is None:
+                    str_expr = str(expr)
+                    str_to_common_expr[str_expr].append([expr])
 
-                if isinstance(expr, List):
-                    for start_index in range(len(expr.children)):
-                        for end_index in range(start_index, len(expr.children)):
-                            children = expr.children[start_index:end_index + 1]
-                            str_expr = " ".join([str(c) for c in children])
-                            str_to_common_expr[str_expr].append(children)
+                    if isinstance(expr, List):
+                        for start_index in range(len(expr.children)):
+                            for end_index in range(start_index, len(expr.children)):
+                                children = expr.children[start_index:end_index + 1]
+                                str_expr = " ".join([str(c) for c in children])
+                                str_to_common_expr[str_expr].append(children)
 
     if verbose:
         print("CSE: All subexpressions")
@@ -480,10 +540,11 @@ def cse(expressions, cse_concat=True, verbose=False):
             continue
 
         axes_used_only_in_this_subexpression = True
-        for expr in expressions:
-            for global_axis in expr.all():
-                if isinstance(global_axis, NamedAxis) and global_axis.name in used_axis_names:
-                    axes_used_only_in_this_subexpression = axes_used_only_in_this_subexpression and id(global_axis) in used_axis_ids
+        for root in expressions:
+            if not root is None:
+                for global_axis in root.all():
+                    if isinstance(global_axis, NamedAxis) and global_axis.name in used_axis_names:
+                        axes_used_only_in_this_subexpression = axes_used_only_in_this_subexpression and id(global_axis) in used_axis_ids
 
         if axes_used_only_in_this_subexpression:
             common_exprs.add(str_expr)
@@ -618,7 +679,7 @@ def cse(expressions, cse_concat=True, verbose=False):
             return [Composition(List.maybe(replace(expr.inner), expr.ellipsis_indices), expr.ellipsis_indices)]
         else:
             assert False
-    return [List.maybe(replace(expr), ellipsis_indices=[]) for expr in expressions]
+    return [List.maybe(replace(root), ellipsis_indices=[]) if not root is None else None for root in expressions]
 
 
 

@@ -11,8 +11,8 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
 
     try:
         exprs = einx.expr.solve(
-              [einx.expr.Condition(expr=expr, value=tensor_shape, depth=0) for expr, tensor_shape in zip(exprs, tensor_shapes)] \
-            + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+              [einx.expr.Equation(expr, tensor_shape) for expr, tensor_shape in zip(exprs, tensor_shapes)] \
+            + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
         )
     except (einx.expr.stage2.SolveDepthException, einx.expr.stage2.SolveExpansionException, einx.expr.stage3.SolveValueException):
@@ -37,7 +37,7 @@ def check(description, *tensors, cse=True, **parameters):
 
     tensor_shapes = [einx.param.get_shape(tensor) for tensor in tensors]
     einx.expr.solve(
-            [einx.expr.Condition(expr=expr, value=tensor_shape, depth=0) for expr, tensor_shape in zip(exprs, tensor_shapes)] \
-        + [einx.expr.Condition(expr=k, value=np.asarray(v)[..., np.newaxis]) for k, v in parameters.items()],
+          [einx.expr.Equation(expr, tensor_shape) for expr, tensor_shape in zip(exprs, tensor_shapes)] \
+        + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
         cse=cse,
     ) # Raises an exception if no solution is found
