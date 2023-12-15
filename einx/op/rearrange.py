@@ -6,6 +6,8 @@ import numpy as np
 def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
     if any(isinstance(expr, einx.expr.stage3.Marker) for root in list(exprs_in) + list(exprs_out) for expr in root.all()):
@@ -20,7 +22,7 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
     if len(exprs_in) != len(exprs_out_flat):
-        raise ValueError("Got different number of input and output expressions (after flattening)") # TODO:
+        raise ValueError(f"Got different number of input ({len(exprs_in)}) and output expressions ({len(exprs_out_flat)}) (after flattening)") # TODO:
 
     # Order inputs to align with output expressions
     indices = util.assignment(exprs_in, exprs_out_flat)

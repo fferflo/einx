@@ -6,6 +6,8 @@ import numpy as np
 def vmap_stage3(exprs_in, tensors_in, exprs_out, flat=False, backend=None, op=None, kwargs={}, pass_backend=False, verbose=False):
     if backend is None:
         backend = einx.backend.get(tensors_in)
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
     if op is None:
         raise TypeError("op cannot be None")
     if len(exprs_in) != len(tensors_in):

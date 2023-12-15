@@ -9,6 +9,8 @@ _op_names = ["roll", "flip"]
 def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
     if op is None:
         raise TypeError("op cannot be None")
     if len(exprs_in) != len(tensors_in):

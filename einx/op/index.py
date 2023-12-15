@@ -23,6 +23,8 @@ def _index(tensor, coordinates, update=None, axis=None, op=None, backend=None):
 def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
     if op is None:
         raise TypeError("op cannot be None")
     with_update = len(exprs_in) == 3

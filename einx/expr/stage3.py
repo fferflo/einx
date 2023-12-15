@@ -292,7 +292,7 @@ def solve(exprs1, exprs2):
     try:
         axis_values = solver.solve(equations)
     except solver.SolveException as e:
-        raise SolveValueException(exprs1, exprs2, values, str(e))
+        raise SolveValueException(exprs1, exprs2, str(e))
     axis_values = {int(k): int(v) for k, v in axis_values.items() if not str(k) in sympy_axis_values}
 
     failed_axes = set()
@@ -470,4 +470,4 @@ def get_marked(expr):
     return List.maybe(_get_marked(expr))
 
 def get_unmarked(expr):
-    return remove(expr, lambda expr: not einx.expr.stage3.is_marked(expr))
+    return remove(expr, lambda expr: is_marked(expr))

@@ -6,6 +6,8 @@ import numpy as np
 def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
     if any(isinstance(expr, einx.expr.stage3.Concatenation) for expr in expr_out.all()):
         raise ValueError("Output expression cannot contain concatenations")
     for root in list(exprs_in) + [expr_out]:

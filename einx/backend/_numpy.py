@@ -17,6 +17,7 @@ class numpy(base_backend):
     einsum = partial(np.einsum, optimize="optimal")
     dot = np.dot
     swapaxes = np.swapaxes
+    arange = np.arange
 
     stack = np.stack
     concatenate = np.concatenate

@@ -559,3 +559,20 @@ def _get_marked(expr):
 
 def get_marked(expr):
     return List.maybe(_get_marked(expr))
+
+def get_marked(expr):
+    return List.maybe(_get_marked(expr))
+
+def get_unmarked(expr):
+    return remove(expr, lambda expr: is_marked(expr))
+
+@expr_map
+def replace(expr, f):
+    expr = f(expr)
+    if not expr is None:
+        return expr, expr_map.REPLACE_AND_STOP
+
+@expr_map
+def remove(expr, pred):
+    if pred(expr):
+        return [], expr_map.REPLACE_AND_STOP

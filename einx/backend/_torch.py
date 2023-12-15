@@ -32,6 +32,8 @@ def make_torch_backend():
         einsum = torch_.einsum
         dot = torch_.matmul
         swapaxes = torch_.swapaxes
+        def arange(n, dtype):
+            return torch_.arange(n, dtype=vars(torch_)[dtype])
 
         stack = torch_.stack
         concatenate = torch_.cat

@@ -198,6 +198,8 @@ class ExecutionContext:
     def __init__(self, backend, args, kwargs):
         if backend is None:
             backend = einx.backend.get(list(einx.tree_util.tree_flatten((args, kwargs))))
+        elif isinstance(backend, str):
+            backend = einx.backend.get(backend)
 
         self.backend = backend
         self.input_values = {}
@@ -364,6 +366,9 @@ class tracer:
         shape = list(a.shape)
         shape[axis1], shape[axis2] = shape[axis2], shape[axis1]
         return Op("swapaxes", args=[a, axis1, axis2], output_shapes=np.asarray(shape)).output_tracers
+
+    def arange(n, dtype="int32"):
+        return Op("arange", args=[n], kwargs={"dtype": dtype}, output_shapes=np.asarray([n])).output_tracers
 
     def stack(tensors, axis):
         shape = list(tensors[0].shape)

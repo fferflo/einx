@@ -94,6 +94,14 @@ def test_shape_rearrange(backend):
     x = backend.zeros((10, 10), "float32")
     assert einx.rearrange("b c, 1 -> b (c + 1)", x, [42]).shape == (10, 11)
 
+    assert einx.arange("c", c=2, backend=backend).shape == (2,)
+    assert einx.arange("c... [2]", c=(4, 3), backend=backend).shape == (4, 3, 2)
+    assert einx.arange("c... [l]", c=(4, 3), backend=backend).shape == (4, 3, 2)
+    assert einx.arange("c1 c2 -> [l] c2 c1", c1=4, c2=3, backend=backend).shape == (2, 3, 4)
+    assert einx.arange("(c...) [2]", c=(4, 3), backend=backend).shape == (4 * 3, 2)
+    assert einx.arange("(c... [l])", c=(4, 3), backend=backend).shape == (4 * 3 * 2,)
+    assert einx.arange("c1 c2 -> ([l] c2) c1", c1=4, c2=3, backend=backend).shape == (2 * 3, 4)
+
 @pytest.mark.parametrize("backend", backends)
 def test_shape_dot(backend):
     x = backend.zeros((10, 10), "float32")

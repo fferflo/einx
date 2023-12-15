@@ -22,6 +22,7 @@ def make_tensorflow_backend():
         einsum = partial(tnp.einsum, optimize="optimal")
         dot = tnp.dot
         swapaxes = tnp.swapaxes
+        arange = tnp.arange
 
         stack = tnp.stack
         concatenate = tnp.concatenate

@@ -52,7 +52,7 @@ def _to_str(l): # Print numpy arrays in a single line rather than with line brea
     else:
         return str(l)
 
-def solve(equations, cse=True, cse_concat=True, verbose=False):
+def solve(equations, cse=True, cse_concat=True, after_stage2=None, verbose=False):
     if any(not isinstance(c, Equation) for c in equations):
         raise ValueError("All arguments must be of type Equation")
 
@@ -94,6 +94,15 @@ def solve(equations, cse=True, cse_concat=True, verbose=False):
             print("Stage2.CSE:")
             for expr1, expr2 in zip(exprs1, exprs2):
                 print(f"    {_to_str(expr1)} = {_to_str(expr2)}")
+
+    if not after_stage2 is None:
+        return solve(
+            equations + after_stage2(exprs1, exprs2),
+            cse=cse,
+            cse_concat=cse_concat,
+            after_stage2=None,
+            verbose=verbose,
+        )
 
     exprs1, exprs2 = stage3.solve(exprs1, exprs2)
 

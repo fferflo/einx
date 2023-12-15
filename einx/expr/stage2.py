@@ -683,6 +683,74 @@ def cse(expressions, cse_concat=True, verbose=False):
 
 
 
+
+
+
+
+
+
+
+
+def expr_map(f):
+    def outer(expr, *args, **kwargs):
+        # Wrap the user function to return a list of expressions
+        def f2(expr):
+            t = f(expr, *args, **kwargs)
+            if t is None:
+                return None, expr_map.CONTINUE
+            expr, signal = t
+
+            if isinstance(expr, list) or expr is None:
+                return expr, signal
+            if isinstance(expr, List):
+                return expr.children, signal
+            elif isinstance(expr, Expression):
+                return [expr], signal
+            else:
+                raise TypeError(f"Invalid return type {type(expr)}")
+        return List.maybe(_expr_map(expr, f2))
+    return outer
+
+expr_map.CONTINUE = 1
+expr_map.COPY_AND_STOP = 2
+expr_map.REPLACE_AND_STOP = 3
+expr_map.REPLACE_AND_CONTINUE = 4
+
+def _expr_map(expr, f):
+    exprs, signal = f(expr)
+    if signal == expr_map.REPLACE_AND_STOP:
+        assert isinstance(exprs, list)
+        return exprs
+    elif signal == expr_map.COPY_AND_STOP:
+        return [expr.__deepcopy__()]
+    elif signal == expr_map.REPLACE_AND_CONTINUE:
+        return [c for expr in exprs for c in _expr_map(expr, f)]
+
+    if isinstance(expr, NamedAxis):
+        return [expr.__deepcopy__()]
+    elif isinstance(expr, UnnamedAxis):
+        return [expr.__deepcopy__()]
+    elif isinstance(expr, Composition):
+        return [Composition(List.maybe(_expr_map(expr.inner, f)))]
+    elif isinstance(expr, List):
+        return [c2 for c1 in expr.children for c2 in _expr_map(c1, f)]
+    elif isinstance(expr, Concatenation):
+        return [Concatenation([List.maybe(_expr_map(c, f)) for c in expr.children])]
+    elif isinstance(expr, Marker):
+        x = _expr_map(expr.inner, f)
+        if len(x) == 0:
+            # Drop empty marker
+            return []
+        else:
+            return [Marker(List.maybe(x))]
+    else:
+        raise TypeError(f"Invalid expression type {type(expr)}")
+
+@expr_map
+def demark(expr):
+    if isinstance(expr, Marker):
+        return expr.inner, expr_map.REPLACE_AND_CONTINUE
+
 def any_parent_is(expr, pred, include_self=True):
     if not include_self:
         if expr.parent is None:
@@ -696,3 +764,41 @@ def any_parent_is(expr, pred, include_self=True):
 
 def is_at_root(expr):
     return not any_parent_is(expr, lambda expr: isinstance(expr, Composition), include_self=False)
+
+def is_marked(expr):
+    return any_parent_is(expr, lambda expr: isinstance(expr, Marker))
+
+def _get_marked(expr):
+    if isinstance(expr, NamedAxis):
+        return []
+    elif isinstance(expr, UnnamedAxis):
+        return []
+    elif isinstance(expr, Marker):
+        return [expr.inner.__deepcopy__()]
+    elif isinstance(expr, Concatenation):
+        return [Concatenation.maybe([x for c in expr.children for x in _get_marked(c)])]
+    elif isinstance(expr, Composition):
+        return [Composition(List.maybe(_get_marked(expr.inner)))]
+    elif isinstance(expr, List):
+        return [List.maybe([x for c in expr.children for x in _get_marked(c)])]
+    elif isinstance(expr, Choice):
+        raise ValueError("Expression cannot contain choice")
+    else:
+        raise TypeError(f"Invalid expression type {type(expr)}")
+
+def get_marked(expr):
+    return List.maybe(_get_marked(expr))
+
+def get_unmarked(expr):
+    return remove(expr, lambda expr: not is_marked(expr))
+
+@expr_map
+def replace(expr, f):
+    expr = f(expr)
+    if not expr is None:
+        return expr, expr_map.REPLACE_AND_STOP
+
+@expr_map
+def remove(expr, pred):
+    if pred(expr):
+        return [], expr_map.REPLACE_AND_STOP

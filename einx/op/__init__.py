@@ -6,3 +6,4 @@ from .reduce import *
 from .elementwise import *
 from .index import *
 from .solve import *
+from .arange import *
