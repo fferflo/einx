@@ -1,5 +1,6 @@
 import collections, threading, functools, os, einx, inspect
 from functools import partial
+import numpy as np
 
 def _hash(x):
     if isinstance(x, list) or isinstance(x, tuple):
@@ -12,10 +13,20 @@ def _hash(x):
         for v in x.values():
             h += _hash(v)
             h *= 9583
+    elif isinstance(x, np.ndarray):
+        h = hash(x.shape)
+        for v in x.flatten():
+            h += _hash(v)
+            h *= 87123
     else:
         h = hash(x)
     return int(h) % 2147483648 # Fixes issue with torch.compile
 
+def _prepare(x):
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    else:
+        return x
 
 class _tensor_factory:
     pass
@@ -36,6 +47,7 @@ def lru_cache(func=None, trace=None):
         @functools.wraps(func)
         def inner(*args, **kwargs):
             key = (args, kwargs)
+            key = einx.tree_util.tree_map(_prepare, key)
             h = _hash(key)
 
             result = None
@@ -83,6 +95,7 @@ def lru_cache(func=None, trace=None):
             args_key = einx.tree_util.tree_map_with_key(map, args)
             kwargs_key = einx.tree_util.tree_map_with_key(map, kwargs)
             key = (args_key, kwargs_key)
+            key = einx.tree_util.tree_map(_prepare, key)
             h = _hash(key)
 
             graph = None
