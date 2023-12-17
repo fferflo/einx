@@ -58,6 +58,7 @@ def make_tensorflow_backend():
         all = tnp.all
         min = tnp.min
         max = tnp.max
+        logsumexp = tf.math.reduce_logsumexp
 
         def get_at(tensor, coordinates):
             return tensor[coordinates]

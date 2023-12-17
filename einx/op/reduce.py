@@ -3,7 +3,7 @@ from . import util
 import numpy as np
 from functools import partial
 
-_op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min"]
+_op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min", "logsumexp"]
 _any = any # Is overwritten below
 
 @einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])

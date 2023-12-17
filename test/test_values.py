@@ -109,3 +109,24 @@ def test_values(backend):
         backend.cast(einx.arange("b a -> a b [2]", a=5, b=6, backend=backend), "int32"),
         backend.to_tensor(np.stack(np.meshgrid(np.arange(6), np.arange(5), indexing="xy"), axis=-1).astype("int32")),
     )
+
+@pytest.mark.parametrize("backend", backends)
+def test_compare_backends(backend):
+    x = np.random.uniform(size=(10, 3, 10)).astype("float32")
+
+    assert backend.allclose(
+        backend.to_tensor(einx.sum("a [b] c", x)),
+        einx.sum("a [b] c", backend.to_tensor(x)),
+    )
+    assert backend.allclose(
+        backend.to_tensor(einx.softmax("a [b] c", x)),
+        einx.softmax("a [b] c", backend.to_tensor(x)),
+    )
+    assert backend.allclose(
+        backend.to_tensor(einx.log_softmax("a [b] c", x)),
+        einx.log_softmax("a [b] c", backend.to_tensor(x)),
+    )
+    assert backend.allclose(
+        backend.to_tensor(einx.logsumexp("a [b] c", x)),
+        einx.logsumexp("a [b] c", backend.to_tensor(x)),
+    )

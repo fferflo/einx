@@ -71,6 +71,7 @@ def make_torch_backend():
         all = torch_.all
         min = torch_.min
         max = torch_.max
+        logsumexp = torch_.logsumexp
 
         def get_at(tensor, coordinates):
             return tensor[coordinates]

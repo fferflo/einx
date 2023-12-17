@@ -36,6 +36,7 @@ Reduction operations
 .. autofunction:: einx.all
 .. autofunction:: einx.max
 .. autofunction:: einx.min
+.. autofunction:: einx.logsumexp
 
 Element-by-element operations
 -----------------------------

@@ -55,6 +55,7 @@ def make_jax_backend():
         all = jnp.all
         min = jnp.amin
         max = jnp.amax
+        logsumexp = jax_.scipy.special.logsumexp
 
         def get_at(tensor, coordinates):
             return tensor[coordinates]

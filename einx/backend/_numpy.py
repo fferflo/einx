@@ -53,6 +53,14 @@ class numpy(base_backend):
     all = np.all
     min = np.amin
     max = np.amax
+    def logsumexp(x, axis=None):
+        if isinstance(axis, int):
+            axis = (axis,)
+        x_max1 = np.max(x, axis=axis)
+        x_max2 = x_max1
+        for a in sorted(axis):
+            x_max2 = np.expand_dims(x_max2, axis=a)
+        return np.log(np.sum(np.exp(x - x_max2), axis=axis)) + x_max1
 
     def get_at(tensor, coordinates):
         return tensor[coordinates]
