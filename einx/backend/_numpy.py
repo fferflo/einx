@@ -69,6 +69,13 @@ class numpy(base_backend):
     flip = np.flip
     roll = np.roll
 
+    def softmax(x, axis=None):
+        x = x - np.max(x, axis=axis, keepdims=True)
+        return np.exp(x) / np.sum(np.exp(x), axis=axis, keepdims=True)
+    def log_softmax(x, axis=None):
+        x = x - np.max(x, axis=axis, keepdims=True)
+        return x - np.log(np.sum(np.exp(x), axis=axis, keepdims=True))
+
     sqrt = np.sqrt
     rsqrt = lambda x: 1.0 / np.sqrt(x)
     square = np.square

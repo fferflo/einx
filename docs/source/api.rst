@@ -71,6 +71,8 @@ Miscellaneous operations
 
 .. autofunction:: einx.flip
 .. autofunction:: einx.roll
+.. autofunction:: einx.softmax
+.. autofunction:: einx.log_softmax
 .. autofunction:: einx.arange
 
 Deep Learning Modules

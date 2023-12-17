@@ -420,6 +420,7 @@ class tracer:
 
     flip = partial(map, op="flip")
     roll = partial(map, op="roll")
+    softmax = partial(map, op="softmax")
 
     def sqrt(tensor):
         return Op("sqrt", args=[tensor], output_shapes=np.asarray(tensor.shape)).output_tracers

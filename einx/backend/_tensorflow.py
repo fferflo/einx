@@ -78,6 +78,18 @@ def make_tensorflow_backend():
             if isinstance(shift, int):
                 shift = [shift]
             return tf.roll(x, tuple(shift), axis=tuple(axis))
+        def softmax(x, axis):
+            if isinstance(axis, (list, tuple)):
+                if len(axis) != 1:
+                    raise ValueError(f"Tensorflow only supports softmax along a single axis, got {len(axis)} axes")
+                axis = axis[0]
+            return tf.nn.softmax(x, axis=axis)
+        def log_softmax(x, axis):
+            if isinstance(axis, (list, tuple)):
+                if len(axis) != 1:
+                    raise ValueError(f"Tensorflow only supports log_softmax along a single axis, got {len(axis)} axes")
+                axis = axis[0]
+            return tf.nn.log_softmax(x, axis=axis)
 
         sqrt = tf.math.sqrt
         rsqrt = tf.math.rsqrt

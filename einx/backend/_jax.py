@@ -67,6 +67,8 @@ def make_jax_backend():
 
         flip = jnp.flip
         roll = jnp.roll
+        softmax = jax_.nn.softmax
+        log_softmax = jax_.nn.log_softmax
 
         sqrt = jnp.sqrt
         rsqrt = jax_.lax.rsqrt

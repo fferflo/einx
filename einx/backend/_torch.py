@@ -92,6 +92,18 @@ def make_torch_backend():
             if isinstance(axis, int):
                 axis = [axis]
             return torch_.roll(tensor, shift, axis)
+        def softmax(tensor, axis):
+            if isinstance(axis, (list, tuple)):
+                if len(axis) != 1:
+                    raise ValueError(f"PyTorch only supports softmax along a single axis, got {len(axis)} axes")
+                axis = axis[0]
+            return torch_.softmax(tensor, axis)
+        def log_softmax(tensor, axis):
+            if isinstance(axis, (list, tuple)):
+                if len(axis) != 1:
+                    raise ValueError(f"PyTorch only supports log_softmax along a single axis, got {len(axis)} axes")
+                axis = axis[0]
+            return torch_.nn.functional.log_softmax(tensor, axis)
 
         sqrt = torch_.sqrt
         rsqrt = torch_.rsqrt

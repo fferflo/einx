@@ -216,3 +216,13 @@ def roll(description, tensor, shift, **kwargs):
     """Alias for :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``.
     """
     return vmap_with_axis(description, tensor, op="roll", kwargs={"shift": shift}, **kwargs)
+
+def softmax(description, tensor, **kwargs):
+    """Alias for :func:`einx.vmap_with_axis` with ``op="softmax"``
+    """
+    return vmap_with_axis(description, tensor, op="softmax", **kwargs)
+
+def log_softmax(description, tensor, **kwargs):
+    """Alias for :func:`einx.vmap_with_axis` with ``op="log_softmax"``
+    """
+    return vmap_with_axis(description, tensor, op="log_softmax", **kwargs)

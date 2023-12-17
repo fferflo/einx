@@ -12,7 +12,6 @@ k = 1
 n = args.n // k
 rows = []
 
-einx.backend.update()
 envs = [
     # ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
     ("torch-compile", einx.backend.get("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
@@ -42,117 +41,141 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     b128 = tensor_init(xnp.ones((128 // f,), "float32"))
     epsilon = 1e-5
 
+    query = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
+    key = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
+    value = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
 
-    def benchmark_einx(x, bias, scale):
-        return einx.nn.meanvar_norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
-    def benchmark_idx(x, bias, scale):
-        mean = xnp.mean(x, axis=-1, keepdims=True)
-        var = xnp.var(x, axis=-1, keepdims=True)
 
-        inv = scale * rsqrt(var + epsilon)
-        x = inv * (x - mean) + bias
+    # def benchmark_einx(x, bias, scale):
+    #     return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
+    # def benchmark_idx(x, bias, scale):
+    #     mean = xnp.mean(x, axis=-1, keepdims=True)
+    #     var = xnp.var(x, axis=-1, keepdims=True)
 
+    #     inv = scale * rsqrt(var + epsilon)
+    #     x = inv * (x - mean) + bias
+
+    #     return x
+    # if "torch" in env_name:
+    #     def benchmark_native(x, bias, scale):
+    #         return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
+    # else:
+    #     benchmark_native = None
+    # experiments.append(("layernorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+
+    # def benchmark_einx(x, bias, scale):
+    #     return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
+    # def benchmark_idx(x, bias, scale):
+    #     # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
+    #     mean = xnp.mean(x, axis=-1, keepdims=True)
+    #     mean_of_squares = xnp.mean(xnp.square(x), axis=-1, keepdims=True)
+    #     var = mean_of_squares - xnp.square(mean)
+
+    #     inv = scale * rsqrt(var + epsilon)
+    #     x = inv * (x - mean) + bias
+
+    #     return x
+    # if "torch" in env_name:
+    #     def benchmark_native(x, bias, scale):
+    #         return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
+    # else:
+    #     benchmark_native = None
+    # experiments.append(("layernorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+
+    # def benchmark_einx(x, bias, scale):
+    #     return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
+    # def benchmark_idx(x, bias, scale):
+    #     mean = xnp.mean(x, axis=(1, 2), keepdims=True)
+    #     var = xnp.var(x, axis=(1, 2), keepdims=True)
+
+    #     inv = scale * rsqrt(var + epsilon)
+    #     x = inv * (x - mean) + bias
+
+    #     return x
+    # if "torch" in env_name:
+    #     def benchmark_native(x, bias, scale):
+    #         return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
+    # else:
+    #     benchmark_native = None
+    # experiments.append(("batchnorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
+
+    # def benchmark_einx(x, bias, scale):
+    #     return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
+    # def benchmark_idx(x, bias, scale):
+    #     # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
+    #     mean = xnp.mean(x, axis=(1, 2), keepdims=True)
+    #     mean_of_squares = xnp.mean(xnp.square(x), axis=(1, 2), keepdims=True)
+    #     var = mean_of_squares - xnp.square(mean)
+
+    #     inv = scale * rsqrt(var + epsilon)
+    #     x = inv * (x - mean) + bias
+
+    #     return x
+    # if "torch" in env_name:
+    #     def benchmark_native(x, bias, scale):
+    #         return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
+    # else:
+    #     benchmark_native = None
+    # experiments.append(("batchnorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
+
+    # def benchmark_einx(x, bias, weight):
+    #     return einx.nn.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
+    # def benchmark_idx(x, bias, weight):
+    #     # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
+    #     x = xnp.dot(x, weight)
+    #     x = x + bias
+    #     return x
+    # if "torch" in env_name:
+    #     def benchmark_native(x, bias, weight):
+    #         return torch.nn.functional.linear(x, weight=weight, bias=bias)
+    # else:
+    #     benchmark_native = None
+    # experiments.append(("channel_linear", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w), 1.0))
+
+    # def benchmark_einx(x, w1, b1, w2, b2):
+    #     x0 = x
+    #     x = einx.nn.linear(x, "b [s...|s2] c", weight=w1, bias=b1)
+    #     x = xnp.where(x < 0, 0, x)
+    #     x = einx.nn.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
+    #     x = x + x0
+    #     return x
+    # def benchmark_idx(x, w1, b1, w2, b2):
+    #     # https://github.com/lucidrains/mlp-mixer-pytorch/blob/main/mlp_mixer_pytorch/mlp_mixer_pytorch.py
+    #     # https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_mixer.py
+    #     x0 = x
+    #     shape = x.shape
+    #     x = x.reshape([x.shape[0], -1, x.shape[-1]])
+    #     x = xnp.swapaxes(x, 1, 2)
+    #     x = xnp.dot(x, w1.reshape([-1, w1.shape[-1]]))
+    #     x = x + b1
+    #     x = xnp.where(x < 0, 0, x)
+    #     x = xnp.dot(x, w2.reshape([w2.shape[0], -1]))
+    #     x = x + b2.reshape([-1])
+    #     x = xnp.swapaxes(x, 1, 2)
+    #     x = x.reshape(shape)
+    #     x = x + x0
+    #     return x
+    # experiments.append(("spatial_mlp", (benchmark_einx, None, benchmark_idx), lambda m: (x, w1, b128, w2, y), 1.0))
+
+
+
+    heads = 8
+    def benchmark_einx(q, k, v, heads=heads):
+        attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=heads)
+        attn = einx.softmax("b q [k] h", attn)
+        x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
         return x
-    if "torch" in env_name:
-        def benchmark_native(x, bias, scale):
-            return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
-    else:
-        benchmark_native = None
-    experiments.append(("layernorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
-
-    def benchmark_einx(x, bias, scale):
-        return einx.nn.meanvar_norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
-    def benchmark_idx(x, bias, scale):
-        # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
-        mean = xnp.mean(x, axis=-1, keepdims=True)
-        mean_of_squares = xnp.mean(xnp.square(x), axis=-1, keepdims=True)
-        var = mean_of_squares - xnp.square(mean)
-
-        inv = scale * rsqrt(var + epsilon)
-        x = inv * (x - mean) + bias
-
+    def benchmark_idx(q, k, v, heads=heads):
+        q = einops.rearrange(q, 'b l (h k) -> b h l k', h=heads)
+        k = einops.rearrange(k, 'b t (h k) -> b h t k', h=heads)
+        v = einops.rearrange(v, 'b t (h v) -> b h t v', h=heads)
+        attn = xnp.einsum('bhlk,bhtk->bhlt', q, k)
+        attn = xnp.softmax(attn, axis=3)
+        x = xnp.einsum('bhlt,bhtv->bhlv', attn, v)
+        x = einops.rearrange(x, 'b h l v -> b l (h v)')
         return x
-    if "torch" in env_name:
-        def benchmark_native(x, bias, scale):
-            return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
-    else:
-        benchmark_native = None
-    experiments.append(("layernorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+    experiments.append(("multihead-attention", (benchmark_einx, None, benchmark_idx), lambda m: (query, key, value), 1.0))
 
-    def benchmark_einx(x, bias, scale):
-        return einx.nn.meanvar_norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
-    def benchmark_idx(x, bias, scale):
-        mean = xnp.mean(x, axis=(1, 2), keepdims=True)
-        var = xnp.var(x, axis=(1, 2), keepdims=True)
-
-        inv = scale * rsqrt(var + epsilon)
-        x = inv * (x - mean) + bias
-
-        return x
-    if "torch" in env_name:
-        def benchmark_native(x, bias, scale):
-            return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
-    else:
-        benchmark_native = None
-    experiments.append(("batchnorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
-
-    def benchmark_einx(x, bias, scale):
-        return einx.nn.meanvar_norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
-    def benchmark_idx(x, bias, scale):
-        # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
-        mean = xnp.mean(x, axis=(1, 2), keepdims=True)
-        mean_of_squares = xnp.mean(xnp.square(x), axis=(1, 2), keepdims=True)
-        var = mean_of_squares - xnp.square(mean)
-
-        inv = scale * rsqrt(var + epsilon)
-        x = inv * (x - mean) + bias
-
-        return x
-    if "torch" in env_name:
-        def benchmark_native(x, bias, scale):
-            return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
-    else:
-        benchmark_native = None
-    experiments.append(("batchnorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
-
-    def benchmark_einx(x, bias, weight):
-        return einx.nn.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
-    def benchmark_idx(x, bias, weight):
-        # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
-        x = xnp.dot(x, weight)
-        x = x + bias
-        return x
-    if "torch" in env_name:
-        def benchmark_native(x, bias, weight):
-            return torch.nn.functional.linear(x, weight=weight, bias=bias)
-    else:
-        benchmark_native = None
-    experiments.append(("channel_linear", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w), 1.0))
-
-    def benchmark_einx(x, w1, b1, w2, b2):
-        x0 = x
-        x = einx.nn.linear(x, "b [s...|s2] c", weight=w1, bias=b1)
-        x = xnp.where(x < 0, 0, x)
-        x = einx.nn.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
-        x = x + x0
-        return x
-    def benchmark_idx(x, w1, b1, w2, b2):
-        # https://github.com/lucidrains/mlp-mixer-pytorch/blob/main/mlp_mixer_pytorch/mlp_mixer_pytorch.py
-        # https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_mixer.py
-        x0 = x
-        shape = x.shape
-        x = x.reshape([x.shape[0], -1, x.shape[-1]])
-        x = xnp.swapaxes(x, 1, 2)
-        x = xnp.dot(x, w1.reshape([-1, w1.shape[-1]]))
-        x = x + b1
-        x = xnp.where(x < 0, 0, x)
-        x = xnp.dot(x, w2.reshape([w2.shape[0], -1]))
-        x = x + b2.reshape([-1])
-        x = xnp.swapaxes(x, 1, 2)
-        x = x.reshape(shape)
-        x = x + x0
-        return x
-    experiments.append(("spatial_mlp", (benchmark_einx, None, benchmark_idx), lambda m: (x, w1, b128, w2, y), 1.0))
 
 
 

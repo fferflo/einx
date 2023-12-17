@@ -376,10 +376,14 @@ def test_shape_index(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_vmap_with_axis(backend):
-    x = backend.zeros((10, 10), "float32")
+    x = backend.ones((10, 10), "float32")
+    assert einx.flip("a [b] -> a [b]", x).shape == (10, 10)
     assert einx.flip("a [b]", x).shape == (10, 10)
     assert einx.roll("a [b]", x, shift=5).shape == (10, 10)
     assert einx.roll("a [b]", x, shift=(5,)).shape == (10, 10)
+    assert einx.softmax("a [b] -> a [b]", x).shape == (10, 10)
+    assert einx.softmax("a [b]", x).shape == (10, 10)
+    assert einx.log_softmax("(a [b]) c", x, b=2).shape == (10, 10)
 
     assert einx.flip("a ([b c])", x, b=2).shape == (10, 10)
     assert einx.roll("a ([b c])", x, shift=(5, 5,), b=2).shape == (10, 10)
