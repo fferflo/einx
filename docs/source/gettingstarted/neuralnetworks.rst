@@ -122,5 +122,5 @@ The following is an example of a simple fully-connected network for image classi
             x = einn.Linear("b [...|c]", c=10)(x) # 10 classes
             return x
 
-Example trainings on CIFAR10 are provided in ``scripts/train_{torch|flax|haiku}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
+Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
 with other layers or used as submodules in the respective framework seamlessly.

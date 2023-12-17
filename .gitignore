@@ -1,6 +1,6 @@
 *.egg-info
 docs/build
-scripts/cifar10
+examples/cifar10
 dist/*
 act
 __pycache__

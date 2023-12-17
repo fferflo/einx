@@ -84,7 +84,7 @@ spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 ```
 
-See `scripts/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
+See `examples/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
 #### Einstein expression trees
 
