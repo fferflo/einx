@@ -496,7 +496,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
 
 
 
-def cse(expressions, cse_concat=True, verbose=False):
+def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
     expressions = list(expressions)
     if any(not expr is None and not isinstance(expr, Expression) for expr in expressions):
         raise TypeError(f"Expected expressions to be of type Expression")
@@ -593,8 +593,11 @@ def cse(expressions, cse_concat=True, verbose=False):
         for v in common_exprs:
             print(f"    {[' '.join([str(y) for y in x]) for x in v]}")
 
-    # Remove expressions with markers
-    common_exprs = [common_expr for common_expr in common_exprs if not any(isinstance(expr, Marker) for exprlist in common_expr for expr in exprlist for expr in expr.all())]
+    # Remove expressions with/ in markers
+    if cse_in_markers:
+        common_exprs = [common_expr for common_expr in common_exprs if not any(isinstance(expr, Marker) for exprlist in common_expr for expr in exprlist for expr in expr.all())]
+    else:
+        common_exprs = [common_expr for common_expr in common_exprs if not any(einx.expr.stage2.is_marked(expr) for exprlist in common_expr for expr in exprlist for expr in expr.all())]
 
     # Remove expressions that contain concatenations
     if not cse_concat:

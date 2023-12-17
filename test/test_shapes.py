@@ -11,6 +11,7 @@ if importlib.util.find_spec("tensorflow"):
     tnp.experimental_enable_numpy_behavior()
 
 import einx, pytest
+from functools import partial
 
 backends = [b for b in einx.backend.backends if b != einx.backend.tracer]
 
@@ -320,6 +321,10 @@ def test_shape_vmap(backend):
     assert einx.vmap("b ([c d|2])", x, op=func, c=16, flat=True).shape == (16, 2)
     with pytest.raises(Exception):
         einx.vmap("b ([c d]) -> [2]", x, op=func, c=16, flat=True)
+
+    with pytest.raises(Exception):
+        einx.vmap_with_axis("a ([b c]) -> a ([b c])", x, op=partial(backend.roll, shift=(2, 2)))
+    assert einx.vmap_with_axis("a ([b c]) -> a ([b c])", x, op=partial(backend.roll, shift=(2, 2)), b=2).shape == (16, 64)
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_index(backend):

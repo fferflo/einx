@@ -33,6 +33,7 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
               + [einx.expr.Equation(expr_out) for expr_out in exprs_out] \
               + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
+            cse_in_markers=True,
         )[:len(exprs_in) + len(exprs_out)]
         exprs_in, exprs_out = exprs[:len(exprs_in)], exprs[len(exprs_in):]
 
@@ -52,6 +53,7 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
                 [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
               + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
+            cse_in_markers=True,
         )[:len(exprs_in)]
 
         if not _any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_in for expr in root.all()):
