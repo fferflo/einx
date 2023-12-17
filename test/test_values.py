@@ -100,3 +100,12 @@ def test_values(backend):
         einx.set_at("[h], h2, h2 -> [h]", x, y, z),
         y,
     )
+
+    assert backend.allclose(
+        backend.cast(einx.arange("a b [2]", a=5, b=6, backend=backend), "int32"),
+        backend.to_tensor(np.stack(np.meshgrid(np.arange(5), np.arange(6), indexing="ij"), axis=-1).astype("int32")),
+    )
+    assert backend.allclose(
+        backend.cast(einx.arange("b a -> a b [2]", a=5, b=6, backend=backend), "int32"),
+        backend.to_tensor(np.stack(np.meshgrid(np.arange(6), np.arange(5), indexing="xy"), axis=-1).astype("int32")),
+    )
