@@ -105,7 +105,7 @@ class UnnamedAxis(Expression):
         yield from ()
 
 class Ellipsis(Expression):
-    anonymous_variable_name = "_anonymous_ellipsis_variable"
+    anonymous_variable_name = "_anonymous_ellipsis_axis"
 
     def __init__(self, inner, begin_pos=-1, end_pos=-1, ellipsis_id=None):
         Expression.__init__(self, begin_pos, end_pos)

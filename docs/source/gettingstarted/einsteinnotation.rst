@@ -145,12 +145,12 @@ converts anonymous ellipses by adding an axis in front:
 
     einx.rearrange("b ... -> ... b", x)
     # same as
-    einx.rearrange("b _anonymous_ellipsis_variable... -> _anonymous_ellipsis_variable... b", x)
+    einx.rearrange("b _anonymous_ellipsis_axis... -> _anonymous_ellipsis_axis... b", x)
 
 Unnamed axes
 ------------
 
-An *unnamed axis* is a number in the Einstein expression and equivalent to using a new unique axis name with an additional constraint specifying its length:
+An *unnamed axis* is a number in the Einstein expression and similar to using a new unique axis name with an additional constraint specifying its length:
 
 >>> x = np.ones((2, 3, 4))
 >>> einx.matches("2 b c", x)
