@@ -2,6 +2,44 @@ import haiku as hk
 import einx
 from functools import partial
 
+def param(func=hk.get_parameter, shape=None, name=None, init=None, dtype=None, **kwargs):
+    if shape is None:
+        kwargs = dict(kwargs)
+        if not name is None:
+            kwargs["name"] = name
+        if not init is None:
+            kwargs["init"] = init
+        if not dtype is None:
+            kwargs["dtype"] = dtype
+        return partial(param, func, **kwargs)
+
+    if name is None:
+        raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
+
+    if init is None:
+        raise ValueError("Must specify init for tensor factory hk.get_{parameter|state}")
+    elif isinstance(init, str):
+        if init in "get_at" or init == "rearrange":
+            init = hk.initializers.RandomNormal(stddev=0.02)
+        elif init == "add":
+            init = hk.initializers.Constant(0.0)
+        elif init == "multiply":
+            init = hk.initializers.Constant(1.0)
+        elif init == "dot":
+            init = hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal", fan_in_axes=kwargs["in_axis"])
+        else:
+            raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+    elif isinstance(init, (int, float)):
+        init = hk.initializers.Constant(init)
+
+    return func(shape=shape, name=name, dtype=dtype, init=init)
+
+def to_tensor_factory(x):
+    if id(x) == id(hk.get_parameter) or id(x) == id(hk.get_state):
+        return param(x)
+    else:
+        return None
+
 class Norm(hk.Module):
     """Normalization layer.
 
@@ -38,29 +76,26 @@ class Norm(hk.Module):
         if not self.decay_rate is None and training is None:
             raise ValueError("training must be specified when decay_rate is used")
 
-        get_ema_mean = lambda shape: hk.get_state(name="mean", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0))
-        get_ema_var = lambda shape: hk.get_state(name="var", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(1.0))
-
-        use_ema = not self.decay_rate is None and not training
+        use_ema = not self.decay_rate is None and (not training or hk.running_init())
         x, mean, var = einx.nn.norm(
             x,
             self.stats,
             self.params,
-            mean=get_ema_mean if use_ema else self.mean,
-            var=get_ema_var if use_ema else self.var,
-            scale=(lambda shape: hk.get_parameter(name="scale", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(1.0))) if self.scale else None,
-            bias=(lambda shape: hk.get_parameter(name="bias", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0))) if self.bias else None,
+            mean=param(hk.get_state, name="mean", dtype=self.dtype) if use_ema else self.mean,
+            var=param(hk.get_state, name="var", dtype=self.dtype) if use_ema else self.var,
+            scale=param(hk.get_parameter, name="scale", dtype=self.dtype) if self.scale else None,
+            bias=param(hk.get_parameter, name="bias", dtype=self.dtype) if self.bias else None,
             epsilon=self.epsilon,
             fastvar=self.fastvar,
             **self.kwargs,
         )
 
-        update_ema = not self.decay_rate is None and training
+        update_ema = not self.decay_rate is None and training and not hk.running_init()
         if update_ema:
             if self.mean:
-                hk.set_state("mean", get_ema_mean(mean.shape) * self.decay_rate + mean * (1 - self.decay_rate))
+                hk.set_state("mean", hk.get_state("mean") * self.decay_rate + mean * (1 - self.decay_rate))
             if self.var:
-                hk.set_state("var", get_ema_var(var.shape) * self.decay_rate + var * (1 - self.decay_rate))
+                hk.set_state("var", hk.get_state("var") * self.decay_rate + var * (1 - self.decay_rate))
 
         return x
 
@@ -86,8 +121,8 @@ class Linear(hk.Module):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=(lambda shape: hk.get_parameter(name="bias", shape=shape, dtype=self.dtype, init=hk.initializers.Constant(0.0))) if self.bias else None,
-            weight=lambda shape: hk.get_parameter(name="weight", shape=shape, dtype=self.dtype, init=hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal")),
+            bias=param(hk.get_parameter, name="bias", dtype=self.dtype) if self.bias else None,
+            weight=param(hk.get_parameter, name="weight", dtype=self.dtype),
             **self.kwargs,
         )
 

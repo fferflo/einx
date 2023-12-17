@@ -1,5 +1,5 @@
 import numpy as np
-import einx, sys, inspect
+import einx, sys, inspect, importlib
 
 def get_shape(x):
     try:
@@ -22,16 +22,16 @@ def instantiate(x, shape, backend, **kwargs):
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)
 
-        if "torch" in sys.modules:
-            import torch
-            if not callable(x) and isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
-                if backend.name != "torch":
-                    raise ValueError("Cannot instantiate a torch tensor using a non-torch backend")
-                def x(shape, x=x, **kwargs):
-                    x.materialize(shape)
-                    return x
+        for name in ["torch", "haiku", "flax"]:
+            if name in sys.modules:
+                einn = importlib.import_module(f"einx.nn.{name}")
+                x2 = einn.to_tensor_factory(x)
+                if not x2 is None:
+                    x = x2
+                    break
 
         if callable(x):
+            # Try to find keyword parameters of the tensor factory and forward all kwargs that are accepted. Pass no keyword parameters if this fails.
             try:
                 params = inspect.signature(x).parameters
                 if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
@@ -40,6 +40,7 @@ def instantiate(x, shape, backend, **kwargs):
                     kwargs = {k: v for k, v in kwargs.items() if k in params}
             except:
                 kwargs = {}
+
             x = x(shape, **kwargs)
             if x is None:
                 raise ValueError("Tensor factory returned None")

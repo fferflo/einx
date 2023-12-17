@@ -7,8 +7,24 @@ _op_names = ["add", "subtract", "multiply", "true_divide", "floor_divide", "divi
 
 @einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
 def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
+    if backend is None:
+        backend = einx.backend.get(tensors_in)
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
+
     assert not any(einx.expr.stage3.is_marked(expr) for root in exprs_in for expr in root.all())
     assert not any(einx.expr.stage3.is_marked(expr) for expr in expr_out.all())
+
+    # Call tensor factories
+    def get_name(s):
+        if s == "add":
+            return "bias"
+        elif s == "multiply":
+            return "scale"
+        else:
+            return s
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(str(op)), init=str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
+
     tensors_out, exprs_out = einx.vmap_with_axis_stage3(exprs_in, tensors_in, [expr_out], op, backend=backend)
     assert len(tensors_out) == 1 and len(exprs_out) == 1
     return tensors_out[0], exprs_out[0]

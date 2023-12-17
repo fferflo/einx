@@ -1,7 +1,62 @@
 import flax.linen as nn
-import einx
+import einx, flax
 from functools import partial
 import jax.numpy as jnp
+
+def param(bound_method, shape=None, name=None, init=None, dtype=None, col=None, **kwargs):
+    if isinstance(bound_method, nn.Module):
+        bound_method = bound_method.param
+
+    if shape is None:
+        kwargs = dict(kwargs)
+        if not name is None:
+            kwargs["name"] = name
+        if not init is None:
+            kwargs["init"] = init
+        if not dtype is None:
+            kwargs["dtype"] = dtype
+        if not col is None:
+            kwargs["col"] = col
+        return partial(param, bound_method, **kwargs)
+
+    if name is None:
+        raise ValueError("Must specify name for tensor factory flax.linen.Module.{param|variable}")
+
+    if init is None:
+        raise ValueError("Must specify init for tensor factory flax.linen.Module.{param|variable}")
+    elif isinstance(init, str):
+        if init == "get_at" or init == "rearrange":
+            init = nn.initializers.normal(stddev=0.02)
+        elif init == "add":
+            init = nn.initializers.zeros_init()
+        elif init == "multiply":
+            init = nn.initializers.ones_init()
+        elif init == "dot":
+            init = nn.initializers.lecun_normal(kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"])
+        else:
+            raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+    elif isinstance(init, (int, float)):
+        init = nn.initializers.constant(init, dtype=dtype)
+
+    if bound_method.__func__ == nn.Module.param:
+        if not col is None:
+            raise ValueError("col is not accepted for flax.linen.Module.param")
+        return bound_method(name, init, shape, dtype)
+    elif bound_method.__func__ == nn.Module.variable:
+        if col is None:
+            raise ValueError("col must be specified for flax.linen.Module.variable")
+        # Assume that variable initialization does not need an rng key by passing None:
+        return bound_method(col, name, init, None, shape, dtype).value
+    else:
+        raise ValueError(f"Unknown tensor factory flax.linen.Module.{bound_method.__func__.__name__}")
+
+def to_tensor_factory(x):
+    if isinstance(x, nn.Module) or (hasattr(x, "__func__") and x.__func__ == nn.Module.param):
+        return param(x)
+    else:
+        return None
+
+
 
 # Using _ prefix on classes and a separater constructor, since dataclass/nn.Module does not support **kwargs parameter.
 
@@ -28,10 +83,10 @@ class _Norm(nn.Module):
             x,
             self.stats,
             self.params,
-            mean=(lambda shape: self.variable("stats", "mean", lambda: jnp.zeros(shape, self.dtype)).value) if use_ema else self.mean,
-            var=(lambda shape: self.variable("stats", "var", lambda: jnp.ones(shape, self.dtype)).value) if use_ema else self.var,
-            scale=(lambda shape: self.param("scale", nn.initializers.ones_init(), shape, self.dtype)) if self.scale else None,
-            bias=(lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype)) if self.bias else None,
+            mean=param(self.variable, col="stats", name="mean", dtype=self.dtype) if use_ema else self.mean,
+            var=param(self.variable, col="stats", name="var", dtype=self.dtype) if use_ema else self.var,
+            scale=param(self.param, name="scale", dtype=self.dtype) if self.scale else None,
+            bias=param(self.param, name="bias", dtype=self.dtype) if self.bias else None,
             epsilon=self.epsilon,
             fastvar=self.fastvar,
             **(self.kwargs if not self.kwargs is None else {}),
@@ -65,7 +120,7 @@ def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, d
         name: Name of the module. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
-    
+
     return _Norm(stats, params=params, mean=mean, var=var, scale=scale, bias=bias, decay_rate=decay_rate, epsilon=epsilon, fastvar=fastvar, dtype=dtype, name=name, kwargs=kwargs)
 
 class _Linear(nn.Module):
@@ -79,8 +134,8 @@ class _Linear(nn.Module):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=(lambda shape: self.param("bias", nn.initializers.zeros_init(), shape, self.dtype)) if self.bias else None,
-            weight=lambda shape, in_axis, out_axis, batch_axis: self.param("weight", nn.initializers.lecun_normal(in_axis, out_axis, batch_axis), shape, self.dtype),
+            bias=param(self.param, name="bias", dtype=self.dtype) if self.bias else None,
+            weight=param(self.param, name="weight", dtype=self.dtype),
             **(self.kwargs if not self.kwargs is None else {}),
         )
 

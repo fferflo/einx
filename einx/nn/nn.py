@@ -11,9 +11,9 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
 
     # Instantiate moving averages
     if not isinstance(mean, bool) and not mean is None:
-        mean = einx.param.instantiate(mean, shape=expr_stats.shape, backend=backend)
+        mean = einx.param.instantiate(mean, shape=expr_stats.shape, backend=backend, init="add")
     if not isinstance(var, bool) and not var is None:
-        var = einx.param.instantiate(var, shape=expr_stats.shape, backend=backend)
+        var = einx.param.instantiate(var, shape=expr_stats.shape, backend=backend, init="multiply")
 
     # Compute mean and variance
     if isinstance(mean, bool):

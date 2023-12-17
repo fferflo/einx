@@ -69,6 +69,14 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     new_marked_coordinate_axis_names = [expr.name for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     axis = new_marked_coordinate_axis_names.index(coordinate_axis_name) if not coordinate_axis_name is None else None
 
+    # Call tensor factories
+    def get_name(s):
+        if s == "get_at":
+            return "embed"
+        else:
+            return s
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(str(op)), init=str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
+
     tensors_out, exprs_out = einx.vmap_stage3(exprs_in, tensors_in, [expr_out], op=_index, flat=True, kwargs={"axis": axis, "op": op}, pass_backend=True, backend=backend)
     assert len(tensors_out) == 1 and len(exprs_out) == 1
     return tensors_out[0], exprs_out[0]

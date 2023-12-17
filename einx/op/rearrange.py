@@ -14,7 +14,7 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
         raise ValueError(f"Marker '{expr}' is not allowed")
 
     # Call tensor factories
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name="embed", init="rearrange") for tensor, expr in zip(tensors_in, exprs_in)]
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)

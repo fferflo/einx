@@ -2,20 +2,42 @@ import torch, einx, math
 from functools import partial
 import numpy as np
 
-class Parameter(torch.nn.parameter.UninitializedParameter):
-    def __init__(self, init, dtype):
-        self.init = init
+def param(uninitialized_tensor, shape=None, init=None, **kwargs):
+    if shape is None:
+        kwargs = dict(kwargs)
+        if not init is None:
+            kwargs["init"] = init
+        return partial(param, uninitialized_tensor, **kwargs)
 
-    def __new__(cls, init, dtype):
-        return super().__new__(cls, dtype=vars(torch)[dtype])
+    if init is None:
+        raise ValueError("Must specify init for tensor factory torch.nn.parameter.Uninitialized*")
+    elif isinstance(init, str):
+        if init == "get_at" or init == "rearrange":
+            init = partial(torch.nn.init.normal_, std=0.02)
+        elif init == "add":
+            init = torch.nn.init.zeros_
+        elif init == "multiply":
+            init = torch.nn.init.ones_
+        elif init == "dot":
+            fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
+            std = np.sqrt(1.0 / fan_in) / .87962566103423978
+            init = partial(torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-2.0, b=2.0)
+        else:
+            raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+    elif isinstance(init, (int, float)):
+        init = partial(torch.nn.init.constant_, val=init)
 
-    def __call__(self, shape, **kwargs):
-        super().materialize(shape)
-        with torch.no_grad():
-            self.init(self.data, **kwargs)
-        return self
+    with torch.no_grad():
+        uninitialized_tensor.materialize(shape)
+        init(uninitialized_tensor)
 
+    return uninitialized_tensor
 
+def to_tensor_factory(x):
+    if isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
+        return param(x)
+    else:
+        return None
 
 class Norm(torch.nn.Module):
     """Normalization layer.
@@ -47,28 +69,14 @@ class Norm(torch.nn.Module):
 
         if mean and not decay_rate is None:
             self.register_buffer("mean", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
-            def get_mean(shape):
-                if isinstance(self.mean, torch.nn.parameter.UninitializedBuffer):
-                    with torch.no_grad():
-                        self.mean.materialize(shape)
-                        torch.nn.init.zeros_(self.mean.data)
-                return self.mean
-            self.get_mean = get_mean
         else:
-            self.get_mean = None
+            self.mean = None
         if var and not decay_rate is None:
             self.register_buffer("var", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
-            def get_var(shape):
-                if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
-                    with torch.no_grad():
-                        self.var.materialize(shape)
-                        torch.nn.init.ones_(self.var.data)
-                return self.var
-            self.get_var = get_var
         else:
-            self.get_var = None
-        self.scale = Parameter(torch.nn.init.ones_, dtype) if scale else None
-        self.bias = Parameter(torch.nn.init.zeros_, dtype) if bias else None
+            self.var = None
+        self.scale = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if scale else None
+        self.bias = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if bias else None
 
     def forward(self, x):
         with x.device:
@@ -77,10 +85,10 @@ class Norm(torch.nn.Module):
                 x,
                 self.stats,
                 self.params,
-                mean=self.get_mean if use_ema else self.use_mean,
-                var=self.get_var if use_ema else self.use_var,
-                scale=self.scale,
-                bias=self.bias,
+                mean=self.mean if use_ema else self.use_mean,
+                var=self.var if use_ema else self.use_var,
+                scale=self.scale if not self.scale is None else None,
+                bias=self.bias if not self.bias is None else None,
                 epsilon=self.epsilon,
                 fastvar=self.fastvar,
                 backend=einx.backend.get("torch"),
@@ -90,9 +98,15 @@ class Norm(torch.nn.Module):
             if update_ema:
                 with torch.no_grad():
                     if not mean is None:
-                        self.mean = self.decay_rate * self.get_mean(mean.shape) + (1 - self.decay_rate) * mean
+                        if isinstance(self.mean, torch.nn.parameter.UninitializedBuffer):
+                            # self.mean has not been initialized in einx.nn.norm
+                            param(self.mean, init=torch.nn.init.zeros_)(mean.shape)
+                        self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
                     if not var is None:
-                        self.var = self.decay_rate * self.get_var(var.shape) + (1 - self.decay_rate) * var
+                        if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
+                            # self.var has not been initialized in einx.nn.norm
+                            param(self.var, init=torch.nn.init.ones_)(var.shape)
+                        self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
             return x
 
 class Linear(torch.nn.Module):
@@ -108,17 +122,9 @@ class Linear(torch.nn.Module):
     def __init__(self, expr, bias=True, dtype="float32", **kwargs):
         super().__init__()
 
-        self.fan_in = None
-        def init_weight(x, in_axis, out_axis, batch_axis):
-            self.fan_in = np.prod([x.shape[i] for i in in_axis])
-            bound = math.sqrt(3.0) / math.sqrt(self.fan_in)
-            torch.nn.init.uniform_(x, -bound, bound)
-        self.weight = Parameter(init_weight, dtype)
+        self.weight = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype])
         if bias:
-            def init_bias(x):
-                bound = 1 / math.sqrt(self.fan_in)
-                torch.nn.init.uniform_(x, -bound, bound)
-            self.bias = Parameter(init_bias, dtype)
+            self.bias = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype])
         else:
             self.bias = None
 

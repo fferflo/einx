@@ -31,7 +31,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
             else:
                 batch_axis.append(i)
         return {"in_axis": tuple(in_axis), "out_axis": tuple(out_axis), "batch_axis": tuple(batch_axis)}
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, **get_fans(i)) for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))]
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, **get_fans(i), name="weight", init="dot") for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))]
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
