@@ -2,13 +2,19 @@
 einx API
 ########
 
-Main abstractions
-=================
+Abstractions
+============
+
+Main
+----
 
 .. autofunction:: einx.rearrange
 .. autofunction:: einx.vmap_with_axis
 .. autofunction:: einx.vmap
 .. autofunction:: einx.dot
+
+Partial specializations
+-----------------------
 
 .. autofunction:: einx.reduce
 .. autofunction:: einx.elementwise
@@ -65,6 +71,7 @@ Miscellaneous operations
 
 .. autofunction:: einx.flip
 .. autofunction:: einx.roll
+.. autofunction:: einx.arange
 
 Deep Learning Modules
 =====================

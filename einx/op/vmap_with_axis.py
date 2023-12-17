@@ -182,18 +182,22 @@ def vmap_with_axis(arg0, *args, **kwargs):
         The result of the operation if ``graph=False``, otherwise the graph representation of the operation.
 
     Examples:
-        Reverse order of elements along an axis
+        Reverse order of elements along an axis:
 
         >>> x = np.random.uniform(size=(16, 20))
-        >>> einx.flip("a [b] -> a b", x).shape
-        (16, 20)
-        >>> einx.flip("a [b]", x).shape
+        >>> einx.vmap_with_axis("a [b] -> a [b]", x, op=np.flip).shape
         (16, 20)
 
-        Roll elements along two axes
+        Roll elements along two axes:
 
         >>> x = np.random.uniform(size=(16, 20))
-        >>> einx.roll("a ([b c])", x, shift=(2, 2)).shape
+        >>> einx.vmap_with_axis("a ([b c]) -> a ([b c])", x, op=partial(np.roll, shift=(2, 2)), b=2).shape
+        (16, 20)
+
+        Compute sum along axis:
+
+        >>> x = np.random.uniform(size=(16, 20))
+        >>> einx.vmap_with_axis("a ([b] c) -> c a", x, op=np.sum, b=2).shape
         (16, 20)
     """
     if isinstance(arg0, str):

@@ -84,47 +84,53 @@ def arange_stage0(description, backend, dtype="int32", cse=True, **parameters):
     return tensor
 
 def arange(arg0, *args, **kwargs):
-    """Updates and/ or returns values from an array at the given coordinates. Specializes :func:`einx.vmap`.
+    """n-dimensional ``arange`` operation.
 
-    The `description` argument specifies the input and output expressions and must meet one of the following formats:
+    Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the single marked axis in ``output``. Always uses ``start=0`` and ``step=1``.
 
-    1. ``tensor, update, coordinates -> output``
-       when modifying values in the tensor.
-    2. ``tensor, coordinates -> output``
-       when only returning values from the tensor.
+    The `description` argument specifies the output expression and must meet one of the following formats:
 
-    Brackets in the tensor and update expressions mark the axes that will be arangeed. Brackets in the coordinates expression mark the single coordinate axis. All other
-    axes are considered batch axes.
+    1. ``input -> output``
+        Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the marked axis in ``output``. The values are stacked in the order
+        that the axes appear in ``input``.
+
+    2. ``output``
+        Implicitly determines the input expression by removing the marked axis from ``output``.
+
+        Example: ``a b [2]`` resolves to ``a b -> a b [2]``
 
     Args:
         description: Description string in Einstein notation (see above).
-        tensor: The tensor that values will be updates/ gathered from.
-        coordinates: The tensor that contains the coordinates of the values to be gathered.
-        update: The tensor that contains the update values, or None. Defaults to None.
-        op: The update/gather function. If `op` is a string, retrieves the attribute of `backend` with the same name.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        backend: Backend to use for all operations.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
         graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the update/ gather operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the n-dimensional arange operation if `graph=False`, otherwise the graph representation of the operation.
 
     Examples:
-        Get values from a batch of images (different indices per image):
+        Arange two-dimensional coordinates:
 
-        >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
-        >>> coordinates = np.random.uniform(size=(4, 100, 2))
-        >>> einx.get_at("b [h w] c, b p [2] -> b p c", tensor, coordinates).shape
-        (4, 100, 3)
+        >>> tensor = einx.arange("a b [2]", a=5, b=6, backend="numpy")
+        >>> tensor.shape
+        (5, 6, 2)
+        >>> tensor[2, 3]
+        array([2, 3], dtype=int32)
 
-        Set values in a batch of images (same indices per image):
+        Arange two-dimensional coordinates with inverted coordinates (`Cartesian ordering <https://numpy.org/doc/stable/reference/generated/numpy.meshgrid.html>`_:
+        First axis of tensor corresponds to second coordinate along stacked axis and vice versa.):
 
-        >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
-        >>> coordinates = np.random.uniform(size=(100, 2))
-        >>> updates = np.random.uniform(size=(100, 3))
-        >>> einx.set_at("b [h w] c, p [2], p c -> b [h w] c", tensor, coordinates, updates).shape
-        (4, 128, 128, 3)
+        >>> tensor = einx.arange("a b -> b a [2]", a=5, b=6, backend="numpy")
+        >>> tensor.shape
+        (6, 5, 2)
+        >>> tensor[2, 3]
+        array([3, 2], dtype=int32)
+
+        Arange one-dimensional coordinates:
+
+        >>> einx.arange("a", a=5, backend="numpy").shape
+        (5,)
     """
     if isinstance(arg0, str):
         return arange_stage0(arg0, *args, **kwargs)
