@@ -233,7 +233,7 @@ def solve(exprs1, exprs2):
     for root in exprs1 + exprs2:
         if not root is None:
             for expr in root.all():
-                symbolic_expr_values[id(expr)] = solver.Variable(str(id(expr)), str(expr))
+                symbolic_expr_values[id(expr)] = solver.Variable(f"symbolic_expr_values[{id(expr)}]", str(expr))
 
     # Add equations: Relations between expressions and their children
     for root in exprs1 + exprs2:
@@ -282,7 +282,7 @@ def solve(exprs1, exprs2):
             for axis in root.all():
                 if isinstance(axis, stage2.NamedAxis):
                     if not axis.name in sympy_axis_values:
-                        sympy_axis_values[axis.name] = solver.Variable(axis.name, axis.name)
+                        sympy_axis_values[axis.name] = solver.Variable(f"sympy_axis_values[{axis.name}]", axis.name)
                     equations.append((
                         symbolic_expr_values[id(axis)],
                         sympy_axis_values[axis.name],
@@ -290,10 +290,13 @@ def solve(exprs1, exprs2):
 
     # Solve
     try:
-        axis_values = solver.solve(equations)
+        solutions = solver.solve(equations)
     except solver.SolveException as e:
         raise SolveValueException(exprs1, exprs2, str(e))
-    axis_values = {int(k): int(v) for k, v in axis_values.items() if not str(k) in sympy_axis_values}
+    axis_values = {}
+    for k, v in solutions.items():
+        if k.startswith("symbolic_expr_values["):
+            axis_values[int(k[len("symbolic_expr_values["):-1])] = int(v)
 
     failed_axes = set()
     for root in exprs1 + exprs2:

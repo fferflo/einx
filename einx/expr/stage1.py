@@ -1,5 +1,5 @@
 from collections import defaultdict
-import re
+import re, uuid
 
 class Expression:
     def __init__(self, begin_pos, end_pos):
@@ -111,7 +111,7 @@ class Ellipsis(Expression):
         Expression.__init__(self, begin_pos, end_pos)
         self.inner = inner
         self.inner.parent = self
-        self.ellipsis_id = id(self) if ellipsis_id is None else ellipsis_id
+        self.ellipsis_id = uuid.uuid4().int if ellipsis_id is None else ellipsis_id
 
     def all(self):
         yield self

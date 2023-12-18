@@ -216,7 +216,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
     for root in exprs1 + exprs2:
         if not root is None:
             for expr in root.all():
-                symbolic_expr_depths[id(expr)] = solver.Variable(str(id(expr)), str(expr))
+                symbolic_expr_depths[id(expr)] = solver.Variable(f"symbolic_expr_depths[{id(expr)}]", str(expr))
 
     # Add equations: Depth relations between subexpressions
     for root in exprs1 + exprs2:
@@ -247,7 +247,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             for axis in root.all():
                 if isinstance(axis, stage1.NamedAxis):
                     if not axis.name in symbolic_axis_depths:
-                        symbolic_axis_depths[axis.name] = solver.Variable(axis.name, axis.name)
+                        symbolic_axis_depths[axis.name] = solver.Variable(f"symbolic_axis_depths[{axis.name}]", axis.name)
                     equations.append((symbolic_expr_depths[id(axis)], symbolic_axis_depths[axis.name]))
 
     # Add equations: Ellipses with the same id must have the same depth
@@ -257,15 +257,18 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             for ellipsis in root.all():
                 if isinstance(ellipsis, stage1.Ellipsis):
                     if not ellipsis.ellipsis_id in symbolic_ellipsis_depths:
-                        symbolic_ellipsis_depths[ellipsis.ellipsis_id] = solver.Variable(ellipsis.ellipsis_id, str(ellipsis))
+                        symbolic_ellipsis_depths[ellipsis.ellipsis_id] = solver.Variable(f"symbolic_ellipsis_depths[{ellipsis.ellipsis_id}]", str(ellipsis))
                     equations.append((symbolic_expr_depths[id(ellipsis)], symbolic_ellipsis_depths[ellipsis.ellipsis_id]))
 
     # Solve
     try:
-        expr_depths = solver.solve(equations)
+        solutions = solver.solve(equations)
     except solver.SolveException as e:
         raise SolveDepthException(exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e))
-    expr_depths = {int(k): int(v) for k, v in expr_depths.items() if not str(k) in symbolic_axis_depths}
+    expr_depths = {}
+    for k, v in solutions.items():
+        if k.startswith("symbolic_expr_depths["):
+            expr_depths[int(k[len("symbolic_expr_depths["):-1])] = int(v)
 
     # Raise exception on missing depths
     failed_exprs = set()
@@ -314,7 +317,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             for expr in root.all():
                 for depth in range(expr_depths[id(expr)] + 1):
                     key = (id(expr), depth)
-                    symbolic_expr_expansions[key] = solver.Variable(f"{id(expr)},{depth}", f"{expr} at depth {depth}")
+                    symbolic_expr_expansions[key] = solver.Variable(f"symbolic_expr_expansions[{id(expr)},{depth}]", f"{expr} at depth {depth}")
 
     # Add equations: Expansion of an expression at depth d (less than own depth) is equal to the expansion of each child at depth d
     for root in exprs1 + exprs2:
@@ -379,7 +382,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                 if isinstance(axis, stage1.NamedAxis):
                     for depth in range(expr_depths[id(axis)] + 1):
                         if not axis.name in symbolic_axis_expansions:
-                            symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"{axis.name},{depth}", f"{axis.name} at depth {depth}")
+                            symbolic_axis_expansions[(axis.name, depth)] = solver.Variable(f"symbolic_axis_expansions[{axis.name},{depth}]", f"{axis.name} at depth {depth}")
                         equations.append((symbolic_expr_expansions[(id(axis), depth)], symbolic_axis_expansions[(axis.name, depth)]))
 
     # Add equations: Ellipses with the same id must have the same expansions
@@ -390,7 +393,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                 if isinstance(ellipsis, stage1.Ellipsis):
                     for depth in range(expr_depths[id(ellipsis)] + 1):
                         if not ellipsis.ellipsis_id in symbolic_ellipsis_expansions:
-                            symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)] = solver.Variable(f"{ellipsis.ellipsis_id},{depth}", f"{ellipsis} at depth {depth}")
+                            symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)] = solver.Variable(f"symbolic_ellipsis_expansions[{ellipsis.ellipsis_id},{depth}]", f"{ellipsis} at depth {depth}")
                         equations.append((symbolic_expr_expansions[(id(ellipsis), depth)], symbolic_ellipsis_expansions[(ellipsis.ellipsis_id, depth)]))
 
     # Add equations: Same root expansions
@@ -409,13 +412,15 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
         return int(id_expr), int(depth)
     expansion_values = {}
     for k, v in solutions.items():
-        id_expr, depth = str(k).split(",")
-        try:
-            id_expr = int(id_expr)
-        except ValueError:
-            continue
-        depth = int(depth)
-        expansion_values[(id_expr, depth)] = int(v)
+        if k.startswith("symbolic_expr_expansions["):
+            k = k[len("symbolic_expr_expansions["):-1]
+            id_expr, depth = str(k).split(",")
+            try:
+                id_expr = int(id_expr)
+            except ValueError:
+                continue
+            depth = int(depth)
+            expansion_values[(id_expr, depth)] = int(v)
 
     failed_exprs = set()
     for root in exprs1 + exprs2:

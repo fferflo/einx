@@ -137,6 +137,7 @@ class SolveException(Exception):
 
 def solve(equations):
     equations = [(to_term(t1), to_term(t2)) for t1, t2 in equations]
+    equations = [(t1, t2) for t1, t2 in equations if t1 != t2]
     equations = list(set(equations))
     variables = {v.id: v for terms in equations for term in terms for v in term if isinstance(v, Variable)}
 
@@ -154,7 +155,7 @@ def solve(equations):
             constants[t2.id] = t1.value
         elif isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
-                raise SolveException(f"Found contradictory values {t1.value} != {t2.value}")
+                raise SolveException(f"Found contradictory values {t1.value} != {t2.value} in input equation")
 
     # Find equivalence classes of variables
     classes = {v: set([v]) for v in variables} # id: set of equivalent ids
@@ -205,7 +206,7 @@ def solve(equations):
         t2 = replace(t2o)
         if isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
-                raise SolveException(f"Found contradictory values {t1.value} != {t2.value}")
+                raise SolveException(f"Found contradictory values {t1.value} != {t2.value} for same equivalence class")
         elif t1 != t2:
             equations2.append((t1, t2))
     equations = equations2
