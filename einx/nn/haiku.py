@@ -1,38 +1,50 @@
 import haiku as hk
 import einx
 from functools import partial
+from haiku._src.base import current_module
 
-def param(func=hk.get_parameter, shape=None, name=None, init=None, dtype=None, **kwargs):
-    if shape is None:
-        kwargs = dict(kwargs)
-        if not name is None:
-            kwargs["name"] = name
-        if not init is None:
-            kwargs["init"] = init
-        if not dtype is None:
-            kwargs["dtype"] = dtype
-        return partial(param, func, **kwargs)
+def param(func=hk.get_parameter, name=None, init=None, dtype=None):
+    """Create a tensor factory for Haiku parameters.
 
-    if name is None:
-        raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
+    Args:
+        func: Either ``hk.get_parameter`` or ``hk.get_state``. Defaults to ``hk.get_parameter``.
+        name: Name of the parameter. If ``None``, uses a default name determined from the calling operation. Defaults to ``None``.
+        init: Initializer for the parameter. If ``None``, uses a default init method determined from the calling operation. Defaults to ``None``.
+        dtype: Data type of the parameter. If ``None``, uses the ``dtype`` member of the calling module or ``float32`` if it does not exist. Defaults to ``None``.
 
-    if init is None:
-        raise ValueError("Must specify init for tensor factory hk.get_{parameter|state}")
-    elif isinstance(init, str):
-        if init in "get_at" or init == "rearrange":
-            init = hk.initializers.RandomNormal(stddev=0.02)
-        elif init == "add":
-            init = hk.initializers.Constant(0.0)
-        elif init == "multiply":
-            init = hk.initializers.Constant(1.0)
-        elif init == "dot":
-            init = hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal", fan_in_axes=kwargs["in_axis"])
-        else:
-            raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-    elif isinstance(init, (int, float)):
-        init = hk.initializers.Constant(init)
+    Returns:
+        A tensor factory with the given default parameters.
+    """
 
-    return func(shape=shape, name=name, dtype=dtype, init=init)
+    def haiku_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
+        if name is None:
+            raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
+
+        if init is None:
+            raise ValueError("Must specify init for tensor factory hk.get_{parameter|state}")
+        elif isinstance(init, str):
+            if init in "get_at" or init == "rearrange":
+                init = hk.initializers.RandomNormal(stddev=0.02)
+            elif init == "add":
+                init = hk.initializers.Constant(0.0)
+            elif init == "multiply":
+                init = hk.initializers.Constant(1.0)
+            elif init == "dot":
+                init = hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal", fan_in_axes=kwargs["in_axis"])
+            else:
+                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+        elif isinstance(init, (int, float)):
+            init = hk.initializers.Constant(init)
+
+        if dtype is None:
+            module = current_module()
+            if hasattr(module, "dtype"):
+                dtype = module.dtype
+            else:
+                dtype = "float32"
+
+        return func(shape=shape, name=name, dtype=dtype, init=init)
+    return haiku_param_factory
 
 def to_tensor_factory(x):
     if id(x) == id(hk.get_parameter) or id(x) == id(hk.get_state):
@@ -81,10 +93,10 @@ class Norm(hk.Module):
             x,
             self.stats,
             self.params,
-            mean=param(hk.get_state, name="mean", dtype=self.dtype) if use_ema else self.mean,
-            var=param(hk.get_state, name="var", dtype=self.dtype) if use_ema else self.var,
-            scale=param(hk.get_parameter, name="scale", dtype=self.dtype) if self.scale else None,
-            bias=param(hk.get_parameter, name="bias", dtype=self.dtype) if self.bias else None,
+            mean=param(hk.get_state, name="mean") if use_ema else self.mean,
+            var=param(hk.get_state, name="var") if use_ema else self.var,
+            scale=param(hk.get_parameter, name="scale") if self.scale else None,
+            bias=param(hk.get_parameter, name="bias") if self.bias else None,
             epsilon=self.epsilon,
             fastvar=self.fastvar,
             **self.kwargs,
@@ -121,8 +133,8 @@ class Linear(hk.Module):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=param(hk.get_parameter, name="bias", dtype=self.dtype) if self.bias else None,
-            weight=param(hk.get_parameter, name="weight", dtype=self.dtype),
+            bias=param(hk.get_parameter, name="bias") if self.bias else None,
+            weight=param(hk.get_parameter, name="weight"),
             **self.kwargs,
         )
 

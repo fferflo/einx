@@ -3,52 +3,62 @@ import einx, flax
 from functools import partial
 import jax.numpy as jnp
 
-def param(bound_method, shape=None, name=None, init=None, dtype=None, col=None, **kwargs):
+def param(bound_method, name=None, init=None, dtype=None, col=None):
+    """Create a tensor factory for Flax parameters.
+
+    Args:
+        bound_method: The bound method of a Flax module, i.e. ``nn.Module.param`` or ``nn.Module.variable``, or a module instance in which case its ``param`` method
+                      is used.
+        name: Name of the parameter. If ``None``, uses a default name determined from the calling operation. Defaults to ``None``.
+        init: Initializer for the parameter. If ``None``, uses a default init method determined from the calling operation. Defaults to ``None``.
+        dtype: Data type of the parameter. If ``None``, uses the ``dtype`` member of the calling module or ``float32`` if it does not exist. Defaults to ``None``.
+        col: The collection name to use when ``bound_method`` is ``nn.Module.variable``.
+
+    Returns:
+        A tensor factory with the given default parameters.
+    """
     if isinstance(bound_method, nn.Module):
         bound_method = bound_method.param
 
-    if shape is None:
-        kwargs = dict(kwargs)
-        if not name is None:
-            kwargs["name"] = name
-        if not init is None:
-            kwargs["init"] = init
-        if not dtype is None:
-            kwargs["dtype"] = dtype
-        if not col is None:
-            kwargs["col"] = col
-        return partial(param, bound_method, **kwargs)
+    def flax_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
+        if name is None:
+            raise ValueError("Must specify name for tensor factory flax.linen.Module.{param|variable}")
 
-    if name is None:
-        raise ValueError("Must specify name for tensor factory flax.linen.Module.{param|variable}")
+        if init is None:
+            raise ValueError("Must specify init for tensor factory flax.linen.Module.{param|variable}")
+        elif isinstance(init, str):
+            if init == "get_at" or init == "rearrange":
+                init = nn.initializers.normal(stddev=0.02)
+            elif init == "add":
+                init = nn.initializers.zeros_init()
+            elif init == "multiply":
+                init = nn.initializers.ones_init()
+            elif init == "dot":
+                init = nn.initializers.lecun_normal(kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"])
+            else:
+                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+        elif isinstance(init, (int, float)):
+            init = nn.initializers.constant(init, dtype=dtype)
 
-    if init is None:
-        raise ValueError("Must specify init for tensor factory flax.linen.Module.{param|variable}")
-    elif isinstance(init, str):
-        if init == "get_at" or init == "rearrange":
-            init = nn.initializers.normal(stddev=0.02)
-        elif init == "add":
-            init = nn.initializers.zeros_init()
-        elif init == "multiply":
-            init = nn.initializers.ones_init()
-        elif init == "dot":
-            init = nn.initializers.lecun_normal(kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"])
+        if dtype is None:
+            module = bound_method.__self__
+            if hasattr(module, "dtype"):
+                dtype = module.dtype
+            else:
+                dtype = "float32"
+
+        if bound_method.__func__ == nn.Module.param:
+            if not col is None:
+                raise ValueError("col is not accepted for flax.linen.Module.param")
+            return bound_method(name, init, shape, dtype)
+        elif bound_method.__func__ == nn.Module.variable:
+            if col is None:
+                raise ValueError("col must be specified for flax.linen.Module.variable")
+            # Assume that variable initialization does not need an rng key by passing None:
+            return bound_method(col, name, init, None, shape, dtype).value
         else:
-            raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-    elif isinstance(init, (int, float)):
-        init = nn.initializers.constant(init, dtype=dtype)
-
-    if bound_method.__func__ == nn.Module.param:
-        if not col is None:
-            raise ValueError("col is not accepted for flax.linen.Module.param")
-        return bound_method(name, init, shape, dtype)
-    elif bound_method.__func__ == nn.Module.variable:
-        if col is None:
-            raise ValueError("col must be specified for flax.linen.Module.variable")
-        # Assume that variable initialization does not need an rng key by passing None:
-        return bound_method(col, name, init, None, shape, dtype).value
-    else:
-        raise ValueError(f"Unknown tensor factory flax.linen.Module.{bound_method.__func__.__name__}")
+            raise ValueError(f"Unknown tensor factory flax.linen.Module.{bound_method.__func__.__name__}")
+    return flax_param_factory
 
 def to_tensor_factory(x):
     if isinstance(x, nn.Module) or (hasattr(x, "__func__") and x.__func__ == nn.Module.param):

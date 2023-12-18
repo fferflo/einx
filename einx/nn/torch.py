@@ -2,36 +2,44 @@ import torch, einx, math
 from functools import partial
 import numpy as np
 
-def param(uninitialized_tensor, shape=None, init=None, **kwargs):
-    if shape is None:
-        kwargs = dict(kwargs)
-        if not init is None:
-            kwargs["init"] = init
-        return partial(param, uninitialized_tensor, **kwargs)
+def param(uninitialized, init=None):
+    """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
-    if init is None:
-        raise ValueError("Must specify init for tensor factory torch.nn.parameter.Uninitialized*")
-    elif isinstance(init, str):
-        if init == "get_at" or init == "rearrange":
-            init = partial(torch.nn.init.normal_, std=0.02)
-        elif init == "add":
-            init = torch.nn.init.zeros_
-        elif init == "multiply":
-            init = torch.nn.init.ones_
-        elif init == "dot":
-            fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
-            std = np.sqrt(1.0 / fan_in) / .87962566103423978
-            init = partial(torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-2.0, b=2.0)
-        else:
-            raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-    elif isinstance(init, (int, float)):
-        init = partial(torch.nn.init.constant_, val=init)
+    When the tensor factory is invoked, it calls the ``materialize`` method of ``uninitialized`` with the given shape and returns ``uninitialized``.
 
-    with torch.no_grad():
-        uninitialized_tensor.materialize(shape)
-        init(uninitialized_tensor)
+    Args:
+        uninitialized: An instance of either ``torch.nn.parameter.UninitializedParameter`` or ``torch.nn.parameter.UninitializedBuffer``.
+        init: Initializer for the parameter. If ``None``, uses a default init method determined from the calling operation. Defaults to ``None``.
 
-    return uninitialized_tensor
+    Returns:
+        A tensor factory with the given default parameters.
+    """
+
+    def torch_param_factory(shape, init=init, **kwargs):
+        if init is None:
+            raise ValueError("Must specify init for tensor factory torch.nn.parameter.Uninitialized*")
+        elif isinstance(init, str):
+            if init == "get_at" or init == "rearrange":
+                init = partial(torch.nn.init.normal_, std=0.02)
+            elif init == "add":
+                init = torch.nn.init.zeros_
+            elif init == "multiply":
+                init = torch.nn.init.ones_
+            elif init == "dot":
+                fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
+                std = np.sqrt(1.0 / fan_in) / .87962566103423978
+                init = partial(torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-2.0, b=2.0)
+            else:
+                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+        elif isinstance(init, (int, float)):
+            init = partial(torch.nn.init.constant_, val=init)
+
+        with torch.no_grad():
+            uninitialized.materialize(shape)
+            init(uninitialized)
+
+        return uninitialized
+    return torch_param_factory
 
 def to_tensor_factory(x):
     if isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
