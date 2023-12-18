@@ -86,6 +86,8 @@ Haiku
 .. autoclass:: einx.nn.haiku.Norm
 .. autoclass:: einx.nn.haiku.Dropout
 
+.. autofunction:: einx.nn.haiku.param
+
 Flax
 ----
 
@@ -93,9 +95,13 @@ Flax
 .. autofunction:: einx.nn.flax.Norm
 .. autofunction:: einx.nn.flax.Dropout
 
+.. autofunction:: einx.nn.flax.param
+
 Torch
 -----
 
 .. autoclass:: einx.nn.torch.Linear
 .. autoclass:: einx.nn.torch.Norm
 .. autoclass:: einx.nn.torch.Dropout
+
+.. autofunction:: einx.nn.torch.param

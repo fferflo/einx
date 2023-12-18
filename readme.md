@@ -4,13 +4,10 @@
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
-*Main features:*
-
 - Fully composable Einstein expressions with `[]`-notation. Compatible with einops-notation.
-- Powerful abstractions: [`einx.rearrange`](https://einx.readthedocs.io/en/latest/api.html#einx.rearrange), [`einx.vmap`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap), [`einx.vmap_with_axis`](https://einx.readthedocs.io/en/latest/api.html#einx.vmap_with_axis)
 - Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}`.
-- Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html)). Marginal overhead in eager mode due to tracing and caching operations (see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
+- Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
+- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
 
 *Optional:*
 
@@ -18,15 +15,19 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 **Getting started:**
 
-* [Overview](https://einx.readthedocs.io/en/latest/gettingstarted/overview.html)
-* [Tutorial: Einstein notation](https://einx.readthedocs.io/en/latest/gettingstarted/einsteinnotation.html)
-* [Tutorial: Tensor manipulation](https://einx.readthedocs.io/en/latest/gettingstarted/tensormanipulation.html)
-* [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)
+* [Overview](https://einx.readthedocs.io/en/latest/gettingstarted/introduction.html)
+* Tutorials: [1. Einstein notation](https://einx.readthedocs.io/en/latest/gettingstarted/einsteinnotation.html), [2. Tensor manipulation](https://einx.readthedocs.io/en/latest/gettingstarted/tensormanipulation.html), [3. Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)
+* [Example: GPT-2 with einx](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html)
 * [How does einx compare with einops?](https://einx.readthedocs.io/en/latest/faq/einops.html)
-* [Cheatsheet](https://einx.readthedocs.io/en/latest/gettingstarted/cheatsheet.html)
 * [API reference](https://einx.readthedocs.io/en/latest/api.html)
 
 :warning: **This library is currently experimental and may undergo breaking changes.** :warning:
+
+## Installation
+
+```python
+pip install einx
+```
 
 ## What does einx look like?
 
@@ -34,7 +35,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 ```python
 import einx
-x = {np.asarray|torch.as_tensor|jnp.asarray|tf.convert_to_tensor}(...)
+x = {np.asarray|torch.as_tensor|jnp.asarray|tf.convert_to_tensor}(...) # Create some tensor
 
 einx.sum("a [b]", x)                              # Sum-reduction along columns
 einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
@@ -111,9 +112,3 @@ Graph reduce_stage0("b... (g [c])", I0, op="sum", g=2):
 ```
 
 See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html#inspecting-operations) for more details.
-
-## Installation
-
-```python
-pip install git+https://github.com/fferflo/einx.git
-```

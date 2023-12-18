@@ -50,9 +50,9 @@ An example of a call to ``einx.dot`` that forwards computation to ``backend.eins
 >>> graph = einx.dot("b... (g [c1|c2])", x, np.ones, g=2, c2=8, graph=True)
 >>> print(graph)
 Graph dot_stage0("b... (g [c1|c2])", I0, I1, g=2, c2=8):
-    X5 := instantiate(I0, shape=(10, 10), in_axis=(), out_axis=(0), batch_axis=(1))
+    X5 := instantiate(I0, shape=(10, 10), in_axis=(), out_axis=(0), batch_axis=(1), name="weight", init="dot")
     X4 := reshape(X5, (10, 2, 5))
-    X6 := instantiate(I1, shape=(5, 8), in_axis=(0), out_axis=(1), batch_axis=())
+    X6 := instantiate(I1, shape=(5, 8), in_axis=(0), out_axis=(1), batch_axis=(), name="weight", init="dot")
     X3 := einsum("a b c, c d -> a b d", X4, X6)
     X2 := reshape(X3, (10, 16))
     return X2

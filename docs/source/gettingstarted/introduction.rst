@@ -1,5 +1,5 @@
 .. toctree::
-   :caption: Overview
+   :caption: Introduction
    :maxdepth: 3
 
 Introduction
