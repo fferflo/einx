@@ -48,21 +48,39 @@ einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
 einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
 einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
 
+einx.dot("... [c1|c2]", x, y)                     # Matmul = linear map from c1 to c2 channels
+
+# Vectorizing map
+einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling
+einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
+```
+
+All einx functions simply forward computation to the respective backend, e.g. by internally calling `np.reshape`, `np.transpose`, `np.sum` with the appropriate arguments.
+
+#### Common neural network operations
+
+```python
 # Matmul in linear layers
 einx.dot("b...      [c1|c2]",  x, w)              # - Regular
 einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
 einx.dot("b... ([g c1|g c2])", x, w)              # - Grouped: Different weights per group
 einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 
-# Vectorizing map
-einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling
-einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
-
 # Layer normalization
 mean = einx.mean("b... [c]", x, keepdims=True)
 var = einx.var("b... [c]", x, keepdims=True)
 x = (x - mean) * torch.rsqrt(var + epsilon)
+
+# Prepend class token
+einx.rearrange("b s... c, c -> b (1 + (s...)) c", x, cls_token)
+
+# Multi-head attention
+attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=8)
+attn = einx.softmax("b q [k] h", attn)
+x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
 ```
+
+See [Common neural network ops](https://einx.readthedocs.io/en/latest/gettingstarted/commonnnops.html) for more examples.
 
 #### Deep learning modules
 
@@ -85,7 +103,7 @@ spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 ```
 
-See `examples/train_{torch|flax|haiku}.py` for example trainings on CIFAR10 and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
+See `examples/train_{torch|flax|haiku}.py` for example trainings on CIFAR10, [Example: GPT-2](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html) for an implementation of GPT-2 using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
 #### Einstein expression trees
 

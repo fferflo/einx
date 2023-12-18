@@ -30,7 +30,6 @@ layer normalization at the beginning of the residual block:
     class Block(hk.Module):
         heads: int = 25
         mlp_ratio: int = 4
-        dtype: str = "float32"
 
         def __call__(self, x):
             # ########### Attention block ###########
@@ -92,7 +91,7 @@ Graph dot_stage0("b q (h c), b k (h c) -> b q k h", I0, I1, h=25):
 
 .. note::
 
-    The ``instantiate`` function passes arguments like ``shape``, ``in_axis``, ``out_axis`` or ``init`` to tensor factories that can be used to construct the
+    The ``instantiate`` function passes arguments like ``shape``, ``in_axis``, ``out_axis`` or ``init`` to :ref:`tensor factories <lazytensorconstruction>` that can be used to construct the
     corresponding tensor. Since no tensor factories are used here, ``instantiate`` is a no-op and the arguments are ignored.
 
 The final GPT-2 model first embeds the input tokens and adds positional embeddings. It then applies a number of main blocks and maps the output onto next token
@@ -105,7 +104,6 @@ logits using a linear layer:
         depth: int = 48
         vocab_size: int = 50257
         block_size: int = 1024
-        dtype: str = "float32"
 
         def __call__(self, x):
             # Word embedding: Retrieve embedding for each token from the word_embed table
@@ -125,7 +123,7 @@ logits using a linear layer:
             return x
 
 We use tensor factories with ``einn.param`` to construct the word and positional embeddings (see 
-:doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>`).
+:doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
 
 With this, we're done with the model definition. Next, we'll define some input data that the model will be applied to:
 
