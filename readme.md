@@ -1,6 +1,6 @@
 # *einx* - Tensor Operations in Einstein-Inspired Notation
 
-[![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml) [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://einx.readthedocs.io)
+[![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml) [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://einx.readthedocs.io) [![PyPI version](https://badge.fury.io/py/einx.svg)](https://badge.fury.io/py/einx)
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
