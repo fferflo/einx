@@ -1,11 +1,11 @@
 # *einx* - Tensor Operations in Einstein-Inspired Notation
 
-![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)
+[![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml) [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://einx.readthedocs.io)
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 
 - Fully composable Einstein expressions with `[]`-notation. Compatible with einops-notation.
-- Ease of use with numpy-like specializations `einx.{sum|any|max|where|add|flip|get_at|...}`.
+- Support for many operations (`einx.{sum|any|max|where|add|flip|get_at|...}`) with numpy-like naming.
 - Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
 - No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
 
@@ -60,12 +60,6 @@ All einx functions simply forward computation to the respective backend, e.g. by
 #### Common neural network operations
 
 ```python
-# Matmul in linear layers
-einx.dot("b...      [c1|c2]",  x, w)              # - Regular
-einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
-einx.dot("b... ([g c1|g c2])", x, w)              # - Grouped: Different weights per group
-einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
-
 # Layer normalization
 mean = einx.mean("b... [c]", x, keepdims=True)
 var = einx.var("b... [c]", x, keepdims=True)
@@ -78,6 +72,12 @@ einx.rearrange("b s... c, c -> b (1 + (s...)) c", x, cls_token)
 attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=8)
 attn = einx.softmax("b q [k] h", attn)
 x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
+
+# Matmul in linear layers
+einx.dot("b...      [c1|c2]",  x, w)              # - Regular
+einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
+einx.dot("b... ([g c1|g c2])", x, w)              # - Grouped: Different weights per group
+einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 ```
 
 See [Common neural network ops](https://einx.readthedocs.io/en/latest/gettingstarted/commonnnops.html) for more examples.

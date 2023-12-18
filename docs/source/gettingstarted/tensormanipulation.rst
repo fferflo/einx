@@ -4,7 +4,13 @@ Tutorial: Tensor manipulation
 Overview
 --------
 
-einx provides several powerful abstractions that allow implementing a wide variety of tensor operations:
+einx supports a wide variety of operations using Einstein notation. All einx functions simply forward computation to the respective backend, e.g. by
+internally calling `np.reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_,
+`np.transpose <https://numpy.org/doc/stable/reference/generated/numpy.transpose.html>`_ or 
+`np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_ with the appropriate arguments.
+
+To do this, einx provides several powerful abstractions that allow representing backend functions such as
+`np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_ as functions that support Einstein notation:
 
 1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
    broadcasted axes, concatenating and splitting as required.
