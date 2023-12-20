@@ -4,33 +4,24 @@ Tutorial: Tensor manipulation
 Overview
 --------
 
-einx supports a wide variety of operations using Einstein notation. All einx functions simply forward computation to the respective backend, e.g. by
-internally calling `np.reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_,
+einx supports a wide variety of tensor operations. In each function, Einstein expressions are used to specify how the operation should be performed.
+einx internally parses the expressions to determine the required steps and forwards computation to the respective backend, e.g. by
+calling `np.reshape <https://numpy.org/doc/stable/reference/generated/numpy.reshape.html>`_,
 `np.transpose <https://numpy.org/doc/stable/reference/generated/numpy.transpose.html>`_ or 
 `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_ with the appropriate arguments.
 
-To do this, einx provides several powerful abstractions that allow representing backend functions such as
-`np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_ as functions that support Einstein notation:
-
-1. :func:`einx.rearrange` transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
-   broadcasted axes, concatenating and splitting as required.
-
-2. :func:`einx.vmap_with_axis` applies functions that accept the ``axis`` argument and follow
-   `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_ (e.g. `np.multiply <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
-   `np.flip <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_, `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_) in Einstein notation.
-
-3. :func:`einx.vmap` applies arbitrary functions in Einstein notation using vectorization.
-
-4. :func:`einx.dot` applies general dot-products similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
-
-All functions provide full support for Einstein expression rearranging similar to :func:`einx.rearrange`.
-
-For ease-of-use, many specializations are included as top-level functions in the ``einx.*`` namespace following a Numpy-like naming convention:
+The most basic operation in einx is :func:`einx.rearrange` which transforms tensors between Einstein expressions by reshaping, permuting axes, inserting new
+broadcasted axes, concatenating and splitting as required. All other functions support the same rearranging of expressions, but additionally perform some
+operation on the tensors' values. For ease-of-use, most of these follow a Numpy-like naming convention:
 
 * ``einx.{sum|prod|mean|any|all|max|min|count_nonzero|...}`` (see :func:`einx.reduce`).
 * ``einx.{add|multiply|logical_and|where|equal|...}`` (see :func:`einx.elementwise`).
-* ``einx.{flip|roll|...}`` (see :func:`einx.vmap_with_axis`).
+* ``einx.{flip|roll|softmax|...}`` (see :func:`einx.vmap_with_axis`).
 * ``einx.{get_at|set_at|add_at|...}`` (see :func:`einx.index`).
+
+Most functions in einx are specializations of the two main abstractions :func:`einx.vmap` and :func:`einx.vmap_with_axis` which allow applying arbitrary operations
+using Einstein notation. Each class of functions additionally introduces shorthand notations that allow for a concise and expressive formulation of the respective
+operations.
 
 This tutorial gives an overview of most functions and their usage. For a complete list of available functions, see the :doc:`API reference </api>`.
 
@@ -384,15 +375,22 @@ Graph dot_stage0("a [b|c]", I0, I1):
 
 .. _lazytensorconstruction:
 
-Lazy tensor construction
-------------------------
+Tensor factories
+----------------
 
-Instead of passing tensors, all operations also accept tensor factories (e.g. a function ``lambda shape: tensor``) that are
-called to create the corresponding tensor when the shape is resolved.
+All einx operations also accept tensor factories instead of tensors as arguments. A tensor factory is a function that accepts a ``shape``
+argument and returns a tensor with that shape. This allows deferring the construction of a tensor to the point inside
+an einx operation where its shape has been resolved, and avoids having to manually determine the shape in advance:
 
 ..  code::
 
-    einx.dot("b... [c1|c2]", x, np.ones, c2=32) # Second input is constructed using np.ones
+    einx.dot("b... c1, c1 c2 -> b... c2", x, lambda shape: np.random.uniform(shape), c2=32)
 
-This is especially useful in the context of deep learning modules, where the shapes of a layer's weights are chosen to match with the desired
-input and output shapes (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
+In this example, the shape of ``x`` is used by the expression solver to determine the values of ``b...`` and ``c1``. Since the tensor factory provides no shape
+constraints to the solver, the remaining axis values have to be specified explicitly, i.e. ``c2=32``.
+
+Tensor factories are particularly useful in the context of deep learning modules: The shapes of a layer's weights are typically chosen to align with the shapes
+of the layer input and outputs (e.g. the number of input channels in a linear layer must match the corresponding axis in the layer's weight matrix).
+This can be achieved implicitly by constructing layer weights using tensor factories.
+
+The following tutorial describes in more detail how this is used in einx to implement deep learning models.

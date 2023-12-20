@@ -77,7 +77,7 @@ Reference: `Layer normalization explained <https://paperswithcode.com/method/lay
 Multihead attention
 -------------------
 
-Compute multihead attention for the the queries ``q``, keys ``k`` and values ``v`` with ``h = 8`` heads:
+Compute multihead attention for the queries ``q``, keys ``k`` and values ``v`` with ``h = 8`` heads:
 
 ..  code-block:: python
 
@@ -131,3 +131,6 @@ Or with the ``einn.Linear`` layer that includes a bias term:
     x = einn.Linear("b [s2|s...] c", s=(256, 256))(x)
 
 Reference: `MLP-Mixer <https://paperswithcode.com/method/mlp-mixer>`_
+
+The following page provides an example implementation of GPT-2 with ``einx`` and ``einn`` using many of these operations and validates
+their correctness by loading pretrained weights and generating some example text.

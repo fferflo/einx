@@ -2,10 +2,10 @@
 
 [![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml) [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://einx.readthedocs.io) [![PyPI version](https://badge.fury.io/py/einx.svg)](https://badge.fury.io/py/einx)
 
-einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation. It is inspired by [einops](https://github.com/arogozhnikov/einops) and [einsum](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
+einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation. It is inspired by [einops](https://github.com/arogozhnikov/einops), but follows a novel and unique design:
 
-- Fully composable Einstein expressions with `[]`-notation. Compatible with einops-notation.
-- Support for many operations (`einx.{sum|any|max|where|add|flip|get_at|...}`) with numpy-like naming.
+- Fully composable and powerful Einstein expressions with `[]`-notation.
+- Support for many tensor operations (`einx.{sum|max|where|add|dot|flip|get_at|...}`) with Numpy-like naming.
 - Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
 - No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
 
@@ -15,8 +15,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 **Getting started:**
 
-* [Overview](https://einx.readthedocs.io/en/latest/gettingstarted/introduction.html)
-* Tutorials: [1. Einstein notation](https://einx.readthedocs.io/en/latest/gettingstarted/einsteinnotation.html), [2. Tensor manipulation](https://einx.readthedocs.io/en/latest/gettingstarted/tensormanipulation.html), [3. Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html)
+* [Tutorial](https://einx.readthedocs.io/en/latest/gettingstarted/einsteinnotation.html)
 * [Example: GPT-2 with einx](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html)
 * [How does einx compare with einops?](https://einx.readthedocs.io/en/latest/faq/einops.html)
 * [API reference](https://einx.readthedocs.io/en/latest/api.html)

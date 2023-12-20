@@ -4,7 +4,8 @@ How does einx compare with einops?
 einx uses Einstein notation that is inspired by and compatible with the notation used in `einops <https://github.com/arogozhnikov/einops>`_,
 but follows a novel design:
 
-* Full composability of Einstein expressions: Axis lists, compositions, ellipses and concatenations can be nested arbitrarily (e.g. ``(a b)...``).
+* Full composability of Einstein expressions: Axis lists, compositions, ellipses and concatenations can be nested arbitrarily (e.g. ``(a b)...`` or
+  ``b (1 + (s...)) c``).
 * Introduction of ``[]``-notation that allows expressing vectorization in an intuitive and concise way, similar to the ``axis`` argument in Numpy functions (see :ref:`Bracket notation <bracketnotation>`).
 * Introduction of concatenations as first-class expressions in Einstein notation.
 
@@ -12,9 +13,9 @@ When combined, these features allow for a concise and expressive formulation of 
 
 The einx library provides the following additional features:
 
+* Full support for rearranging expressions in all operations (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 * ``einx.vmap`` and ``einx.vmap_with_axis`` allow applying arbitrary operations using Einstein notation.
 * Specializations provide ease-of-use for main abstractions using Numpy naming convention, e.g. ``einx.sum`` and ``einx.multiply``.
-* Full support for rearranging expressions in all operations (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 * Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
 * Support for inspecting the backend calls made by einx in index-based notation (see :ref:`Inspecting operations <inspectingoperations>`).
 

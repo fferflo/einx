@@ -309,7 +309,8 @@ The bracket notation also allows using a shorthand with ``[..|..]``-notation whe
     # same as
     einx.vmap("b [c1] -> b [c2]", x, op=op, c2=7)
 
-The left and right options inside the bracket are selected for the input and output expressions, while all other parts are kept as-is.
+The left and right options inside the bracket are selected for the input and output expressions, while all other parts are kept as-is. See the
+documentation of the respective functions for more details on how bracket notation is used.
 
-See the following :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>` and the documentation of the respective functions
-for more details on how bracket notation is used.
+einx provides a wide range of tensor operations that accept arguments in Einstein notation as described in this document.
+The following tutorial gives an overview of these functions and their usage.

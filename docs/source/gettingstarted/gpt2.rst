@@ -40,7 +40,7 @@ layer normalization at the beginning of the residual block:
             x = Linear(channels=3 * x.shape[-1])(x)
             q, k, v = jnp.split(x, 3, axis=-1)
 
-            # Compute attention matrix
+            # Compute attention matrix over h heads
             q = q * ((q.shape[-1] // self.heads) ** -0.5)
             attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=self.heads)
 
@@ -69,7 +69,8 @@ layer normalization at the beginning of the residual block:
 
             return x
 
-Splitting each token into heads and computing the matrix multiplications per head can be done jointly in einx using :ref:`axis compositions <axiscomposition>`:
+The multi-head attention requires no additional statements to split the channel axis into multiple heads or merge the heads back into a single axis.
+We instead just specify the channels axis as an :ref:`axis composition <axiscomposition>` of ``h`` heads and ``c`` channels per head:
 
 ..  code-block:: python
 
@@ -125,7 +126,7 @@ logits using a linear layer:
 We use tensor factories with ``einn.param`` to construct the word and positional embeddings (see 
 :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
 
-With this, we're done with the model definition. Next, we'll define some input data that the model will be applied to:
+With this, we're done with the model definition. Next, we'll define some input data that the model will be applied to and encode it to token representation:
 
 ..  code-block:: python
 
@@ -176,7 +177,7 @@ Finally, we can run several forward passes to predict next tokens:
     for _ in range(10): # Predict 10 next tokens
         logits = apply(params, rng, tokens[np.newaxis])[0]
         logits = logits[n - 1] # Get logits for next token
-        tokens[n] = jax.random.categorical(rng, logits / temperature)
+        tokens[n] = jax.random.categorical(rng, logits / temperature) # Sample next token
         n += 1
     print(f"Prediction: {encoder.decode(tokens[:n])}")
 

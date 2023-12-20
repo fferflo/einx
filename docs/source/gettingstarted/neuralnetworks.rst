@@ -63,16 +63,17 @@ the ``lambda shape: ...`` syntax that is used in the example above:
 
     w2 = einn.param(name="weight", dtype="float32", init=...)
 
-The utility of ``einn.param`` comes from providing several useful default arguments that simplify the definition of parameters.
+The utility of ``einn.param`` comes from providing several useful default arguments that simplify the definition of parameters:
 
 *   **Default argument for** ``init``
 
-    The type of (random) initialization that is used for a parameter in neural networks typically depends on the operation that the parameter is used in, for example:
+    The type of (random) initialization that is used for a parameter in neural networks typically depends on the operation that the parameter is used in. For example:
 
     * A bias parameter is used in an ``add`` operation and often initialized with zeros.
+    * A weight parameter in linear layers is used in a ``dot`` operation and initialized e.g. using
+      `Lecun normal initialization <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.initializers.lecun_normal.html>`_
+      based on the fan-in or fan-out of the layer.
     * A scale parameter is used in a ``multiply`` operation and e.g. initialized with ones in normalization layers.
-    * A weight parameter in linear layers is used in a ``dot`` operation and the initialization typically depends on the fan-in or fan-out of the layer (e.g. as in
-      `Lecun normal initialization <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.initializers.lecun_normal.html>`_).
 
     To allow ``einn.param`` to use a default initialization method based on the operation that it is used in, einx functions like :func:`einx.dot` and :func:`einx.add`
     forward their name as optional arguments to tensor factories. ``einn.param`` then defines a corresponding initializer in the respective framework and
@@ -132,8 +133,8 @@ Any default argument in ``einn.param`` can be overridden by simply passing the r
 If no default argument can be determined (e.g. because there is no default initialization for an operation, or the module does not have a ``dtype`` member) and the
 argument is not specified explicitly in ``einn.param``, an exception is raised.
 
-Module definition using ``einn.param``
---------------------------------------
+Example layer using ``einn.param``
+----------------------------------
 
 Our definition of a linear layer above that used the ``lambda shape: ...`` syntax can be simplified using ``einn.param`` as shown below.
 
@@ -150,8 +151,7 @@ Our definition of a linear layer above that used the ``lambda shape: ...`` synta
             x = einx.add("... [c2]", x, einn.param())
             return x
 
-In Haiku, ``hk.get_parameter`` and ``hk.get_state`` can be passed as the first parameter of ``einn.param`` to determine whether to create a parameter or state variable,
-or simply be passed as a tensor factory directly:
+In Haiku, ``hk.get_parameter`` and ``hk.get_state`` can be passed as the first parameter of ``einn.param`` to determine whether to create a parameter or state variable:
 
 ..  code:: python
 
@@ -174,7 +174,7 @@ or simply be passed as a tensor factory directly:
             x = einx.add("... [c2]", x, einn.param(self))
             return x
 
-In Flax, parameters are created by calling the ``self.param`` (for learnable parameters) or ``self.variable`` (for state variables) method of the current module. For
+In Flax, parameters are created by calling the ``self.param`` or ``self.variable`` method of the current module. For
 convenience, einx provides several options to determine which one is used:
 
 ..  code:: python
@@ -202,17 +202,16 @@ convenience, einx provides several options to determine which one is used:
             x = einx.add("b... [c2]", x, self.b)
             return x
 
-In PyTorch, parameters have to be created in the constructor of the module. Since the shape is only determined once the module is called, einx supports using
-``nn.parameter.UninitializedParameter`` and ``nn.parameter.UninitializedBuffer`` as a tensor factories with ``einn.param`` (see
-`lazy modules <https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html#torch.nn.modules.lazy.LazyModuleMixin>`_). This also allows defining
-the type of initialization which cannot trivially be done using ``lambda shape: ...`` syntax. einx also allows passing uninitialized parameters directly:
+In PyTorch, parameters have to be created in the constructor of the module as ``nn.parameter.UninitializedParameter`` and ``nn.parameter.UninitializedBuffer``
+(see `lazy modules <https://pytorch.org/docs/stable/generated/torch.nn.modules.lazy.LazyModuleMixin.html#torch.nn.modules.lazy.LazyModuleMixin>`_). They can
+be passed to einx functions directly, or by using ``einn.param`` (e.g. to specify additional arguments):
 
 ..  code:: python
 
     einx.add("... [c]", x, einn.param(self.w))        # calls einn.param(self.w)
     einx.add("... [c]", x, self.w)                    # calls einn.param(self.w)
 
-For PyTorch, ``einn.param`` does not support a ``dtype`` argument since it has to be specified in the constructor.
+For PyTorch, ``einn.param`` does not support a ``dtype`` and ``name`` argument since these are specified in the constructor.
 
 Layers
 ------
@@ -272,3 +271,5 @@ The following is an example of a simple fully-connected network for image classi
 
 Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
 with other layers or used as submodules in the respective framework seamlessly.
+
+The following page provides examples of common operations in neural networks using ``einx`` and ``einn`` notation.

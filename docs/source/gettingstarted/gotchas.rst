@@ -2,7 +2,7 @@ Gotchas
 #######
 
 1. **Unnamed axes are always unique** and cannot refer to the same axis in different expressions. E.g. ``3 -> 3`` refers to two different axes, both
-with length 3. This can lead to unexpected behavior in some cases: ``einx.reduce("3 -> 3", x)`` will reduce the first ``3`` axis and insert
+with length 3. This can lead to unexpected behavior in some cases: ``einx.sum("3 -> 3", x)`` will reduce the first ``3`` axis and insert
 a new axis broadcasted to length 3.
 
 2. **Spaces in expressions are important.** E.g. in ``(a b)...`` the ellipsis repeats ``(a b)``, while in ``(a b) ...``  the ellipsis repeats a new
@@ -23,8 +23,8 @@ a cache miss occurs and a graph is traced do not cause the same error). It is no
 your own discretion. einx can be used with PyTorch in eager mode and adds only negligible overhead due to the tracing and caching of operations. Feedback on this issue is welcome.
 
 5. **einx does not support dynamic shapes** that can occur for example when tracing some types of functions
-(e.g. `tf.unique <https://www.tensorflow.org/api_docs/python/tf/unique>`_) in Tensorflow using ``tf.function``. As a workaround, the shape can be specified statically
-using `tf.ensure_shape <https://www.tensorflow.org/api_docs/python/tf/ensure_shape>`_.
+(e.g. `tf.unique <https://www.tensorflow.org/api_docs/python/tf/unique>`_) in Tensorflow using ``tf.function``. As a workaround, the shape can be specified statically,
+e.g. using `tf.ensure_shape <https://www.tensorflow.org/api_docs/python/tf/ensure_shape>`_.
 
 6. **einx implements a custom vmap for Numpy using Python loops**. This is slower than ``vmap``
 in other backends, but is included for debugging and testing purposes.
