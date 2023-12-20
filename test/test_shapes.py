@@ -330,19 +330,24 @@ def test_shape_vmap(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_index(backend):
+    coord_dtype = "int32" if backend.name != "torch" else "long"
     x = backend.ones((4, 16, 16, 3))
-    y = backend.cast(backend.ones((4, 128, 2)), "int32" if backend.name != "torch" else "long")
+    y = backend.cast(backend.ones((4, 128, 2)), coord_dtype)
     z = backend.ones((4, 128, 3))
     assert einx.get_at("b [h w] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, b p [2] -> b p c", x, lambda shape: backend.ones(shape, coord_dtype), p=128).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, b p [l] -> b p c", x, lambda shape: backend.ones(shape, coord_dtype), p=128).shape == (4, 128, 3)
     assert einx.get_at("b [16 w] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
     assert einx.get_at("b [16 16] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
     assert einx.get_at("b [h w] c, p [2] -> b p c", x, y[0]).shape == (4, 128, 3)
     for op in [einx.set_at, einx.add_at, einx.subtract_at]:
         assert op("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 16, 16, 3)
         assert op("b [h w] c, p [2], p c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p [2], b p c -> b h w c", x, y, z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, p [2], p c -> b h w c", x, y[0], z[0]).shape == (4, 16, 16, 3)
 
     x = backend.ones((16, 4, 3, 16))
-    y = backend.cast(backend.ones((2, 4, 128)), "int32" if backend.name != "torch" else "long")
+    y = backend.cast(backend.ones((2, 4, 128)), coord_dtype)
     z = backend.ones((3, 4, 128))
     assert einx.get_at("[w] b c [h], [2] b p -> b p c", x, y).shape == (4, 128, 3)
     assert einx.get_at("[w] b c [h], [2] p -> b p c", x, y[:, 0]).shape == (4, 128, 3)
@@ -351,7 +356,7 @@ def test_shape_index(backend):
         assert op("[w] b c [h], [2] p, c p -> b [w h] c", x, y[:, 0], z[:, 0]).shape == (4, 16, 16, 3)
 
     x = backend.ones((16, 4, 3 * 16))
-    y = backend.cast(backend.ones((2, 4, 128)), "int32" if backend.name != "torch" else "long")
+    y = backend.cast(backend.ones((2, 4, 128)), coord_dtype)
     z = backend.ones((3, 4, 128))
     assert einx.get_at("[w] b (c [h]), [2] b p -> b p c", x, y, c=3).shape == (4, 128, 3)
     assert einx.get_at("[w] b (c [h]), [2] p -> b p c", x, y[:, 0], c=3).shape == (4, 128, 3)
@@ -360,7 +365,7 @@ def test_shape_index(backend):
         assert op("[w] b (c [h]), [2] p, c p -> b ([w h]) c", x, y[:, 0], z[:, 0]).shape == (4, 256, 3)
 
     x = backend.ones((4, 16, 16, 3))
-    y = backend.cast(backend.ones((4, 3, 4, 5, 2)), "int32" if backend.name != "torch" else "long")
+    y = backend.cast(backend.ones((4, 3, 4, 5, 2)), coord_dtype)
     z = backend.ones((4, 3, 4, 5, 3))
     assert einx.get_at("b [h w] c, b p q r [2] -> b p q r c", x, y).shape == (4, 3, 4, 5, 3)
     assert einx.get_at("b [h w] c, p q r [2] -> b p q r c", x, y[0]).shape == (4, 3, 4, 5, 3)
@@ -369,7 +374,7 @@ def test_shape_index(backend):
         assert op("b [h w] c, p q r [2], p q r c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
 
     x = backend.ones((4, 1, 1, 3))
-    y = backend.cast(backend.zeros((4, 128, 2)), "int32" if backend.name != "torch" else "long")
+    y = backend.cast(backend.zeros((4, 128, 2)), coord_dtype)
     z = backend.ones((4, 128, 3))
     with pytest.raises(Exception):
         einx.get_at("b ([1 1]) c, b p [2] -> b p c", x, y)

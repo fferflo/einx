@@ -30,7 +30,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     with_update = len(exprs_in) == 3
     for expr in exprs_in[0]:
         if isinstance(expr, einx.expr.stage3.Axis) and expr.is_unnamed and expr.value == 1:
-            raise ValueError("Tensor expression cannot contain unnamed axes with value 1")
+            raise ValueError("First expression cannot contain unnamed axes with value 1")
 
     marked_coordinate_axes = [expr for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     if len(marked_coordinate_axes) > 1:
@@ -65,6 +65,13 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     if with_update:
         exprs_in[2] = einx.expr.stage3.replace(exprs_in[2], replace)
 
+    # If updating: Add markers around axes in output that are also marked in tensor
+    if with_update:
+        def replace(expr):
+            if isinstance(expr, einx.expr.stage3.Axis) and expr.name in marked_tensor_axis_names and not einx.expr.stage3.is_marked(expr):
+                return einx.expr.stage3.Marker(expr.__deepcopy__())
+        expr_out = einx.expr.stage3.replace(expr_out, replace)
+
     # Find index into coordinates that will arrive at _index
     new_marked_coordinate_axis_names = [expr.name for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     axis = new_marked_coordinate_axis_names.index(coordinate_axis_name) if not coordinate_axis_name is None else None
@@ -97,11 +104,28 @@ def parse(description, *tensors_shapes, cse=True, **parameters):
     if len(tensors_shapes) != len(exprs_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_shapes)}")
 
+    def after_stage2(exprs1, exprs2):
+        for expr in exprs1[0].all():
+            if isinstance(expr, einx.expr.stage2.UnnamedAxis) and expr.value == 1 and einx.expr.stage2.is_marked(expr):
+                raise ValueError("First expression cannot contain unnamed axes with value 1")
+        tensor_marked_axes = [expr for expr in exprs1[0].all() if isinstance(expr, (einx.expr.stage2.NamedAxis, einx.expr.stage2.UnnamedAxis)) and einx.expr.stage2.is_marked(expr)]
+        ndim = len(tensor_marked_axes)
+
+        marked_coordinate_axes = [expr for expr in exprs1[1].all() if isinstance(expr, (einx.expr.stage2.NamedAxis, einx.expr.stage2.UnnamedAxis)) and einx.expr.stage2.is_marked(expr)]
+        if len(marked_coordinate_axes) > 1:
+            raise ValueError(f"Expected at most one coordinate axis, got {len(marked_coordinate_axes)}")
+        elif len(marked_coordinate_axes) == 1 and isinstance(marked_coordinate_axes[0], einx.expr.stage2.NamedAxis):
+            coordinate_axis = einx.expr.stage1.NamedAxis(marked_coordinate_axes[0].name)
+            return [einx.expr.Equation(coordinate_axis, np.asarray([ndim]))]
+        else:
+            return []
+
     exprs = einx.expr.solve(
             [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
           + [einx.expr.Equation(expr_out)] \
           + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
         cse=cse,
+        after_stage2=after_stage2,
     )[:len(exprs_in) + 1]
     exprs_in, expr_out = exprs[:len(exprs_in)], exprs[len(exprs_in)]
 
@@ -123,7 +147,7 @@ def index(arg0, *args, **kwargs):
     2. ``tensor, coordinates -> output``
        when only returning values from the tensor.
 
-    Brackets in the tensor and update expressions mark the axes that will be indexed. Brackets in the coordinates expression mark the single coordinate axis. All other
+    Brackets in the ``tensor`` expression mark the axes that will be indexed. Brackets in the ``coordinates`` expression mark the single coordinate axis. All other
     axes are considered batch axes.
 
     Args:
