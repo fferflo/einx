@@ -50,9 +50,6 @@ Graph rearrange_stage0("b (s p) (c + 1) -> (b s) p c, (b p) s 1", I0, p=8):
     X5 := reshape(X6, (32, 32, 1))
     return [X1, X5]
 
-Other functions in einx such as :func:`einx.vmap` and :func:`einx.vmap_with_axis` also fully support rearranging between Einstein expressions, and additionally
-apply some operation to the values of the tensor (see below).
-
 Reduction ops
 -------------
 
@@ -77,7 +74,7 @@ These functions are specializations of :func:`einx.reduce` and use backend opera
    # same as
    einx.sum("a [b]", x)
 
-The respective backend is determined implicitly from the input tensor (see :doc:`How does einx support different tensor frameworks? </faq/backend>`).
+In ``einx.sum``, the respective backend is determined implicitly from the input tensor (see :doc:`How does einx support different tensor frameworks? </faq/backend>`).
 
 In the most general case, the operation string represents both input and output expressions, and marks reduced axes using brackets:
 
@@ -241,7 +238,7 @@ applying operations to tensors with arbitrary Einstein expressions:
 
    y = einx.sum("a ([b] c)", x, c=2)
    # cannot be expressed in a single call to np.sum
-   y = np.sum(x, axis=???)
+   y = np.sum(x, axis="?")
 
 :func:`einx.vmap` allows for more general vectorization than :func:`einx.vmap_with_axis` by applying arbitrary functions in vectorized form. Consider a function that accepts two tensors
 and computes the mean and max:
@@ -289,7 +286,8 @@ analogously be expressed using :func:`einx.vmap`:
 >>> einx.vmap          ("a b, a -> a b", x, y, op=np.add).shape
 (4, 16)
 
-While :func:`einx.vmap` provides more general vectorization capabilities, :func:`einx.vmap_with_axis` is often faster since it relies on specialized implementations.
+:func:`einx.vmap` provides more general vectorization capabilities than :func:`einx.vmap_with_axis`, but might in some cases be slower if the latter relies on a
+specialized implementation.
 
 General dot-product
 -------------------
