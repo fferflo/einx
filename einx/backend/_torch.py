@@ -1,5 +1,5 @@
 import einx
-from .base import base_backend
+from .base import base_backend, associative_binary_to_nary
 
 def to_tuple(x):
     if isinstance(x, tuple):
@@ -41,14 +41,14 @@ def make_torch_backend():
         zeros = lambda shape, dtype="float32": torch_.zeros(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
         ones = lambda shape, dtype="float32": torch_.ones(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
 
-        add = torch_.add
+        add = associative_binary_to_nary(torch_.add)
         subtract = torch_.subtract
-        multiply = torch_.multiply
+        multiply = associative_binary_to_nary(torch_.multiply)
         true_divide = torch_.true_divide
         floor_divide = torch_.floor_divide
         divide = torch_.divide
-        logical_and = torch_.logical_and
-        logical_or = torch_.logical_or
+        logical_and = associative_binary_to_nary(torch_.logical_and)
+        logical_or = associative_binary_to_nary(torch_.logical_or)
         where = torch_.where
         less = torch_.less
         less_equal = torch_.less_equal
@@ -56,8 +56,10 @@ def make_torch_backend():
         greater_equal = torch_.greater_equal
         equal = torch_.equal
         not_equal = torch_.not_equal
+        @associative_binary_to_nary
         def maximum(a, b):
             return torch_.maximum(torch.to_tensor(a), torch.to_tensor(b)) # TODO: add support for python scalars everywhere
+        @associative_binary_to_nary
         def minimum(a, b):
             return torch_.minimum(torch.to_tensor(a), torch.to_tensor(b))
 

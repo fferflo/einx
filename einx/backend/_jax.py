@@ -1,5 +1,5 @@
 from functools import partial
-from .base import base_backend
+from .base import base_backend, associative_binary_to_nary
 
 def make_jax_backend():
     import jax as jax_
@@ -27,14 +27,14 @@ def make_jax_backend():
         zeros = jnp.zeros
         ones = jnp.ones
 
-        add = jnp.add
+        add = associative_binary_to_nary(jnp.add)
         subtract = jnp.subtract
-        multiply = jnp.multiply
+        multiply = associative_binary_to_nary(jnp.multiply)
         true_divide = jnp.true_divide
         floor_divide = jnp.floor_divide
         divide = jnp.divide
-        logical_and = jnp.logical_and
-        logical_or = jnp.logical_or
+        logical_and = associative_binary_to_nary(jnp.logical_and)
+        logical_or = associative_binary_to_nary(jnp.logical_or)
         where = jnp.where
         less = jnp.less
         less_equal = jnp.less_equal
@@ -42,8 +42,8 @@ def make_jax_backend():
         greater_equal = jnp.greater_equal
         equal = jnp.equal
         not_equal = jnp.not_equal
-        maximum = jnp.maximum
-        minimum = jnp.minimum
+        maximum = associative_binary_to_nary(jnp.maximum)
+        minimum = associative_binary_to_nary(jnp.minimum)
 
         sum = jnp.sum
         mean = jnp.mean

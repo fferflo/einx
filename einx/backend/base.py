@@ -1,5 +1,14 @@
-import einx
+import einx, functools
 import numpy as np
+
+def associative_binary_to_nary(binary_op):
+    @functools.wraps(binary_op)
+    def nary_op(*args):
+        x = args[0]
+        for y in args[1:]:
+            x = binary_op(x, y)
+        return x
+    return nary_op
 
 class base_backend:
     @classmethod

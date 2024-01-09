@@ -1,6 +1,6 @@
 import numpy as np
 from functools import partial
-from .base import base_backend
+from .base import base_backend, associative_binary_to_nary
 
 class numpy(base_backend):
     @staticmethod
@@ -25,14 +25,14 @@ class numpy(base_backend):
     zeros = np.zeros
     ones = np.ones
 
-    add = np.add
+    add = associative_binary_to_nary(np.add)
     subtract = np.subtract
-    multiply = np.multiply
+    multiply = associative_binary_to_nary(np.multiply)
     true_divide = np.true_divide
     floor_divide = np.floor_divide
     divide = np.divide
-    logical_and = np.logical_and
-    logical_or = np.logical_or
+    logical_and = associative_binary_to_nary(np.logical_and)
+    logical_or = associative_binary_to_nary(np.logical_or)
     where = np.where
     less = np.less
     less_equal = np.less_equal
@@ -40,8 +40,8 @@ class numpy(base_backend):
     greater_equal = np.greater_equal
     equal = np.equal
     not_equal = np.not_equal
-    maximum = np.maximum
-    minimum = np.minimum
+    maximum = associative_binary_to_nary(np.maximum)
+    minimum = associative_binary_to_nary(np.minimum)
 
     sum = np.sum
     mean = np.mean

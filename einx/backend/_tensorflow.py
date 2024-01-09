@@ -1,5 +1,5 @@
 from functools import partial
-from .base import base_backend
+from .base import base_backend, associative_binary_to_nary
 
 def make_tensorflow_backend():
     import tensorflow as tf
@@ -30,14 +30,14 @@ def make_tensorflow_backend():
         zeros = lambda shape, dtype="float32": tf.zeros(shape, dtype=dtype)
         ones = lambda shape, dtype="float32": tf.ones(shape, dtype=dtype)
 
-        add = tnp.add
+        add = associative_binary_to_nary(tnp.add)
         subtract = tnp.subtract
-        multiply = tnp.multiply
+        multiply = associative_binary_to_nary(tnp.multiply)
         true_divide = tnp.true_divide
         floor_divide = tnp.floor_divide
         divide = tnp.divide
-        logical_and = tnp.logical_and
-        logical_or = tnp.logical_or
+        logical_and = associative_binary_to_nary(tnp.logical_and)
+        logical_or = associative_binary_to_nary(tnp.logical_or)
         where = tnp.where
         less = tnp.less
         less_equal = tnp.less_equal
@@ -45,8 +45,8 @@ def make_tensorflow_backend():
         greater_equal = tnp.greater_equal
         equal = tnp.equal
         not_equal = tnp.not_equal
-        maximum = tnp.maximum
-        minimum = tnp.minimum
+        maximum = associative_binary_to_nary(tnp.maximum)
+        minimum = associative_binary_to_nary(tnp.minimum)
 
         sum = tnp.sum
         mean = tnp.mean

@@ -33,6 +33,11 @@ def test_values(backend):
     )
 
     assert backend.allclose(
+        einx.multiply("a b c, a b c, a b c", x, x, x),
+        x * x * x,
+    )
+
+    assert backend.allclose(
         einx.mean("a b [c]", x),
         einx.vmap("a b [c] -> a b", x, op=backend.mean),
     )
