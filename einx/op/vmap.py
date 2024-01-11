@@ -12,6 +12,10 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, flat=False, backend=None, op=No
         raise TypeError("op cannot be None")
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
+    for root in list(exprs_in) + list(exprs_out):
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Concatenation):
+                raise ValueError("Concatenation not allowed")
 
     # Call tensor factories
     tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]

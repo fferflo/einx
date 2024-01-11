@@ -17,6 +17,10 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
     if len(set(exprs_out)) != 1:
         raise ValueError("All output expressions must be the same")
+    for root in list(exprs_in) + list(exprs_out):
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Concatenation):
+                raise ValueError("Concatenation not allowed")
     kwargs = {**kwargs}
 
     # Call tensor factories

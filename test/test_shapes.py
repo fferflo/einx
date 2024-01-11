@@ -226,7 +226,6 @@ def test_shape_elementwise(backend):
     y = backend.zeros((10,), "float32")
     with pytest.raises(Exception):
         einx.add("a b, c", x, y)
-    assert einx.dot("(a + a) -> ", y).shape == ()
 
     x = backend.zeros((16, 128, 196, 64), "float32")
     y = backend.zeros((16, 4, 16), "float32")
@@ -294,11 +293,6 @@ def test_shape_vmap(backend):
     x = backend.zeros((16, 64, 3), "float32") # b1 c b2
     y = backend.zeros((3, 72), "float32") # b2 d
     assert einx.vmap("b1 [c] b2, b2 [d] -> b2 [2] b1", x, y, op=func).shape == (3, 2, 16)
-
-    def func(x): # (c + d) -> 2
-        return backend.stack([backend.mean(x[:16]), backend.max(x[16:])])
-    x = backend.zeros((16, 64), "float32") # b c
-    assert einx.vmap("b ([c] + [d]) -> b [2]", x, op=func, c=16).shape == (16, 2)
 
     def func(x): # (c d) -> 2
         x = einx.vmap("([c] d) -> d", x, op=backend.mean, c=16)

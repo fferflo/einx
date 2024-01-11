@@ -42,9 +42,6 @@ def test_values(backend):
         einx.vmap("a b [c] -> a b", x, op=backend.mean),
     )
 
-    x = backend.ones((10,), "float32")
-    assert einx.dot("(a + a) -> ", x) == 5
-
     assert einx.dot("[|]", 1, 1) == 1
 
     x = backend.ones((10, 10), "float32")

@@ -31,6 +31,10 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     for expr in exprs_in[0]:
         if isinstance(expr, einx.expr.stage3.Axis) and expr.is_unnamed and expr.value == 1:
             raise ValueError("First expression cannot contain unnamed axes with value 1")
+    for root in list(exprs_in) + [expr_out]:
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Concatenation):
+                raise ValueError("Concatenation not allowed")
 
     marked_coordinate_axes = [expr for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     if len(marked_coordinate_axes) > 1:

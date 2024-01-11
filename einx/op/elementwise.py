@@ -11,6 +11,10 @@ def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
         backend = einx.backend.get(tensors_in)
     elif isinstance(backend, str):
         backend = einx.backend.get(backend)
+    for root in list(exprs_in) + [expr_out]:
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Concatenation):
+                raise ValueError("Concatenation not allowed")
 
     assert not any(einx.expr.stage3.is_marked(expr) for root in exprs_in for expr in root.all())
     assert not any(einx.expr.stage3.is_marked(expr) for expr in expr_out.all())

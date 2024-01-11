@@ -10,6 +10,10 @@ def arange_stage3(expr_in, expr_out, backend, dtype="int32"):
     for expr in expr_in.all():
         if isinstance(expr, einx.expr.stage3.Marker):
             raise ValueError("Marker in input expression not allowed")
+    for root in [expr_in, expr_out]:
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Concatenation):
+                raise ValueError("Concatenation not allowed")
 
     marked_axes = [expr for expr in expr_out.all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     if len(marked_axes) > 1:

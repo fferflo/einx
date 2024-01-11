@@ -8,6 +8,10 @@ _any = any # Is overwritten below
 
 @einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
 def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
+    for root in list(exprs_in) + list(exprs_out):
+        for expr in root.all():
+            if isinstance(expr, einx.expr.stage3.Concatenation):
+                raise ValueError("Concatenation not allowed")
     return einx.vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, backend=backend)
 
 @einx.lru_cache
