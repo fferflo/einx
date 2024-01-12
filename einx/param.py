@@ -44,6 +44,8 @@ def instantiate(x, shape, backend, **kwargs):
             x = x(shape, **kwargs)
             if x is None:
                 raise ValueError("Tensor factory returned None")
+            if not hasattr(x, "shape"):
+                raise ValueError("Tensor factory returned an object without a shape attribute")
             if x.shape != shape:
                 raise ValueError(f"Tensor factory returned a tensor of shape {x.shape}, but expected {shape}")
         x = backend.to_tensor(x)
