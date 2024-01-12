@@ -20,7 +20,7 @@ pretrained weights from Hugging Face and validate the model by generating some t
     # 1. Use channels-last layout
     # 2. Use layer normalization, and an epsilon of 1e-5 as in the original implementation
     Linear = partial(einn.Linear, "... [_|channels]")
-    LayerNorm = partial(einn.Norm, "... [c]", epsilon=1e-5)
+    Norm = partial(einn.Norm, "... [c]", epsilon=1e-5)
 
 The main building block of GPT-2 consists of multi-head self-attention and a multi-layer perceptron (MLP). Each sub-block uses a residual connection and
 layer normalization at the beginning of the residual block:
@@ -34,7 +34,7 @@ layer normalization at the beginning of the residual block:
         def __call__(self, x):
             # ########### Attention block ###########
             x0 = x
-            x = LayerNorm()(x)
+            x = Norm()(x)
 
             # Predict queries, keys and values
             x = Linear(channels=3 * x.shape[-1])(x)
@@ -59,7 +59,7 @@ layer normalization at the beginning of the residual block:
 
             # ########### MLP block ###########
             x0 = x
-            x = LayerNorm()(x)
+            x = Norm()(x)
 
             x = Linear(channels=x.shape[-1] * self.mlp_ratio)(x)
             x = jax.nn.gelu(x)
@@ -116,7 +116,7 @@ logits using a linear layer:
             # Blocks
             for i in range(self.depth):
                 x = Block(name=f"block{i}")(x)
-            x = LayerNorm()(x)
+            x = Norm()(x)
 
             # Classifier
             x = Linear(channels=self.vocab_size, bias=False)(x)
@@ -189,4 +189,5 @@ Prediction:
 
     We succeeded in taking that picture, and, if you look at it, you see a dot. That's here. That's home. That's us. On it, we wrote, "We are the people."
 
-The full example script can be found `here <https://github.com/fferflo/weightbridge/blob/master/examples/gpt2haiku.py>`_.
+The `full example script can be found here <https://github.com/fferflo/weightbridge/blob/master/examples/gpt2haiku.py>`_, and a similar example script for the
+`Mamba language model can be found here <https://github.com/fferflo/weightbridge/blob/master/examples/mamba2haiku.py>`_.
