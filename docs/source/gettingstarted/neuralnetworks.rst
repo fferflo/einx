@@ -2,13 +2,13 @@ Tutorial: Neural networks
 #########################
 
 einx provides several neural network layer types for deep learning frameworks (`PyTorch <https://pytorch.org/>`_, `Flax <https://github.com/google/flax>`_,
-`Haiku <https://github.com/google-deepmind/dm-haiku>`_) in the ``einx.nn.*`` namespace 
+`Haiku <https://github.com/google-deepmind/dm-haiku>`_, `Equinox <https://github.com/patrick-kidger/equinox>`_) in the ``einx.nn.*`` namespace 
 based on the functions in ``einx.*``. These layers provide abstractions that can implement a wide variety of deep learning operations using Einstein notation.
 The ``einx.nn.*`` namespace is entirely optional, and is imported as follows:
 
 ..  code::
 
-    import einx.nn.{torch|flax|haiku} as einn
+    import einx.nn.{torch|flax|haiku|equinox} as einn
 
 Motivation
 ----------
@@ -213,6 +213,37 @@ be passed to einx functions directly, or by using ``einn.param`` (e.g. to specif
 
 For PyTorch, ``einn.param`` does not support a ``dtype`` and ``name`` argument since these are specified in the constructor.
 
+**Equinox**
+
+..  code::
+
+    import equinox as eqx
+
+    class Linear(eqx.Module):
+        w: jax.Array
+        b: jax.Array
+        dtype: str = "float32"
+
+        def __init__(self):
+            self.w = None
+            self.b = None
+
+        def forward(self, x, rng=None):
+            x = einx.dot("b... [c1|c2]", x, einn.param(self, name="w", rng=rng), c2=64)
+            x = einx.add("b... [c2]", x, einn.param(self, name="b", rng=rng))
+            return x
+
+In Equinox, parameters have to be specified as dataclass member variables of the module. In einx, these variables are set to ``None`` in the constructor and initialized in the
+``__call__`` method instead by passing the module and member variable name to ``einn.param``. This initializes the parameter and stores it in the respective
+member variable, such that the module can be used as a regular Equinox module. When a parameter is initialized randomly, it also requires passing a random key ``rng`` to
+``einn.param`` on the first call:
+
+..  code:: python
+
+    einx.add("... [c]", x, einn.param(self, "bias", rng=rng))
+
+Stateful layers are currently not supported for Equinox, since they require the shape of the state variable to be known in the constructor.
+
 Layers
 ------
 
@@ -269,7 +300,7 @@ The following is an example of a simple fully-connected network for image classi
             x = einn.Linear("b [...|c]", c=10)(x) # 10 classes
             return x
 
-Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
+Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku|equinox}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
 with other layers or used as submodules in the respective framework seamlessly.
 
 The following page provides examples of common operations in neural networks using ``einx`` and ``einn`` notation.

@@ -4,7 +4,7 @@ Example: Common neural network ops
 ..  code-block:: python
 
     import einx
-    import einx.nn.{torch|flax|haiku} as einn
+    import einx.nn.{torch|flax|haiku|equinox} as einn
 
 LayerScale
 ----------

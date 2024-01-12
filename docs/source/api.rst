@@ -105,3 +105,12 @@ Torch
 .. autoclass:: einx.nn.torch.Dropout
 
 .. autofunction:: einx.nn.torch.param
+
+Equinox
+-------
+
+.. autoclass:: einx.nn.equinox.Linear
+.. autoclass:: einx.nn.equinox.Norm
+.. autoclass:: einx.nn.equinox.Dropout
+
+.. autofunction:: einx.nn.equinox.param

@@ -11,7 +11,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 *Optional:*
 
-- Generalized neural network layers in Einstein notation. Supports PyTorch, Flax and Haiku.
+- Generalized neural network layers in Einstein notation. Supports PyTorch, Flax, Haiku and Equinox.
 
 **Getting started:**
 
@@ -82,7 +82,7 @@ See [Common neural network ops](https://einx.readthedocs.io/en/latest/gettingsta
 #### Deep learning modules
 
 ```python
-import einx.nn.{torch|flax|haiku} as einn
+import einx.nn.{torch|flax|haiku|equinox} as einn
 
 batchnorm       = einn.Norm("[b...] c", decay_rate=0.9)
 layernorm       = einn.Norm("b... [c]") # as used in transformers
@@ -100,7 +100,7 @@ spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 ```
 
-See `examples/train_{torch|flax|haiku}.py` for example trainings on CIFAR10, [GPT-2](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html) and [Mamba](https://github.com/fferflo/weightbridge/blob/master/examples/mamba2haiku.py) for working example implementations of language models using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
+See `examples/train_{torch|flax|haiku|equinox}.py` for example trainings on CIFAR10, [GPT-2](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html) and [Mamba](https://github.com/fferflo/weightbridge/blob/master/examples/mamba2haiku.py) for working example implementations of language models using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
 #### Einstein expression trees
 

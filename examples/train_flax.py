@@ -45,7 +45,7 @@ class Net(nn.Module):
 
 net = Net()
 inputs, labels = next(iter(trainloader))
-params = net.init({"dropout": next_rng(), "params": next_rng()}, jnp.asarray(inputs), training=True)
+params = net.init({"dropout": next_rng(), "params": next_rng()}, jnp.asarray(inputs), training=True) # Run on dummy batch
 if not "stats" in params:
     params["stats"] = {}
 

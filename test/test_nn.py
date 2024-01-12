@@ -103,3 +103,32 @@ if importlib.util.find_spec("flax"):
                         assert y.shape == (4, 128, 128, 32)
                         y, state = jax.jit(partial(model.apply, training=True, mutable=list(state.keys())))({"params": params, **state}, x=x)
                         assert y.shape == (4, 128, 128, 32)
+
+if importlib.util.find_spec("equinox"):
+    import equinox as eqx
+    import jax.numpy as jnp
+    import einx.nn.equinox, jax
+
+    def test_equinox_linear():
+        x = jnp.zeros((4, 128, 128, 3))
+        rng = jax.random.PRNGKey(0)
+
+        layer = einx.nn.equinox.Linear("b... [c1|c2]", c2=32)
+        assert layer(x, rng=rng).shape == (4, 128, 128, 32)
+        assert layer(x).shape == (4, 128, 128, 32)
+        layer = eqx.nn.inference_mode(layer)
+        assert layer(x).shape == (4, 128, 128, 32)
+        assert layer(x).shape == (4, 128, 128, 32)
+
+    def test_equinox_norm():
+        x = jnp.zeros((4, 128, 128, 32))
+        for expr, kwargs in norms:
+            for mean in [True, False]:
+                for scale in [True, False]:
+                    for decay_rate in [None]: # Stateful layers are currently not supported for Equinox
+                        layer = einx.nn.equinox.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
+                        assert layer(x).shape == (4, 128, 128, 32)
+                        assert layer(x).shape == (4, 128, 128, 32)
+                        layer = eqx.nn.inference_mode(layer)
+                        assert layer(x).shape == (4, 128, 128, 32)
+                        assert layer(x).shape == (4, 128, 128, 32)

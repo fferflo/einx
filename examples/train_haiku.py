@@ -43,7 +43,7 @@ class Net(hk.Module):
 
 net = hk.transform_with_state(lambda x, training: Net()(x, training))
 inputs, labels = next(iter(trainloader))
-params, state = net.init(rng=next_rng(), x=jnp.asarray(inputs), training=True)
+params, state = net.init(rng=next_rng(), x=jnp.asarray(inputs), training=True) # Run on dummy batch
 
 optimizer = optax.adam(3e-4)
 opt_state = optimizer.init(params)
