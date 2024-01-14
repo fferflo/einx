@@ -88,7 +88,7 @@ class Norm(torch.nn.Module):
 
     def forward(self, x):
         with x.device:
-            use_ema = not self.decay_rate is None and not self.training
+            use_ema = not self.decay_rate is None and (not self.training or isinstance(self.mean, torch.nn.parameter.UninitializedBuffer) or isinstance(self.var, torch.nn.parameter.UninitializedBuffer))
             x, mean, var = einx.nn.norm(
                 x,
                 self.stats,
