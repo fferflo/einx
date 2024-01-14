@@ -23,7 +23,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest "jax[cpu]" flax dm-haiku torch tensorflow einops equinox keras
+        pip install pytest "jax[cpu]" flax dm-haiku torch tensorflow einops equinox
+        pip install --upgrade keras
     - name: Test with pytest
       run: |
         pip install .
