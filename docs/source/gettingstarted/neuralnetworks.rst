@@ -2,13 +2,13 @@ Tutorial: Neural networks
 #########################
 
 einx provides several neural network layer types for deep learning frameworks (`PyTorch <https://pytorch.org/>`_, `Flax <https://github.com/google/flax>`_,
-`Haiku <https://github.com/google-deepmind/dm-haiku>`_, `Equinox <https://github.com/patrick-kidger/equinox>`_) in the ``einx.nn.*`` namespace 
+`Haiku <https://github.com/google-deepmind/dm-haiku>`_, `Equinox <https://github.com/patrick-kidger/equinox>`_, `Keras <https://keras.io/>`_) in the ``einx.nn.*`` namespace 
 based on the functions in ``einx.*``. These layers provide abstractions that can implement a wide variety of deep learning operations using Einstein notation.
 The ``einx.nn.*`` namespace is entirely optional, and is imported as follows:
 
 ..  code::
 
-    import einx.nn.{torch|flax|haiku|equinox} as einn
+    import einx.nn.{torch|flax|haiku|equinox|keras} as einn
 
 Motivation
 ----------
@@ -229,8 +229,8 @@ For PyTorch, ``einn.param`` does not support a ``dtype`` and ``name`` argument s
             self.b = None
 
         def forward(self, x, rng=None):
-            x = einx.dot("b... [c1|c2]", x, einn.param(self, name="w", rng=rng), c2=64)
-            x = einx.add("b... [c2]", x, einn.param(self, name="b", rng=rng))
+            x = einx.dot("b... [c1|c2]", x, einn.param(self, name="weight", rng=rng), c2=64)
+            x = einx.add("b... [c2]", x, einn.param(self, name="bias", rng=rng))
             return x
 
 In Equinox, parameters have to be specified as dataclass member variables of the module. In einx, these variables are set to ``None`` in the constructor and initialized in the
@@ -240,9 +240,27 @@ member variable, such that the module can be used as a regular Equinox module. W
 
 ..  code:: python
 
-    einx.add("... [c]", x, einn.param(self, "bias", rng=rng))
+    einx.add("... [c]", x, einn.param(self, rng=rng))
 
 Stateful layers are currently not supported for Equinox, since they require the shape of the state variable to be known in the constructor.
+
+**Keras**
+
+..  code::
+
+    class Linear(einn.Layer):
+        def call(self, x):
+            x = einx.dot("b... [c1|c2]", x, einn.param(self, name="weight"), c2=64)
+            x = einx.add("b... [c2]", x, einn.param(self, name="bias"))
+            return x
+
+In Keras, parameters can be created in a layer's ``build`` method instead of the ``__init__`` method, which gives access to the shapes of the layer's input arguments. The regular
+forward-pass is defined in the ``call`` method. einx provides the base class ``einn.Layer`` which simply implements the ``build`` method to call the layer's ``call`` method
+with dummy arguments and thereby initialize the layer parameters.
+
+..  code:: python
+
+    einx.add("... [c]", x, einn.param(self))
 
 Layers
 ------
@@ -300,7 +318,7 @@ The following is an example of a simple fully-connected network for image classi
             x = einn.Linear("b [...|c]", c=10)(x) # 10 classes
             return x
 
-Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku|equinox}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
+Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku|equinox|keras}.py`` for models implemented using ``einn``. ``einn`` layers can be combined
 with other layers or used as submodules in the respective framework seamlessly.
 
 The following page provides examples of common operations in neural networks using ``einx`` and ``einn`` notation.

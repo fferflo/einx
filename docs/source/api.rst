@@ -114,3 +114,12 @@ Equinox
 .. autoclass:: einx.nn.equinox.Dropout
 
 .. autofunction:: einx.nn.equinox.param
+
+Keras
+-----
+
+.. autoclass:: einx.nn.keras.Linear
+.. autoclass:: einx.nn.keras.Norm
+.. autoclass:: einx.nn.keras.Dropout
+
+.. autofunction:: einx.nn.keras.param

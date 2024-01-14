@@ -130,4 +130,8 @@ def make_tensorflow_backend():
             inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
             return inner
 
+        class random:
+            def bernoulli(rng, p, shape):
+                return tf.random.uniform(shape, minval=0.0, maxval=1.0, dtype="float32", seed=rng) <= p
+
     return tensorflow
