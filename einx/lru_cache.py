@@ -25,7 +25,7 @@ def _prepare(x):
 
 traced_functions_decorators = []
 traced_functions = []
-lock = threading.Lock()
+traced_functions_lock = threading.Lock()
 
 def lru_cache(func=None, trace=None):
     if func is None:
@@ -103,14 +103,15 @@ def lru_cache(func=None, trace=None):
             else:
                 return graph(*args, backend=backend, **kwargs)
 
-        traced_functions.append(inner)
-        for decorator in traced_functions_decorators:
-            decorator(inner)
+        with traced_functions_lock:
+            traced_functions.append(inner)
+            for decorator in traced_functions_decorators:
+                decorator(inner)
 
     return inner
 
 def decorate_traced_functions(decorator):
-    with lock:
+    with traced_functions_lock:
         for func in traced_functions:
             decorator(func)
         traced_functions_decorators.append(decorator)
