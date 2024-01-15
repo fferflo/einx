@@ -23,20 +23,26 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle
 
 
 
-
-
-blocks = []
+# Option 1: Functional
+inputs = x = keras.Input(shape=(3, 32, 32), batch_size=1) # Requires specifying batch_size with some dummy value, since dynamic shapes are not allowed
 for c in [1024, 512, 256]:
-    blocks.append(einn.Linear("b [...|c]", c=c))
-    blocks.append(einn.Norm("[b] c", decay_rate=0.99))
-    blocks.append(keras.layers.Activation(keras.activations.gelu))
-    blocks.append(einn.Dropout("[...]", drop_rate=0.2))
-blocks.append(einn.Linear("b [...|c]", c=10))
-model = keras.Sequential(blocks)
+    x = einn.Linear("b [...|c]", c=c)(x)
+    x = einn.Norm("[b] c", decay_rate=0.99)(x)
+    x = keras.layers.Activation(keras.activations.gelu)(x)
+    x = einn.Dropout("[...]", drop_rate=0.2)(x)
+x = einn.Linear("b [...|c]", c=10)(x)
+model = keras.Model(inputs=inputs, outputs=x)
 
-inputs, _ = next(iter(trainloader))
-inputs = np.asarray(inputs)
-model(inputs)
+# Option 2: Sequential
+# blocks = []
+# for c in [1024, 512, 256]:
+#     blocks.append(einn.Linear("b [...|c]", c=c))
+#     blocks.append(einn.Norm("[b] c", decay_rate=0.99))
+#     blocks.append(keras.layers.Activation(keras.activations.gelu))
+#     blocks.append(einn.Dropout("[...]", drop_rate=0.2))
+# blocks.append(einn.Linear("b [...|c]", c=10))
+# model = keras.Sequential(blocks)
+
 
 
 optimizer = keras.optimizers.Adam(learning_rate=1e-3)
