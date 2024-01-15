@@ -2,7 +2,7 @@ Welcome to einx's documentation!
 ================================
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation.
-It is inspired by `einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
+It is inspired by `einops <https://github.com/arogozhnikov/einops>`_.
 
 .. toctree::
    :caption: Getting Started

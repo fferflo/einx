@@ -16,15 +16,19 @@ motivated by the fact that the function computes a generalized dot-product, and 
     einx.dot("a b, b c -> a c", x, y)
     einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot)
 
-4. **Compatibility of torch.compile and einx** is not tested well and may cause silent bugs. When
-`torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_ is used with ``einn`` modules, it raises an exception unless the module
-is first invoked with a dummy batch (possibly due to a buggy interaction with tracing and caching of einx operations and instantiation of weights, although later calls where
-a cache miss occurs and a graph is traced do not cause the same error). It is not clear at this point how ``torch.compile`` interacts with einx. ``torch.compile`` should be used at
-your own discretion. einx can be used with PyTorch in eager mode and adds only negligible overhead due to the tracing and caching of operations. Feedback on this issue is welcome.
-
-5. **einx does not support dynamic shapes** that can occur for example when tracing some types of functions
+4. **einx does not support dynamic shapes** that can occur for example when tracing some types of functions
 (e.g. `tf.unique <https://www.tensorflow.org/api_docs/python/tf/unique>`_) in Tensorflow using ``tf.function``. As a workaround, the shape can be specified statically,
-e.g. using `tf.ensure_shape <https://www.tensorflow.org/api_docs/python/tf/ensure_shape>`_.
+e.g. using `tf.ensure_shape <https://www.tensorflow.org/api_docs/python/tf/ensure_shape>`_. In Keras, when constructing a model using the
+`functional API <https://keras.io/guides/functional_api/>`_, the batch size argument is dynamic by default and should be specified with some dummy value,
+e.g. ``keras.Input(shape=(...), batch_size=1)``.
 
-6. **einx implements a custom vmap for Numpy using Python loops**. This is slower than ``vmap``
+5. **einx implements a custom vmap for Numpy using Python loops**. This is slower than ``vmap``
 in other backends, but is included for debugging and testing purposes.
+
+6. **In einx.nn layers, weights are created on the first forward pass** (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`). This is common practice in jax-based frameworks like Flax and Haiku where the
+model is initialized using a forward pass on a dummy batch. In other frameworks, an initial forward pass should be added before using the model. (In some
+circumstances the first actual training batch might be sufficient, but it is safer to always include the initial forward pass.) In PyTorch,
+`torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_ should only be applied after the initial forward pass.
+
+7. **einx.nn.equinox does not support stateful layers** since Equinox requires the shape of states to be known in the layer's ``__init__``
+method.
