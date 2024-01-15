@@ -50,7 +50,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
         else:
             v = chr(ord("a") + len(einsum_variables))
             if ord(v) > ord("z"):
-                raise ValueError(f"Only supports up to {ord('z') - ord('a') + 1} input tensors")
+                raise ValueError(f"Only supports up to {ord('z') - ord('a') + 1} unique input axes")
             einsum_variables[key] = v
             return v
     def to_einsum(axes):
