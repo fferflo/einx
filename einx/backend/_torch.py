@@ -13,7 +13,6 @@ def to_tuple(x):
 
 def make_torch_backend():
     import torch as torch_
-    import torch._dynamo as _dynamo
     class torch(base_backend):
         @staticmethod
         def to_tensor(tensor):
@@ -125,17 +124,6 @@ def make_torch_backend():
             def bernoulli(rng, p, shape):
                 return torch_.bernoulli(torch_.full(shape, p), generator=rng) > 0.5
 
-    _dynamo.allow_in_graph(einx.dot)
-    _dynamo.allow_in_graph(einx.rearrange)
-    _dynamo.allow_in_graph(einx.elementwise)
-    _dynamo.allow_in_graph(einx.reduce)
-    _dynamo.allow_in_graph(einx.vmap)
-    _dynamo.allow_in_graph(einx.vmap_with_axis)
-    _dynamo.allow_in_graph(einx.nn.norm)
-    _dynamo.allow_in_graph(einx.nn.linear)
-    _dynamo.allow_in_graph(einx.nn.dropout)
-
-    for op_name in einx.elementwise._op_names + einx.reduce._op_names + einx.vmap_with_axis._op_names:
-        _dynamo.allow_in_graph(getattr(einx, op_name))
+    einx.lru_cache.decorate_traced_functions(torch_.compiler.allow_in_graph)
 
     return torch

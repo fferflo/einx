@@ -41,13 +41,22 @@ class Net(nn.Module):
         return self.blocks(x)
 
 net = Net()
-net = net.cuda()
 
-# Currently not tested well and should be avoided (see Gotchas):
-# net = torch.compile(net)
+# Call on dummy batch to initialize parameters (before torch.compile!)
+inputs, _ = next(iter(trainloader))
+net(inputs)
+
+net = net.cuda()
+net = torch.compile(net)
 
 optimizer = optim.Adam(net.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()
+
+@torch.compile
+def test_step(inputs, labels):
+    outputs = net(inputs)
+    _, predicted = torch.max(outputs.data, 1)
+    return predicted == labels
 
 print("Starting training")
 for epoch in range(100):
@@ -72,12 +81,11 @@ for epoch in range(100):
     total = 0
     with torch.no_grad():
         for data in testloader:
-            images, labels = data
-            images, labels = images.cuda(), labels.cuda()
+            inputs, labels = data
+            inputs, labels = inputs.cuda(), labels.cuda()
 
-            outputs = net(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            accurate = test_step(inputs, labels)
+            total += accurate.size(0)
+            correct += int(torch.count_nonzero(accurate))
 
     print(f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)")

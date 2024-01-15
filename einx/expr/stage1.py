@@ -349,13 +349,13 @@ def parse(text):
 
         # Axis
         if len(in_tokens) == 1 and isinstance(in_tokens[0], Token):
-            try:
-                value = int(in_tokens[0].text)
-                return UnnamedAxis(value, in_tokens[0].begin_pos, in_tokens[0].end_pos)
-            except ValueError:
+            value = in_tokens[0].text.strip()
+            if value.isdigit():
+                return UnnamedAxis(int(value), in_tokens[0].begin_pos, in_tokens[0].end_pos)
+            else:
                 if not re.fullmatch(_axis_name, in_tokens[0].text):
                     raise ParseError(text, in_tokens[0].begin_pos, f"Invalid axis name '{in_tokens[0].text}'")
-                return NamedAxis(in_tokens[0].text, in_tokens[0].begin_pos, in_tokens[0].end_pos)
+                return NamedAxis(value, in_tokens[0].begin_pos, in_tokens[0].end_pos)
 
         if len(in_tokens) == 1:
             return in_tokens[0]

@@ -87,35 +87,52 @@ class Norm(torch.nn.Module):
         self.bias = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if bias else None
 
     def forward(self, x):
-        with x.device:
-            use_ema = not self.decay_rate is None and (not self.training or isinstance(self.mean, torch.nn.parameter.UninitializedBuffer) or isinstance(self.var, torch.nn.parameter.UninitializedBuffer))
-            x, mean, var = einx.nn.norm(
-                x,
-                self.stats,
-                self.params,
-                mean=self.mean if use_ema else self.use_mean,
-                var=self.var if use_ema else self.use_var,
-                scale=self.scale if not self.scale is None else None,
-                bias=self.bias if not self.bias is None else None,
-                epsilon=self.epsilon,
-                fastvar=self.fastvar,
-                backend=einx.backend.get("torch"),
-                **self.kwargs,
-            )
-            update_ema = not self.decay_rate is None and self.training
-            if update_ema:
-                with torch.no_grad():
-                    if not mean is None:
-                        if isinstance(self.mean, torch.nn.parameter.UninitializedBuffer):
-                            # self.mean has not been initialized in einx.nn.norm
-                            param(self.mean, init=torch.nn.init.zeros_)(mean.shape)
-                        self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
-                    if not var is None:
-                        if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
-                            # self.var has not been initialized in einx.nn.norm
-                            param(self.var, init=torch.nn.init.ones_)(var.shape)
-                        self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
-            return x
+        use_ema = not self.decay_rate is None and (not self.training or isinstance(self.mean, torch.nn.parameter.UninitializedBuffer) or isinstance(self.var, torch.nn.parameter.UninitializedBuffer))
+        x, mean, var = _norm(
+            x,
+            self.stats,
+            self.params,
+            mean=self.mean if use_ema else self.use_mean,
+            var=self.var if use_ema else self.use_var,
+            scale=self.scale if not self.scale is None else None,
+            bias=self.bias if not self.bias is None else None,
+            epsilon=self.epsilon,
+            fastvar=self.fastvar,
+            kwargs=self.kwargs,
+        )
+        update_ema = not self.decay_rate is None and self.training
+        if update_ema:
+            with torch.no_grad():
+                if not mean is None:
+                    if isinstance(self.mean, torch.nn.parameter.UninitializedBuffer):
+                        assert False
+                        # self.mean has not been initialized in einx.nn.norm
+                        param(self.mean, init=torch.nn.init.zeros_)(mean.shape)
+                    self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
+                if not var is None:
+                    if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
+                        assert False
+                        # self.var has not been initialized in einx.nn.norm
+                        param(self.var, init=torch.nn.init.ones_)(var.shape)
+                    self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
+        return x
+
+@torch.compiler.allow_in_graph
+def _norm(x, stats, params, mean, var, scale, bias, epsilon, fastvar, kwargs):
+    with x.device:
+        return einx.nn.norm(
+            x,
+            stats,
+            params,
+            mean=mean,
+            var=var,
+            scale=scale,
+            bias=bias,
+            epsilon=epsilon,
+            fastvar=fastvar,
+            backend="torch",
+            **kwargs,
+        )
 
 class Linear(torch.nn.Module):
     """Linear layer.
@@ -140,15 +157,19 @@ class Linear(torch.nn.Module):
         self.kwargs = kwargs
 
     def forward(self, x):
-        with x.device:
-            return einx.nn.linear(
-                x,
-                self.expr,
-                self.weight,
-                self.bias,
-                backend=einx.backend.get("torch"),
-                **self.kwargs,
-            )
+        return _linear(x, self.expr, self.weight, self.bias, self.kwargs)
+
+@torch.compiler.allow_in_graph
+def _linear(x, expr, weight, bias, kwargs):
+    with x.device:
+        return einx.nn.linear(
+            x,
+            expr,
+            weight,
+            bias,
+            backend="torch",
+            **kwargs,
+        )
 
 class Dropout(torch.nn.Module):
     """Dropout layer.
@@ -167,14 +188,18 @@ class Dropout(torch.nn.Module):
         self.kwargs = kwargs
 
     def forward(self, x):
-        with x.device:
-            if self.training:
-                return einx.nn.dropout(
-                    x,
-                    self.expr,
-                    drop_rate=self.drop_rate,
-                    backend=einx.backend.get("torch"),
-                    **self.kwargs,
-                )
-            else:
-                return x
+        if self.training:
+            return _dropout(x, self.expr, self.drop_rate, self.kwargs)
+        else:
+            return x
+
+@torch.compiler.allow_in_graph
+def _dropout(x, expr, drop_rate, kwargs):
+    with x.device:
+        return einx.nn.dropout(
+            x,
+            expr,
+            drop_rate=drop_rate,
+            backend="torch",
+            **kwargs,
+        )

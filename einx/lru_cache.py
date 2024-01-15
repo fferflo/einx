@@ -1,4 +1,4 @@
-import collections, threading, functools, os, einx, inspect
+import collections, threading, functools, os, einx, inspect, threading
 from functools import partial
 import numpy as np
 
@@ -13,11 +13,6 @@ def _hash(x):
         for v in x.values():
             h += _hash(v)
             h *= 9583
-    elif isinstance(x, np.ndarray):
-        h = hash(x.shape)
-        for v in x.flatten():
-            h += _hash(v)
-            h *= 87123
     else:
         h = hash(x)
     return int(h) % 2147483648 # Fixes issue with torch.compile
@@ -28,112 +23,95 @@ def _prepare(x):
     else:
         return x
 
-class _tensor_factory:
-    pass
+traced_functions_decorators = []
+traced_functions = []
+lock = threading.Lock()
 
 def lru_cache(func=None, trace=None):
     if func is None:
         return partial(lru_cache, trace=trace)
 
-    max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", 1024))
-    if max_cache_size == 0:
-        return func
-
-    print_cache_miss = str(os.environ.get("EINX_PRINT_CACHE_MISS", "false")).lower() in ["true", "yes", "1"]
-    cache = collections.OrderedDict()
-    lock = threading.Lock()
-
     if trace is None:
+        # No arguments are traced: Wrap function in LRU cache
+        max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
+        if max_cache_size == 0:
+            return func
+
+        print_cache_miss = str(os.environ.get("EINX_PRINT_CACHE_MISS", "false")).lower() in ["true", "yes", "1"]
+        cache = collections.OrderedDict()
+        lock = threading.Lock()
+
         @functools.wraps(func)
         def inner(*args, **kwargs):
             key = (args, kwargs)
             key = einx.tree_util.tree_map(_prepare, key)
             h = _hash(key)
 
-            result = None
             with lock:
                 if h in cache:
+                    # Hash collision
                     for k, v in cache[h]:
                         if k == key:
+                            # Cache hit
                             cache.move_to_end(h)
-                            result = v
-                            break
+                            return v
 
-            if result is None:
-                if print_cache_miss:
-                    print(f"einx: Cache miss on {inner.__name__} with args={args} kwargs={kwargs} hash={h} cache_size={len(cache)}")
+            # Cache miss
+            if print_cache_miss:
+                print(f"einx: Cache miss on {inner.__name__} with args={args} kwargs={kwargs} hash={h} cache_size={len(cache)}")
 
-                result = func(*args, **kwargs)
+            result = func(*args, **kwargs)
 
-                with lock:
-                    if h in cache:
-                        candidates = cache[h]
-                    else:
-                        candidates = cache[h] = []
-                        if len(cache) > max_cache_size:
-                            cache.popitem(False)
-                    candidates.append((key, result))
+            with lock:
+                if h in cache:
+                    candidates = cache[h]
+                else:
+                    candidates = cache[h] = []
+                    if max_cache_size >= 0 and len(cache) > max_cache_size:
+                        cache.popitem(False)
+                candidates.append((key, result))
 
             return result
     else:
+        # Arguments are traced: Create LRU cache for graph, then wrap cache in a function that executes graph
         if len(inspect.signature(trace).parameters) == 1:
             trace0 = trace
             trace = lambda key, value: trace0(key)
 
+        @lru_cache
+        def construct_graph(*args, **kwargs):
+            output_tracers = func(*args, **kwargs, backend=einx.backend.tracer)
+            return einx.backend.tracer.Graph(output_tracers, name=func.__name__, args=args, kwargs=kwargs)
+
         @functools.wraps(func)
         def inner(*args, backend=None, graph=False, **kwargs):
             return_graph = graph
+
+            # Replace marked arguments with tracers
             def map(x, key):
                 if trace(key, x):
-                    shape = einx.param.get_shape(x)
-                    if shape is None:
-                        return _tensor_factory
-                    else:
-                        return shape
+                    return einx.backend.tracer.Input(key, einx.param.get_shape(x))
                 else:
                     return x
-            args_key = einx.tree_util.tree_map_with_key(map, args)
-            kwargs_key = einx.tree_util.tree_map_with_key(map, kwargs)
-            key = (args_key, kwargs_key)
-            key = einx.tree_util.tree_map(_prepare, key)
-            h = _hash(key)
+            args_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, args)
+            kwargs_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, kwargs)
 
-            graph = None
-            with lock:
-                if h in cache:
-                    for k, v in cache[h]:
-                        if k == key:
-                            cache.move_to_end(h)
-                            graph = v
-                            break
-
-            if graph is None:
-                if print_cache_miss:
-                    map = lambda x, key: f"TracedTensor({einx.param.get_shape(x)})" if trace(key, x) else x
-                    args_print = einx.tree_util.tree_map_with_key(map, args)
-                    kwargs_print = einx.tree_util.tree_map_with_key(map, kwargs)
-                    print(f"einx: Cache miss on {inner.__name__} with args={args_print} kwargs={kwargs_print} hash={h} cache_size={len(cache)}")
-
-                map = lambda x, key: einx.backend.tracer.Input(key, einx.param.get_shape(x)) if trace(key, x) else x
-                args_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, args)
-                kwargs_replaced_with_tracers = einx.tree_util.tree_map_with_key(map, kwargs)
-
-                output_tracers = func(*args_replaced_with_tracers, **kwargs_replaced_with_tracers, backend=einx.backend.tracer)
-
-                graph = einx.backend.tracer.Graph(output_tracers, name=func.__name__, args=args_replaced_with_tracers, kwargs=kwargs_replaced_with_tracers)
-
-                with lock:
-                    if h in cache:
-                        candidates = cache[h]
-                    else:
-                        candidates = cache[h] = []
-                        if len(cache) > max_cache_size:
-                            cache.popitem(False)
-                    candidates.append((key, graph))
+            graph = construct_graph(*args_replaced_with_tracers, **kwargs_replaced_with_tracers)
 
             if return_graph:
                 return graph
             else:
                 return graph(*args, backend=backend, **kwargs)
 
+        traced_functions.append(inner)
+        for decorator in traced_functions_decorators:
+            decorator(inner)
+
     return inner
+
+def decorate_traced_functions(decorator):
+    with lock:
+        for func in traced_functions:
+            decorator(func)
+        traced_functions_decorators.append(decorator)
+lru_cache.decorate_traced_functions = decorate_traced_functions

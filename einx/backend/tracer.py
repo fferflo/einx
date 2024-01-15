@@ -108,6 +108,15 @@ class Input(Tracer):
     def _compute(self, context):
         context.set(self, context.input_values[self.key])
 
+    def __str__(self):
+        return f"tracer.Input({self.shape})"
+
+    def __hash__(self):
+        return 712873 + hash(self.shape) + hash(self.key)
+
+    def __eq__(self, other):
+        return isinstance(other, Input) and self.shape == other.shape and self.key == other.key
+
 class Constant(Tracer):
     def __init__(self, value):
         value = np.asarray(value)
