@@ -101,21 +101,18 @@ class Tracer:
         return elementwise(self, other, op="not_equal")
 
 class Input(Tracer):
-    def __init__(self, key, shape):
+    def __init__(self, shape, index):
         super().__init__(shape)
-        self.key = key
-
-    def _compute(self, context):
-        context.set(self, context.input_values[self.key])
+        self.index = index
 
     def __str__(self):
         return f"tracer.Input({self.shape})"
 
     def __hash__(self):
-        return 712873 + hash(self.shape) + hash(self.key)
+        return 712873 + hash(self.shape)
 
     def __eq__(self, other):
-        return isinstance(other, Input) and self.shape == other.shape and self.key == other.key
+        return isinstance(other, Input) and self.shape == other.shape
 
 class Constant(Tracer):
     def __init__(self, value):
@@ -123,23 +120,18 @@ class Constant(Tracer):
         super().__init__(value.shape)
         self.value = value
 
-    def _compute(self, context):
-        context.set(self, context.backend.to_tensor(self.value))
-
 class OpOutput(Tracer):
     def __init__(self, op, shape, key):
         super().__init__(shape)
         self.op = op
         self.key = key
 
-    def _compute(self, context):
-        self.op._compute(context)
-
 class Op:
     def __init__(self, op, args=[], kwargs={}, output_shapes=None, pass_backend=False):
         if op is None:
             raise TypeError("op cannot be None")
         self.op = op
+        self.op_split = op.split(".") if isinstance(op, str) else None
         self.args = args
         self.kwargs = kwargs
         self.pass_backend = pass_backend
@@ -147,116 +139,171 @@ class Op:
         self.output_tracers = einx.tree_util.tree_map_with_key(lambda shape, key: OpOutput(self, shape, key), self.output_shapes)
         assert not "backend" in self.kwargs
 
-    def _compute(self, context):
-        args, kwargs = einx.tree_util.tree_map(context.get, (self.args, self.kwargs))
+class CustomOp:
+    def __init__(self, op):
+        assert isinstance(op, Op)
+        self.op = op
 
-        if context.backend == einx.backend.tracer:
-            results = Op(self.op, args=args, kwargs=kwargs, output_shapes=self.output_shapes, pass_backend=self.pass_backend).output_tracers
+    def __call__(self, *args, backend, **kwargs):
+        if backend == einx.backend.tracer:
+            return Op(self.op.op, args=args, kwargs=kwargs, output_shapes=self.op.output_shapes, pass_backend=self.op.pass_backend).output_tracers
         else:
-            if self.pass_backend:
+            if self.op.pass_backend:
                 assert not "backend" in kwargs
-                kwargs["backend"] = context.backend
-            if isinstance(self.op, str):
-                op = context.backend
-                for name in self.op.split("."):
-                    op = getattr(op, name)
-            else:
-                op = self.op
-            results = op(*args, **kwargs)
+                kwargs["backend"] = backend
+            return self.op.op(*args, **kwargs)
 
-        einx.tree_util.tree_map(context.set, self.output_tracers, results)
-
-def _to_str(x, names, lines):
+def to_eval_str(x, names, lines, constants):
     if isinstance(x, Input):
         if id(x) in names:
             return names[id(x)]
-        name = names[id(x)] = f"I{len([n for n in names.values() if n.startswith('I')])}"
+        name = names[id(x)] = f"i{x.index}"
         return name
     elif isinstance(x, Constant):
-        return _to_str(x.value, names, lines)
+        return to_eval_str(x.value, names, lines, constants)
     elif isinstance(x, Op):
         if id(x) in names:
             return names[id(x)]
-        name = names[id(x)] = f"X{len(names)}"
 
-        args = ", ".join([_to_str(a, names, lines) for a in x.args] + [f"{k}={_to_str(v, names, lines)}" for k, v in x.kwargs.items()])
-        op = x.op.__name__ if "__name__" in dir(x.op) else f"{x.op}"
-        line = (name, f"{op}(" + args + ")")
-        lines.append(line)
+        if x.op == operator.getitem:
+            assert len(x.args) == 2 and len(x.kwargs) == 0
+            tensor = to_eval_str(x.args[0], names, lines, constants)
 
-        return name
+            slices = x.args[1]
+            if not isinstance(slices, tuple):
+                slices = (slices,)
+            assert isinstance(slices, tuple)
+            assert len(slices) > 0
+
+            def slice_to_str(s):
+                if isinstance(s, slice):
+                    x = ""
+                    if not s.start is None:
+                        x += str(s.start)
+                    x += ":"
+                    if not s.stop is None:
+                        x += str(s.stop)
+                    if not s.step is None:
+                        x += ":" + str(s.step)
+                    return x
+                else:
+                    return to_eval_str(s, names, lines, constants)
+            slices = ", ".join(slice_to_str(s) for s in slices)
+
+            name = names[id(x)] = f"x{len(names)}"
+
+            line = (name, f"{tensor}[" + slices + "]")
+            lines.append(line)
+
+            return name
+        else:
+            pass_backend = x.pass_backend
+            if isinstance(x.op, str):
+                op = f"backend.{x.op}"
+            else:
+                if not callable(x.op):
+                    raise TypeError(f"Expected callable, got {type(x.op)}")
+
+                if x.op == einx.param.instantiate:
+                    op = "einx.param.instantiate"
+                else:
+                    num_existing_ops = len([name for name, value, desc in constants if name.startswith("op")])
+                    op = f"op{num_existing_ops}"
+                    custom_op = CustomOp(x)
+                    constants.append((op, custom_op, repr(custom_op)))
+                    pass_backend = True
+
+            args = \
+                [to_eval_str(a, names, lines, constants) for a in x.args] \
+            + [f"{k}={to_eval_str(v, names, lines, constants)}" for k, v in x.kwargs.items()] \
+            + (["backend=backend"] if pass_backend else [])
+            args = ", ".join(args)
+
+            name = names[id(x)] = f"x{len(names)}"
+
+            line = (name, f"{op}(" + args + ")")
+            lines.append(line)
+
+            return name
     elif isinstance(x, OpOutput):
-        name = _to_str(x.op, names, lines)
+        name = to_eval_str(x.op, names, lines, constants)
         for k in x.key:
-            name += f"[{_to_str(k, names, lines)}]"
+            name += f"[{to_eval_str(k, names, lines, constants)}]"
         return name
     elif isinstance(x, str):
         return f"\"{x}\""
     elif isinstance(x, tuple):
-        return "(" + ", ".join(_to_str(a, names, lines) for a in x) + ")"
+        return "(" + ", ".join(to_eval_str(a, names, lines, constants) for a in x) + ("," if len(x) == 1 else "") + ")"
     elif isinstance(x, list):
-        return "[" + ", ".join(_to_str(a, names, lines) for a in x) + "]"
+        return "[" + ", ".join(to_eval_str(a, names, lines, constants) for a in x) + "]"
     elif isinstance(x, dict):
-        return "{" + ", ".join(f"{k}: {_to_str(v, names, lines)}" for k, v in x.items()) + "}"
-    elif __name__ in dir(x):
-        return x.__name__
-    else:
+        return "{" + ", ".join(f"{k}: {to_eval_str(v, names, constants)}" for k, v in x.items()) + "}"
+    elif isinstance(x, (int, float)):
         return str(x)
-
-class ExecutionContext:
-    def __init__(self, backend, args, kwargs):
-        if backend is None:
-            backend = einx.backend.get(list(einx.tree_util.tree_flatten((args, kwargs))))
-        elif isinstance(backend, str):
-            backend = einx.backend.get(backend)
-
-        self.backend = backend
-        self.input_values = {}
-        self.concrete_values = {}
-
-        def map(x, key):
-            self.input_values[key] = x
-        einx.tree_util.tree_map_with_key(map, args)
-        einx.tree_util.tree_map_with_key(map, kwargs)
-
-    def set(self, tracer, value):
-        assert not id(tracer) in self.concrete_values
-        self.concrete_values[id(tracer)] = value
-
-    def get(self, tracer):
-        if isinstance(tracer, Tracer):
-            if not id(tracer) in self.concrete_values:
-                tracer._compute(self)
-            return self.concrete_values[id(tracer)]
-        else:
-            return tracer
+    else:
+        if id(x) in names:
+            return names[id(x)]
+        num_existing_consts = len([name for name, value, desc in constants if name.startswith("const")])
+        name = names[id(x)] = f"const{num_existing_consts}"
+        constants.append((name, x, repr(x)))
+        return name
 
 class Graph:
     def __init__(self, output, name, args, kwargs):
+        if name.endswith("_stage0"):
+            name = name[:-len("_stage0")]
         self.output = output
         self.name = name
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(self, *args, backend=None, **kwargs):
-        context = ExecutionContext(backend, args, kwargs)
-        concrete_output = einx.tree_util.tree_map(context.get, self.output)
-        return concrete_output
+        # Get input tracers
+        self.input_tracers = []
+        index = 0
+        def map(x):
+            nonlocal index
+            if isinstance(x, Input):
+                self.input_tracers.append(x)
+                assert x.index == index
+                index += 1
+            return x
+        einx.tree_util.tree_map(map, args)
+        einx.tree_util.tree_map(map, kwargs)
 
-    def __str__(self):
+        # Generate Python code for the graph
         names = {}
         lines = []
+        constants = []
+        to_eval_str(output, names, lines, constants)
 
-        string = f"Graph {self.name}(" + ", ".join([_to_str(a, names, lines) for a in self.args] + [f"{k}={_to_str(v, names, lines)}" for k, v in self.kwargs.items()]) + "):"
+        string = ""
+        for const_name, value, desc in constants:
+            string += f"# {const_name}: {desc}\n"
+        string += f"def {name}({', '.join([to_eval_str(x, names, lines, constants) for x in self.input_tracers] + ['backend'])}):\n"
+        for var_name, line in lines:
+            string += f"    {var_name} = {line}\n"
+        string += f"    return {to_eval_str(output, names, lines, constants)}"
+        self.op_string = string
 
-        _to_str(self.output, names, lines)
+        # Just-in-time compile the graph
+        scope_globals = {const_name: value for const_name, value, desc in constants}
+        scope_globals["einx"] = einx
+        scope_locals = {}
+        exec(string, scope_globals, scope_locals)
+        self.op = scope_locals[name]
 
-        max_name_len = max(len(name) for name, _ in lines)
-        lines = [f"{name:<{max_name_len}} := {line}" for name, line in lines]
-        for line in lines:
-            string += "\n    " + line
-        string += f"\n    return {_to_str(self.output, names, lines)}"
-        return string
+    def __call__(self, *tracer_values, backend=None):
+        if len(tracer_values) != len(self.input_tracers):
+            raise ValueError(f"Expected {len(self.input_tracers)} inputs, got {len(tracer_values)}")
+        if backend is None:
+            backend = einx.backend.get(tracer_values)
+        elif isinstance(backend, str):
+            backend = einx.backend.get(backend)
+
+        return self.op(*tracer_values, backend=backend)
+
+    def __str__(self):
+        return self.op_string
 
 
 
@@ -280,8 +327,6 @@ class vmapped_op:
     def __name__(self):
         return f"vmap({self.op.__name__ if '__name__' in dir(self.op) else str(self.op)}, in_axes={self.in_axes}, out_axes={self.out_axes})"
 
-
-
 def elementwise(*args, op):
     shape = None
     for a in args:
@@ -297,7 +342,8 @@ def elementwise(*args, op):
                 shape = np.maximum(shape, shape2)
     return Op(op, args=args, output_shapes=np.asarray(shape)).output_tracers
 
-def reduce(tensor, axis, keepdims=False, op=None):
+def reduce(tensor, axis, *, op=None, **kwargs):
+    keepdims = kwargs.get("keepdims", False)
     axes = [axis] if isinstance(axis, int) else axis
     shape = list(tensor.shape)
     if keepdims:
@@ -306,7 +352,7 @@ def reduce(tensor, axis, keepdims=False, op=None):
     else:
         for a in reversed(sorted(axes)):
             del shape[a]
-    return Op(op, args=[tensor, axis], kwargs={"keepdims": keepdims}, output_shapes=np.asarray(shape)).output_tracers
+    return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, output_shapes=np.asarray(shape)).output_tracers
 
 def map(tensor, axis, op, *args, **kwargs):
     return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, output_shapes=np.asarray(tensor.shape)).output_tracers
@@ -323,7 +369,7 @@ class tracer:
     @staticmethod
     def to_tensor(tensor):
         if isinstance(tensor, Tracer):
-            return tensor
+            return Op("to_tensor", args=[tensor], output_shapes=np.asarray(tensor.shape)).output_tracers
         else:
             return Constant(tensor)
 
@@ -423,6 +469,7 @@ class tracer:
     all = partial(reduce, op="all")
     min = partial(reduce, op="min")
     max = partial(reduce, op="max")
+    logsumexp = partial(reduce, op="logsumexp")
 
     get_at = partial(index, op="get_at")
     set_at = partial(index, op="set_at")
@@ -430,6 +477,7 @@ class tracer:
     flip = partial(map, op="flip")
     roll = partial(map, op="roll")
     softmax = partial(map, op="softmax")
+    log_softmax = partial(map, op="log_softmax")
 
     def sqrt(tensor):
         return Op("sqrt", args=[tensor], output_shapes=np.asarray(tensor.shape)).output_tracers

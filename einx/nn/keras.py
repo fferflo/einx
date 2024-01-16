@@ -73,7 +73,7 @@ class Layer(keras.layers.Layer):
 
     def build(self, inputs_shape):
         backend = einx_backend_for_keras()
-        tracers = einx.tree_util.tree_map_with_key(lambda shape, key: backend.zeros(shape=shape, dtype="float32"), inputs_shape, is_leaf=is_leaf)
+        tracers = einx.tree_util.tree_map(lambda shape: backend.zeros(shape=shape, dtype="float32"), inputs_shape, is_leaf=is_leaf)
 
         if "is_initializing" in inspect.signature(self.call).parameters:
             self.call(tracers, is_initializing=True)

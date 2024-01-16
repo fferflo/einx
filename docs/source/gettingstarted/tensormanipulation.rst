@@ -36,19 +36,19 @@ The function :func:`einx.rearrange` transforms tensors between Einstein expressi
 ((128, 8, 16), (32, 32, 1))
 
 Using :func:`einx.rearrange` often produces more readable and concise code than specifying backend operations in index-based notation directly. The index-based calls can be
-:ref:`inspected using the graph representation <inspectingoperations>`:
+inspected using the just-in-time compiled function that einx creates for this expression (see :doc:`Performance </gettingstarted/performance>`):
 
 >>> print(einx.rearrange("b (s p) (c + 1) -> (b s) p c, (b p) s 1", x, p=8, graph=True))
-Graph rearrange_stage0("b (s p) (c + 1) -> (b s) p c, (b p) s 1", I0, p=8):
-    X4 := instantiate(I0, shape=(4, 256, 17))
-    X3 := reshape(X4, (4, 32, 8, 17))
-    X2 := getitem(X3, (slice(None, None, None), slice(None, None, None), slice(None, None, None), slice(0, 16, None)))
-    X1 := reshape(X2, (128, 8, 16))
-    X8 := getitem(X3, (slice(None, None, None), slice(None, None, None), slice(None, None, None), slice(16, 17, None)))
-    X7 := reshape(X8, (4, 32, 8))
-    X6 := transpose(X7, (0, 2, 1))
-    X5 := reshape(X6, (32, 32, 1))
-    return [X1, X5]
+def rearrange(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (4, 32, 8, 17))
+    x3 = x2[:, :, :, 0:16]
+    x4 = backend.reshape(x3, (128, 8, 16))
+    x5 = x2[:, :, :, 16:17]
+    x6 = backend.reshape(x5, (4, 32, 8))
+    x7 = backend.transpose(x6, (0, 2, 1))
+    x8 = backend.reshape(x7, (32, 32, 1))
+    return [x4, x8]
 
 Reduction ops
 -------------
@@ -325,27 +325,23 @@ not the output are reduced via a dot-product:
 The graph representation shows that the inputs and output are rearranged as required and the dot-product is forwarded to the ``einsum`` function of the backend:
 
 >>> print(einx.dot("b (g c1), c1 c2 -> b (g c2)", x, w, g=2, graph=True))
-Graph dot_stage0("b (g c1), c1 c2 -> b (g c2)", I0, I1, g=2):
-    X5 := instantiate(I0, shape=(20, 16), in_axis=(), out_axis=(0), batch_axis=(1))
-    X4 := reshape(X5, (20, 2, 8))
-    X6 := instantiate(I1, shape=(8, 4), in_axis=(0), out_axis=(1), batch_axis=())
-    X3 := einsum("a b c, c d -> a b d", X4, X6)
-    X2 := reshape(X3, (20, 8))
-    return X2
+def dot(i0, i1, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (20, 2, 8))
+    x4 = backend.to_tensor(i1)
+    x5 = backend.einsum("abc,cd->abd", x2, x4)
+    x6 = backend.reshape(x5, (20, 8))
+    return x6
 
-.. note::
-
-   :func:`einx.dot` passes the ``in_axis``, ``out_axis`` and ``batch_axis`` arguments to :ref:`tensor factories <lazytensorconstruction>`, e.g. to determine the fan-in and fan-out
-   of neural network layers and initialize the weights accordingly (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
-
-:func:`einx.dot` supports shorthand notation usings brackets as follows. When given two input tensors, the expression of the second input is determined implicitly by marking
+Shorthand notation in :func:`einx.dot` is supported as follows. When given two input tensors, the expression of the second input is determined implicitly by marking
 its components in the input and output expression:
 
 .. code::
 
    einx.dot("a [b] -> a [c]", x, y) # Expands to: "a b, b c -> a c"
 
-This dot-product can be interpreted as a linear map that maps from ``b`` to ``c`` channels and is repeated over dimension ``a``, which motivates the usage of bracket notation in this manner.
+This dot-product can be interpreted as a linear map that maps from ``b`` to ``c`` channels and is repeated over dimension ``a``, which motivates the
+usage of bracket notation in this manner.
 
 Axes marked multiple times appear only once in the implicit second input expression:
 
@@ -365,11 +361,11 @@ The graph representation shows that the expression forwarded to the ``einsum`` c
 >>> x = np.ones((4, 8))
 >>> y = np.ones((8, 5))
 >>> print(einx.dot("a [b|c]", x, y, graph=True))
-Graph dot_stage0("a [b|c]", I0, I1):
-    X3 := instantiate(I0, shape=(4, 8), in_axis=(1), out_axis=(0), batch_axis=())
-    X4 := instantiate(I1, shape=(8, 5), in_axis=(0), out_axis=(1), batch_axis=())
-    X2 := einsum("a b, b c -> a c", X3, X4)
-    return X2
+def dot(i0, i1, backend):
+    x1 = backend.to_tensor(i0)
+    x3 = backend.to_tensor(i1)
+    x4 = backend.einsum("ab,bc->ac", x1, x3)
+    return x4
 
 .. _lazytensorconstruction:
 

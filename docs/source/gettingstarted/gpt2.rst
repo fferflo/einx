@@ -78,22 +78,17 @@ We instead just specify the channels axis as an :ref:`axis composition <axiscomp
     ...
     x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
 
-We can verify the correctness of these operations by inspecting the graph:
+We can verify the correctness of these operations by inspecting the jit-compiled function:
 
 >>> graph = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=self.heads, graph=True)
 >>> print(graph)
-Graph dot_stage0("b q (h c), b k (h c) -> b q k h", I0, I1, h=25):
-    X4 := instantiate(I0, shape=(1, 1024, 1600), in_axis=(), out_axis=(1), batch_axis=(0, 2), name="weight", init="dot")
-    X3 := reshape(X4, (1, 1024, 25, 64))
-    X6 := instantiate(I1, shape=(1, 1024, 1600), in_axis=(), out_axis=(1), batch_axis=(0, 2), name="weight", init="dot")
-    X5 := reshape(X6, (1, 1024, 25, 64))
-    X2 := einsum("a b c d, a e c d -> a b e c", X3, X5)
-    return X2
-
-.. note::
-
-    The ``instantiate`` function passes arguments like ``shape``, ``in_axis``, ``out_axis`` or ``init`` to :ref:`tensor factories <lazytensorconstruction>` that can be used to construct the
-    corresponding tensor. Since no tensor factories are used here, ``instantiate`` is a no-op and the arguments are ignored.
+def dot(i0, i1, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (1, 1024, 25, 64))
+    x4 = backend.to_tensor(i1)
+    x5 = backend.reshape(x4, (1, 1024, 25, 64))
+    x6 = backend.einsum("abcd,aecd->abec", x2, x5)
+    return x6
 
 The final GPT-2 model first embeds the input tokens and adds positional embeddings. It then applies a number of main blocks and maps the output onto next token
 logits using a linear layer:

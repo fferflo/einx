@@ -5,7 +5,7 @@ import numpy as np
 
 _op_names = ["add", "subtract", "multiply", "true_divide", "floor_divide", "divide", "logical_and", "logical_or", "where", "less", "less_equal", "greater", "greater_equal", "equal", "not_equal", "maximum", "minimum"]
 
-@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, op, backend=None: c(exprs_in, [t(x) for x in tensors_in], expr_out, op))
 def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
@@ -94,7 +94,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, expr_out
 
-@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def elementwise_stage0(description, *tensors, op, backend=None, cse=True, **parameters):
     exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
     tensor, expr_out = elementwise_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)

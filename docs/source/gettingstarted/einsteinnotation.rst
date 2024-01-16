@@ -34,20 +34,22 @@ we instead provide the input and output expressions in Einstein notation and let
 The purpose of :func:`einx.rearrange` is to map tensors between different Einstein expressions. It does not perform any computation itself, but rather forwards the computation
 to the respective backend, e.g. Numpy.
 
-To verify that the correct backend calls are made, a graph representation of the function can be printed using ``graph=True``:
+To verify that the correct backend calls are made, the just-in-time compiled function that einx invokes for this expression can be printed using ``graph=True``:
 
 >>> graph = einx.rearrange("a b c -> a c b", x, graph=True)
 >>> print(graph)
-Graph rearrange_stage0("a b c -> a c b", I0):
-    X2 := instantiate(I0, shape=(2, 3, 4))
-    X1 := transpose(X2, (0, 2, 1))
-    return X1
+def rearrange(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.transpose(x1, (0, 2, 1))
+    return x2
 
-The graph shows that einx performs the expected call to ``np.transpose``.
+The function shows that einx performs the expected call to ``np.transpose``.
 
 .. note::
 
-    The ``instantiate`` function converts tensors to different backends and executes :ref:`tensor factories <lazytensorconstruction>` if required. Otherwise, it is a no-op.
+    einx traces the backend calls made for a given operation and just-in-time compiles them into a regular Python function using Python's
+    `exec() <https://docs.python.org/3/library/functions.html#exec>`_. When the function is called with the same signature of arguments, the compiled function is reused and
+    therefore incurs no additional overhead other than for cache lookup (see :doc:`Performance </gettingstarted/performance>`)
 
 .. _axiscomposition:
 
@@ -84,16 +86,16 @@ that it uses a `np.reshape <https://numpy.org/doc/stable/reference/generated/num
 operation with the requested shape:
 
 >>> print(einx.rearrange("(a b) c -> a b c", x, a=2, graph=True))
-Graph rearrange_stage0("(a b) c -> a b c", I0, a=2):
-    X2 := instantiate(I0, shape=(6, 4))
-    X1 := reshape(X2, (2, 3, 4))
-    return X1
+def rearrange(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (2, 3, 4))
+    return x2
 
 >>> print(einx.rearrange("a b c -> (a b) c", x, graph=True))
-Graph rearrange_stage0("a b c -> (a b) c", I0):
-    X2 := instantiate(I0, shape=(2, 3, 4))
-    X1 := reshape(X2, (6, 4))
-    return X1
+def rearrange(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (6, 4))
+    return x2
 
 .. note::
 
@@ -133,12 +135,12 @@ This operation requires multiple backend calls in index-based notation that migh
 the intent of the operation and requires less code:
 
 >>> print(einx.rearrange("(s p)... c -> (s...) p... c", x, p=8, graph=True))
-Graph rearrange_stage0("(s p)... c -> (s...) p... c", I0, p=8):
-    X4 := instantiate(I0, shape=(256, 256, 3))
-    X3 := reshape(X4, (32, 8, 32, 8, 3))
-    X2 := transpose(X3, (0, 2, 1, 3, 4))
-    X1 := reshape(X2, (1024, 8, 8, 3))
-    return X1
+def rearrange(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (32, 8, 32, 8, 3))
+    x3 = backend.transpose(x2, (0, 2, 1, 3, 4))
+    x4 = backend.reshape(x3, (1024, 8, 8, 3))
+    return x4
 
 In einops-style notation, an ellipsis can only appear once at root level without a preceding expression. To be fully compatible with einops notation, einx implicitly
 converts anonymous ellipses by adding an axis in front:
@@ -198,12 +200,12 @@ This can be used for example to concatenate tensors that do not have compatible 
 The graph shows that einx first reshapes ``y`` by adding a channel dimension, and then concatenates the tensors along that axis:
 
 >>> print(einx.rearrange("h w c, h w -> h w (c + 1)", x, y, graph=True))
-Graph rearrange_stage0("h w c, h w -> h w (c + 1)", I0, I1):
-    X3 := instantiate(I0, shape=(256, 256, 3))
-    X5 := instantiate(I1, shape=(256, 256))
-    X4 := reshape(X5, (256, 256, 1))
-    X2 := concatenate([X3, X4], 2)
-    return X2
+def rearrange(i0, i1, backend):
+    x1 = backend.to_tensor(i0)
+    x3 = backend.to_tensor(i1)
+    x4 = backend.reshape(x3, (256, 256, 1))
+    x5 = backend.concatenate([x1, x4], 2)
+    return x5
 
 Splitting is supported analogously:
 
@@ -269,11 +271,11 @@ Bracket notation is fully compatible with expression rearranging and can therefo
 (4, 64, 64, 3)
 
 >>> print(einx.mean("b (s [ds])... c", x, ds=4, graph=True))
-Graph reduce_stage0("b (s [ds])... c", I0, op="mean", ds=4):
-    X3 := instantiate(I0, shape=(4, 256, 256, 3))
-    X2 := reshape(X3, (4, 64, 4, 64, 4, 3))
-    X1 := mean(X2, axis=(2, 4))
-    return X1
+def reduce(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (4, 64, 4, 64, 4, 3))
+    x3 = backend.mean(x2, axis=(2, 4))
+    return x3
 
 See :doc:`How does einx handle input and output tensors? </faq/flatten>` for details on how operations are applied to tensors with nested Einstein expressions.
 

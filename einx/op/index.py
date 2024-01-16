@@ -19,7 +19,7 @@ def _index(tensor, coordinates, update=None, axis=None, op=None, backend=None):
     coordinates = tuple(coordinates[(slice(None),) * axis + (i,)] for i in range(tensor.ndim))
     return op(tensor, coordinates) if update is None else op(tensor, coordinates, update)
 
-@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, op=None, backend=None: c(exprs_in, [t(x) for x in tensors_in], expr_out, op=op))
 def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
@@ -35,6 +35,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
+    exprs_in = list(exprs_in)
 
     marked_coordinate_axes = [expr for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     if len(marked_coordinate_axes) > 1:
@@ -135,7 +136,7 @@ def parse(description, *tensors_shapes, cse=True, **parameters):
 
     return exprs_in, expr_out
 
-@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def index_stage0(description, *tensors, op=None, backend=None, cse=True, **parameters):
     exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
     tensor, expr_out = index_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)

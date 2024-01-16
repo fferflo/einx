@@ -2,7 +2,7 @@ import einx
 from . import util
 import numpy as np
 
-@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, backend=None: c(exprs_in, [t(x) for x in tensors_in], expr_out))
 def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
@@ -139,7 +139,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, expr_out
 
-@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def dot_stage0(description, *tensors, backend=None, cse=True, **parameters):
     exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
     tensor, expr = dot_stage3(exprs_in, tensors, expr_out, backend=backend)

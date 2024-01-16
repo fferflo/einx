@@ -6,20 +6,18 @@ Introduction
 ############
 
 einx is a Python library that allows formulating many tensor operations as concise expressions using few powerful abstractions. It is inspired by
-`einops <https://github.com/arogozhnikov/einops>`_ and `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_.
+`einops <https://github.com/arogozhnikov/einops>`_.
 
 *Main features:*
 
-- Fully composable Einstein expressions with ``[]``-notation. Compatible with einops-notation.
-- Powerful abstractions: :func:`einx.rearrange`, :func:`einx.vmap`, :func:`einx.vmap_with_axis`
-- Ease of use with numpy-like specializations ``einx.{sum|any|max|where|add|flip|get_at|...}`` and shorthand Einstein notation.
-- Easy integration with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- No overhead when used with just-in-time compilation (e.g. `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_). Marginal overhead in eager mode due to tracing and caching operations (see :doc:`Performance </gettingstarted/performance>`).
+- Fully composable and powerful Einstein expressions with ``[]``-notation.
+- Support for many tensor operations (``einx.{sum|max|where|add|dot|flip|get_at|...}``) with Numpy-like naming.
+- Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
+- Just-in-time compilation of all expressions into regular Python functions using Python's `exec() <https://docs.python.org/3/library/functions.html#exec>`_.
 
 *Optional:*
 
-- Generalized neural network layers using Einstein notation. Supports PyTorch, Flax, Haiku, Equinox and Keras.
-- Inspecting backend operations that are made for a given einx call (See :ref:`Inspection <inspectingoperations>`).
+- Generalized neural network layers in Einstein notation. Supports PyTorch, Flax, Haiku, Equinox and Keras.
 
 **Next steps:**
 

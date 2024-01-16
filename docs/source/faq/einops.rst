@@ -17,7 +17,7 @@ The einx library provides the following additional features:
 * ``einx.vmap`` and ``einx.vmap_with_axis`` allow applying arbitrary operations using Einstein notation.
 * Specializations provide ease-of-use for main abstractions using Numpy naming convention, e.g. ``einx.sum`` and ``einx.multiply``.
 * Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
-* Support for inspecting the backend calls made by einx in index-based notation (see :ref:`Inspecting operations <inspectingoperations>`).
+* Support for inspecting the backend calls made by einx in index-based notation (see :doc:`Performance </gettingstarted/performance>`).
 
 A non-exhaustive comparison of operations expressed in einx-notation and einops-notation:
 

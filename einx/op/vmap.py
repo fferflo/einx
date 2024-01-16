@@ -2,8 +2,9 @@ import einx, inspect, functools
 from . import util
 import numpy as np
 
-@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
-def vmap_stage3(exprs_in, tensors_in, exprs_out, flat=False, backend=None, op=None, kwargs={}, pass_backend=False, verbose=False):
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, **kwargs:
+    c(exprs_in, [t(x) for x in tensors_in], exprs_out, **kwargs))
+def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op=None, kwargs={}, pass_backend=False, verbose=False):
     if backend is None:
         backend = einx.backend.get(tensors_in)
     elif isinstance(backend, str):
@@ -225,7 +226,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, exprs_out
 
-@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def vmap_stage0(description, *tensors, op, flat=False, backend=None, cse=True, kwargs={}, pass_backend=False, **parameters):
     exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
     tensors, exprs_out = vmap_stage3(exprs_in, tensors, exprs_out, flat=flat, backend=backend, op=op, kwargs=kwargs, pass_backend=pass_backend)

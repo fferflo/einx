@@ -1,5 +1,7 @@
-Example: Common neural network ops
-##################################
+Example: Common neural network operations
+#########################################
+
+einx allows formulating many common operations of deep learning models in a concise and elegant way. This page provides a few examples.
 
 ..  code-block:: python
 

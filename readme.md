@@ -7,7 +7,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 - Fully composable and powerful Einstein expressions with `[]`-notation.
 - Support for many tensor operations (`einx.{sum|max|where|add|dot|flip|get_at|...}`) with Numpy-like naming.
 - Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow and Jax.
-- No overhead when used with just-in-time compilation (e.g. [`jax.jit`](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html), see [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html)).
+- Just-in-time compilation of all expressions into regular Python functions using Python's [`exec()`](https://docs.python.org/3/library/functions.html#exec).
 
 *Optional:*
 
@@ -102,28 +102,20 @@ droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 
 See `examples/train_{torch|flax|haiku|equinox|keras}.py` for example trainings on CIFAR10, [GPT-2](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html) and [Mamba](https://github.com/fferflo/weightbridge/blob/master/examples/mamba2haiku.py) for working example implementations of language models using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/neuralnetworks.html) for more details.
 
-#### Einstein expression trees
+#### Just-in-time compilation
 
-Internally, einx uses *Einstein expression trees* to represent the shapes of tensors. For example, the expression `b (s [r])... c` for a tensor with shape `(2, 4, 8, 3)` and an additional constraint `r=4` is represented as:
-
-<img src="docs/source/images/stage3-tree.png" width="500"/>
-
-See [How does einx parse Einstein expressions?](https://einx.readthedocs.io/en/latest/faq/solver.html) for more details.
-
-#### Inspection
-
-einx allows inspecting the backend calls in index-based notation that are made for a given einx operation (by passing `graph=True`). For example:
+einx traces the required backend operations for a given call into graph representation and just-in-time compiles them into a regular Python function using Python's [`exec()`](https://docs.python.org/3/library/functions.html#exec). This reduces overhead to a single cache lookup and allows inspecting the generated function. For example:
 
 ```python
->>> x = np.zeros((10, 10))
->>> graph = einx.sum("b... (g [c])", x, g=2, graph=True)
->>> print(str(graph))
+>>> x = np.zeros((3, 10, 10))
+>>> graph = einx.sum("... (g [c])", x, g=2, graph=True)
+>>> print(graph)
 
-Graph reduce_stage0("b... (g [c])", I0, op="sum", g=2):
-    X3 := instantiate(I0, shape=(10, 10))
-    X2 := reshape(X3, (10, 2, 5))
-    X1 := sum(X2, axis=2)
-    return X1
+def reduce(i0, backend):
+    x1 = backend.to_tensor(i0)
+    x2 = backend.reshape(x1, (3, 10, 2, 5))
+    x3 = backend.sum(x2, axis=3)
+    return x3
 ```
 
-See [Inspection](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html#inspecting-operations) for more details.
+See [Performance](https://einx.readthedocs.io/en/latest/gettingstarted/performance.html) for more details.

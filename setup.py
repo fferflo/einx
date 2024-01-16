@@ -16,6 +16,7 @@ setup(
     install_requires=[
         "numpy",
         "sympy",
+        "frozendict",
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",

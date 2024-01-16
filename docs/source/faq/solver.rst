@@ -22,8 +22,9 @@ einx uses a multi-step process to convert expression strings into expression tre
 * **Stage 2**: Expand all ellipses by repeating the respective subexpression, resulting in a stage-2 tree.
 * **Stage 3**: Determine a value for each axis (i.e. the axis length) using the provided constraints, resulting in a stage-3 tree, i.e. the final Einstein expression tree.
 
-For a given operation string and signature of input arguments, the required backend operations are traced and cached in a graph representation. Every subsequent call with the same
-signature will reuse the cached graph and therefore incur no additional overhead other than for cache lookup and graph execution (see
+For a given operation string and signature of input arguments, the required backend operations are traced into graph representation and just-in-time compiled using Python's
+`exec() <https://docs.python.org/3/library/functions.html#exec>`_. Every subsequent call with the same
+signature will reuse the cached function and therefore incur no additional overhead other than for cache lookup (see
 :doc:`Performance </gettingstarted/performance>`).
 
 Stage 0: Splitting the operation string

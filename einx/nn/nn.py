@@ -1,6 +1,8 @@
 import einx
 
-@einx.lru_cache(trace=lambda k, v: k[0] in [0, 3, 4, 5, 6, "mean", "var", "scale", "bias"] and not isinstance(v, bool) and not v is None)
+@einx.lru_cache(trace=lambda t, c: lambda x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs:
+    c(t(x), stats, params, t(mean) if not isinstance(mean, bool) and not mean is None else mean, t(var) if not isinstance(var, bool) and not var is None else var,
+        t(scale) if not scale is None else scale, t(bias) if not bias is None else bias, epsilon, fastvar, **kwargs))
 def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs):
     if backend is None:
         backend = einx.backend.get([x, mean if not isinstance(mean, bool) else None, var if not isinstance(var, bool) else None, scale, bias])
@@ -51,7 +53,8 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
 
     return x, mean, var
 
-@einx.lru_cache(trace=lambda k, v: k[0] in [0, 2, 3, "weight", "bias"] and not isinstance(v, bool) and not v is None)
+@einx.lru_cache(trace=lambda t, c: lambda x, expr, weight, bias=None, **kwargs:
+    c(t(x), expr, t(weight), t(bias) if not bias is None else None, **kwargs))
 def linear(x, expr, weight, bias=None, **kwargs):
     (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.param.get_shape(x), einx.param.get_shape(weight), **kwargs)
 
@@ -71,7 +74,8 @@ def linear(x, expr, weight, bias=None, **kwargs):
 
     return x
 
-@einx.lru_cache(trace=lambda k: k[0] in [0, 3, "rng"])
+@einx.lru_cache(trace=lambda t, c: lambda x, expr, drop_rate, rng=None, **kwargs:
+    c(t(x), expr, drop_rate, t(rng) if not rng is None else None, **kwargs))
 def dropout(x, expr, drop_rate, rng=None, **kwargs):
     backend = einx.backend.get([x])
     keep_rate = 1 - drop_rate

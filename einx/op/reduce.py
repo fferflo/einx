@@ -6,7 +6,7 @@ from functools import partial
 _op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min", "logsumexp"]
 _any = any # Is overwritten below
 
-@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, op, backend=None: c(exprs_in, [t(x) for x in tensors_in], exprs_out, op=op))
 def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
     for root in list(exprs_in) + list(exprs_out):
         for expr in root.all():
@@ -74,7 +74,7 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
 
     return exprs_in, exprs_out
 
-@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def reduce_stage0(description, *tensors, op, keepdims=None, backend=None, cse=True, **parameters):
     exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], keepdims=keepdims, cse=cse, **parameters)
     tensors, exprs_out = reduce_stage3(exprs_in, tensors, exprs_out, op=op, backend=backend)

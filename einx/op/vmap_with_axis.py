@@ -5,7 +5,7 @@ from functools import partial
 
 _op_names = ["roll", "flip"]
 
-@einx.lru_cache(trace=lambda k: k[0] in [1, "tensors_in"])
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, op, kwargs={}, backend=None: c(exprs_in, [t(x) for x in tensors_in], exprs_out, op, kwargs))
 def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
@@ -147,7 +147,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, exprs_out
 
-@einx.lru_cache(trace=lambda k: isinstance(k[0], int) and k[0] >= 1)
+@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def vmap_with_axis_stage0(description, *tensors, op, backend=None, cse=True, kwargs={}, **parameters):
     exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
     tensors, exprs_out = vmap_with_axis_stage3(exprs_in, tensors, exprs_out, op=op, kwargs=kwargs, backend=backend)

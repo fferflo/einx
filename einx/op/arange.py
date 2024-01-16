@@ -3,7 +3,7 @@ from functools import partial
 from . import util
 import numpy as np
 
-@einx.lru_cache(trace=lambda k: False)
+@einx.lru_cache(trace=lambda t, c: lambda exprs_in, expr_out, backend=None, dtype="int32": c(exprs_in, expr_out, dtype=dtype))
 def arange_stage3(expr_in, expr_out, backend, dtype="int32"):
     if isinstance(backend, str):
         backend = einx.backend.get(backend)
@@ -81,8 +81,8 @@ def parse(description, cse=True, **parameters):
 
     return expr_in, expr_out
 
-@einx.lru_cache(trace=lambda k: False)
-def arange_stage0(description, backend, dtype="int32", cse=True, **parameters):
+@einx.lru_cache(trace=lambda t, c: lambda description, backend=None, **kwargs: c(description, **kwargs))
+def arange_stage0(description, *, backend, dtype="int32", cse=True, **parameters):
     expr_in, expr_out = parse(description, cse=cse, **parameters)
     tensor, expr_out = arange_stage3(expr_in, expr_out, backend=backend, dtype=dtype)
     return tensor
