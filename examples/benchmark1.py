@@ -12,7 +12,6 @@ k = 1
 n = args.n // k
 rows = []
 
-einx.backend.update()
 envs = [
     ("numpy", einx.backend.get("numpy"), lambda x: x, lambda x: x, lambda x: x, np.asarray),
     ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),

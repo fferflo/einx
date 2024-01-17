@@ -1,4 +1,4 @@
-import torch, jax, einx, timeit, einops, random, argparse, math
+import torch, jax, einx, timeit, einops, random, argparse, math, gc
 import jax.numpy as jnp
 import numpy as np
 from functools import partial
@@ -13,7 +13,7 @@ n = args.n // k
 rows = []
 
 envs = [
-    # ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
+    ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
     ("torch-compile", einx.backend.get("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
     ("jax-jit", einx.backend.get("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x), jax.lax.rsqrt, False),
 ]
@@ -23,7 +23,7 @@ k = int(math.sqrt(args.n))
 for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_transposed in envs:
     experiments = []
 
-    f = 4 if "numpy" in env_name else 1
+    f = 1
 
     x = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f, 64 // f), "float32"))
     if "torch" in env_name:
@@ -46,116 +46,116 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     value = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
 
 
-    # def benchmark_einx(x, bias, scale):
-    #     return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
-    # def benchmark_idx(x, bias, scale):
-    #     mean = xnp.mean(x, axis=-1, keepdims=True)
-    #     var = xnp.var(x, axis=-1, keepdims=True)
+    def benchmark_einx(x, bias, scale):
+        return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[0]
+    def benchmark_idx(x, bias, scale):
+        mean = xnp.mean(x, axis=-1, keepdims=True)
+        var = xnp.var(x, axis=-1, keepdims=True)
 
-    #     inv = scale * rsqrt(var + epsilon)
-    #     x = inv * (x - mean) + bias
+        inv = scale * rsqrt(var + epsilon)
+        x = inv * (x - mean) + bias
 
-    #     return x
-    # if "torch" in env_name:
-    #     def benchmark_native(x, bias, scale):
-    #         return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
-    # else:
-    #     benchmark_native = None
-    # experiments.append(("layernorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+        return x
+    if "torch" in env_name:
+        def benchmark_native(x, bias, scale):
+            return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
+    else:
+        benchmark_native = None
+    experiments.append(("layernorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
 
-    # def benchmark_einx(x, bias, scale):
-    #     return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
-    # def benchmark_idx(x, bias, scale):
-    #     # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
-    #     mean = xnp.mean(x, axis=-1, keepdims=True)
-    #     mean_of_squares = xnp.mean(xnp.square(x), axis=-1, keepdims=True)
-    #     var = mean_of_squares - xnp.square(mean)
+    def benchmark_einx(x, bias, scale):
+        return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)[0]
+    def benchmark_idx(x, bias, scale):
+        # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
+        mean = xnp.mean(x, axis=-1, keepdims=True)
+        mean_of_squares = xnp.mean(xnp.square(x), axis=-1, keepdims=True)
+        var = mean_of_squares - xnp.square(mean)
 
-    #     inv = scale * rsqrt(var + epsilon)
-    #     x = inv * (x - mean) + bias
+        inv = scale * rsqrt(var + epsilon)
+        x = inv * (x - mean) + bias
 
-    #     return x
-    # if "torch" in env_name:
-    #     def benchmark_native(x, bias, scale):
-    #         return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
-    # else:
-    #     benchmark_native = None
-    # experiments.append(("layernorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+        return x
+    if "torch" in env_name:
+        def benchmark_native(x, bias, scale):
+            return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
+    else:
+        benchmark_native = None
+    experiments.append(("layernorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
 
-    # def benchmark_einx(x, bias, scale):
-    #     return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)
-    # def benchmark_idx(x, bias, scale):
-    #     mean = xnp.mean(x, axis=(1, 2), keepdims=True)
-    #     var = xnp.var(x, axis=(1, 2), keepdims=True)
+    def benchmark_einx(x, bias, scale):
+        return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[0]
+    def benchmark_idx(x, bias, scale):
+        mean = xnp.mean(x, axis=(1, 2), keepdims=True)
+        var = xnp.var(x, axis=(1, 2), keepdims=True)
 
-    #     inv = scale * rsqrt(var + epsilon)
-    #     x = inv * (x - mean) + bias
+        inv = scale * rsqrt(var + epsilon)
+        x = inv * (x - mean) + bias
 
-    #     return x
-    # if "torch" in env_name:
-    #     def benchmark_native(x, bias, scale):
-    #         return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
-    # else:
-    #     benchmark_native = None
-    # experiments.append(("batchnorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
+        return x
+    if "torch" in env_name:
+        def benchmark_native(x, bias, scale):
+            return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
+    else:
+        benchmark_native = None
+    experiments.append(("batchnorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
 
-    # def benchmark_einx(x, bias, scale):
-    #     return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)
-    # def benchmark_idx(x, bias, scale):
-    #     # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
-    #     mean = xnp.mean(x, axis=(1, 2), keepdims=True)
-    #     mean_of_squares = xnp.mean(xnp.square(x), axis=(1, 2), keepdims=True)
-    #     var = mean_of_squares - xnp.square(mean)
+    def benchmark_einx(x, bias, scale):
+        return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)[0]
+    def benchmark_idx(x, bias, scale):
+        # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
+        mean = xnp.mean(x, axis=(1, 2), keepdims=True)
+        mean_of_squares = xnp.mean(xnp.square(x), axis=(1, 2), keepdims=True)
+        var = mean_of_squares - xnp.square(mean)
 
-    #     inv = scale * rsqrt(var + epsilon)
-    #     x = inv * (x - mean) + bias
+        inv = scale * rsqrt(var + epsilon)
+        x = inv * (x - mean) + bias
 
-    #     return x
-    # if "torch" in env_name:
-    #     def benchmark_native(x, bias, scale):
-    #         return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
-    # else:
-    #     benchmark_native = None
-    # experiments.append(("batchnorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
+        return x
+    if "torch" in env_name:
+        def benchmark_native(x, bias, scale):
+            return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
+    else:
+        benchmark_native = None
+    experiments.append(("batchnorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
 
-    # def benchmark_einx(x, bias, weight):
-    #     return einx.nn.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
-    # def benchmark_idx(x, bias, weight):
-    #     # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
-    #     x = xnp.dot(x, weight)
-    #     x = x + bias
-    #     return x
-    # if "torch" in env_name:
-    #     def benchmark_native(x, bias, weight):
-    #         return torch.nn.functional.linear(x, weight=weight, bias=bias)
-    # else:
-    #     benchmark_native = None
-    # experiments.append(("channel_linear", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w), 1.0))
+    def benchmark_einx(x, bias, weight):
+        return einx.nn.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
+    def benchmark_idx(x, bias, weight):
+        # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
+        x = xnp.dot(x, weight)
+        x = x + bias
+        return x
+    if "torch" in env_name:
+        def benchmark_native(x, bias, weight):
+            return torch.nn.functional.linear(x, weight=weight, bias=bias)
+    else:
+        benchmark_native = None
+    experiments.append(("channel_linear", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w), 1.0))
 
-    # def benchmark_einx(x, w1, b1, w2, b2):
-    #     x0 = x
-    #     x = einx.nn.linear(x, "b [s...|s2] c", weight=w1, bias=b1)
-    #     x = xnp.where(x < 0, 0, x)
-    #     x = einx.nn.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
-    #     x = x + x0
-    #     return x
-    # def benchmark_idx(x, w1, b1, w2, b2):
-    #     # https://github.com/lucidrains/mlp-mixer-pytorch/blob/main/mlp_mixer_pytorch/mlp_mixer_pytorch.py
-    #     # https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_mixer.py
-    #     x0 = x
-    #     shape = x.shape
-    #     x = x.reshape([x.shape[0], -1, x.shape[-1]])
-    #     x = xnp.swapaxes(x, 1, 2)
-    #     x = xnp.dot(x, w1.reshape([-1, w1.shape[-1]]))
-    #     x = x + b1
-    #     x = xnp.where(x < 0, 0, x)
-    #     x = xnp.dot(x, w2.reshape([w2.shape[0], -1]))
-    #     x = x + b2.reshape([-1])
-    #     x = xnp.swapaxes(x, 1, 2)
-    #     x = x.reshape(shape)
-    #     x = x + x0
-    #     return x
-    # experiments.append(("spatial_mlp", (benchmark_einx, None, benchmark_idx), lambda m: (x, w1, b128, w2, y), 1.0))
+    def benchmark_einx(x, w1, b1, w2, b2):
+        x0 = x
+        x = einx.nn.linear(x, "b [s...|s2] c", weight=w1, bias=b1)
+        x = xnp.where(x < 0, 0, x)
+        x = einx.nn.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
+        x = x + x0
+        return x
+    def benchmark_idx(x, w1, b1, w2, b2):
+        # https://github.com/lucidrains/mlp-mixer-pytorch/blob/main/mlp_mixer_pytorch/mlp_mixer_pytorch.py
+        # https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_mixer.py
+        x0 = x
+        shape = x.shape
+        x = x.reshape([x.shape[0], -1, x.shape[-1]])
+        x = xnp.swapaxes(x, 1, 2)
+        x = xnp.dot(x, w1.reshape([-1, w1.shape[-1]]))
+        x = x + b1
+        x = xnp.where(x < 0, 0, x)
+        x = xnp.dot(x, w2.reshape([w2.shape[0], -1]))
+        x = x + b2.reshape([-1])
+        x = xnp.swapaxes(x, 1, 2)
+        x = x.reshape(shape)
+        x = x + x0
+        return x
+    experiments.append(("spatial_mlp", (benchmark_einx, None, benchmark_idx), lambda m: (x, w1, b128, w2, y), 1.0))
 
 
 
@@ -223,9 +223,9 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         else:
             assert False
 
-        for key in list(times.keys()):
-            p = int(len(times[key]) * 0.2)
-            times[key] = sorted(times[key])[p:-p]
+        for key2 in list(times.keys()):
+            p = int(len(times[key2]) * 0.2)
+            times[key2] = sorted(times[key2])[p:-p]
 
         # if "benchmark_native" not in times:
         #     times["benchmark_native"] = times["benchmark_idx"]
@@ -235,6 +235,9 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
                 print(f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}")
         rows.append((name, times))
         print()
+    
+    del x, y, z1, z2, w, w1, w2, b128, query, key, value
+    gc.collect()
 
 import tabulate
 table = []
