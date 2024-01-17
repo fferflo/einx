@@ -36,7 +36,7 @@ The function :func:`einx.rearrange` transforms tensors between Einstein expressi
 ((128, 8, 16), (32, 32, 1))
 
 Using :func:`einx.rearrange` often produces more readable and concise code than specifying backend operations in index-based notation directly. The index-based calls can be
-inspected using the just-in-time compiled function that einx creates for this expression (see :doc:`Performance </gettingstarted/performance>`):
+inspected using the just-in-time compiled function that einx creates for this expression (see :doc:`Just-in-time compilation </gettingstarted/jit>`):
 
 >>> print(einx.rearrange("b (s p) (c + 1) -> (b s) p c, (b p) s 1", x, p=8, graph=True))
 def rearrange(i0, backend):

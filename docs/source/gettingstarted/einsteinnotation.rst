@@ -49,7 +49,7 @@ The function shows that einx performs the expected call to ``np.transpose``.
 
     einx traces the backend calls made for a given operation and just-in-time compiles them into a regular Python function using Python's
     `exec() <https://docs.python.org/3/library/functions.html#exec>`_. When the function is called with the same signature of arguments, the compiled function is reused and
-    therefore incurs no additional overhead other than for cache lookup (see :doc:`Performance </gettingstarted/performance>`)
+    therefore incurs no additional overhead other than for cache lookup (see :doc:`Just-in-time compilation </gettingstarted/jit>`)
 
 .. _axiscomposition:
 

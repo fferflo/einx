@@ -15,7 +15,7 @@ It is inspired by `einops <https://github.com/arogozhnikov/einops>`_.
    gettingstarted/neuralnetworks.rst
    gettingstarted/commonnnops.rst
    gettingstarted/gpt2.rst
-   gettingstarted/performance.rst
+   gettingstarted/jit.rst
    gettingstarted/gotchas.rst
    gettingstarted/cheatsheet.rst
 

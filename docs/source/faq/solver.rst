@@ -25,7 +25,7 @@ einx uses a multi-step process to convert expression strings into expression tre
 For a given operation string and signature of input arguments, the required backend operations are traced into graph representation and just-in-time compiled using Python's
 `exec() <https://docs.python.org/3/library/functions.html#exec>`_. Every subsequent call with the same
 signature will reuse the cached function and therefore incur no additional overhead other than for cache lookup (see
-:doc:`Performance </gettingstarted/performance>`).
+:doc:`Just-in-time compilation </gettingstarted/jit>`).
 
 Stage 0: Splitting the operation string
 ---------------------------------------
