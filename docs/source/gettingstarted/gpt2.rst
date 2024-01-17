@@ -185,4 +185,4 @@ Prediction:
     We succeeded in taking that picture, and, if you look at it, you see a dot. That's here. That's home. That's us. On it, we wrote, "We are the people."
 
 The `full example script can be found here <https://github.com/fferflo/weightbridge/blob/master/examples/gpt2haiku.py>`_, and a similar example script for the
-`Mamba language model can be found here <https://github.com/fferflo/weightbridge/blob/master/examples/mamba2haiku.py>`_.
+`Mamba language model using Flax can be found here <https://github.com/fferflo/weightbridge/blob/master/examples/mamba2flax.py>`_.
