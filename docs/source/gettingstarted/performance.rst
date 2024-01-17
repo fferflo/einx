@@ -21,10 +21,9 @@ def reduce(i0, backend):
 
 einx passes this string to `exec() <https://docs.python.org/3/library/functions.html#exec>`_ to just-in-time compile the function. It then invokes the function using the
 required arguments and backend (i.e. Numpy, Torch, Jax or Tensorflow). The traced function is cached, such that subsequent calls with the same signature of inputs can
-reuse it and incur **no overhead other than for cache lookup**.
+reuse it and incur no overhead other than for cache lookup.
 
-When using just-in-time compilation like `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_
-and `torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_, **einx incurs zero overhead** (other than during
+When using just-in-time compilation like `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_, einx incurs zero overhead (other than during
 initialization).
 
 Inspecting operations
