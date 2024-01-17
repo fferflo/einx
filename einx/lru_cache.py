@@ -34,7 +34,7 @@ def lru_cache(func=None, trace=None):
         if max_cache_size == 0:
             inner = func
         elif max_cache_size < 0:
-            inner = freeze(functools.cache(func)) # No cache limit
+            inner = freeze(functools.lru_cache(maxsize=None)(func)) # No cache limit
         else:
             inner = freeze(functools.lru_cache(maxsize=max_cache_size)(func))
     else:

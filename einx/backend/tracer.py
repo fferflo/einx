@@ -352,10 +352,10 @@ def reduce(tensor, axis, *, op=None, **kwargs):
     else:
         for a in reversed(sorted(axes)):
             del shape[a]
-    return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, output_shapes=np.asarray(shape)).output_tracers
+    return Op(op, args=[tensor], kwargs={**kwargs, **{"axis": axis}}, output_shapes=np.asarray(shape)).output_tracers
 
 def map(tensor, axis, op, *args, **kwargs):
-    return Op(op, args=[tensor], kwargs=kwargs | {"axis": axis}, output_shapes=np.asarray(tensor.shape)).output_tracers
+    return Op(op, args=[tensor], kwargs={**kwargs, **{"axis": axis}}, output_shapes=np.asarray(tensor.shape)).output_tracers
 
 def index(tensor, coordinates, update=None, op=None):
     return Op(op, args=[tensor, coordinates, update], output_shapes=np.asarray(coordinates[0].shape)).output_tracers

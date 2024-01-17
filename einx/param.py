@@ -30,7 +30,7 @@ def instantiate(x, shape, backend, **kwargs):
         raise TypeError("instantiate cannot be called on None")
     if backend == einx.backend.tracer:
         if is_tensor_factory(x):
-            return einx.backend.tracer.Op(instantiate, [x], {"shape": shape} | kwargs, output_shapes=np.asarray(shape), pass_backend=True).output_tracers
+            return einx.backend.tracer.Op(instantiate, [x], {**{"shape": shape}, **kwargs}, output_shapes=np.asarray(shape), pass_backend=True).output_tracers
         else:
             return einx.backend.tracer.Op("to_tensor", [x], output_shapes=np.asarray(shape)).output_tracers
     else:
