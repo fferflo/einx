@@ -131,7 +131,6 @@ class Op:
         if op is None:
             raise TypeError("op cannot be None")
         self.op = op
-        self.op_split = op.split(".") if isinstance(op, str) else None
         self.args = args
         self.kwargs = kwargs
         self.pass_backend = pass_backend
