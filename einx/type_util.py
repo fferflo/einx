@@ -76,21 +76,12 @@ def assign_global(
 
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Literal, TypeVar
 
     from jax import Array as JaxArray
     from numpy.typing import ArrayLike as NumpyArray
     from tensorflow import Tensor as TensorFlowTensor
     from torch import Tensor as TorchTensor
-    from typing_extensions import TypeVar
 
-    TArray = TypeVar(
-        "TArray",
-        TensorFlowTensor,
-        NumpyArray,
-        TorchTensor,
-        JaxArray,
-        infer_variance=True,
-    )
-
+    TArray = TypeVar("TArray", TensorFlowTensor, NumpyArray, TorchTensor, JaxArray)
     Backend = Literal["torch", "jax", "numpy", "tensorflow"]
