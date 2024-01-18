@@ -75,7 +75,14 @@ def make_torch_backend():
         logsumexp = torch_.logsumexp
 
         def get_at(tensor, coordinates):
-            return tensor[coordinates]
+            if coordinates[0].ndim == 0:
+                # Fix for https://github.com/pytorch/functorch/issues/747
+                # Scalar coordinates cause problems with torch.vmap and throw an error:
+                # "RuntimeError: vmap: It looks like you're calling .item() on a Tensor. We don't support vmap over calling .item() on a Tensor ..."
+                # As a workaround, we add a dummy dimension and remove it after the indexing operation.
+                return tensor[tuple(c[None] for c in coordinates)][0]
+            else:
+                return tensor[coordinates]
         def set_at(tensor, coordinates, updates):
             tensor[coordinates] = updates
             return tensor
