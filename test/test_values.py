@@ -112,6 +112,14 @@ def test_values(backend):
         backend.to_tensor(np.stack(np.meshgrid(np.arange(6), np.arange(5), indexing="xy"), axis=-1).astype("int32")),
     )
 
+    coord_dtype = "int32" if backend.name != "torch" else "long"
+    x = backend.to_tensor(rng.uniform(size=(4, 5, 6)).astype("float32"))
+    y = backend.cast(backend.ones((4, 5)) * 3, coord_dtype)
+    assert backend.allclose(
+        einx.get_at("... [d], ... -> ...", x, y),
+        x[:, :, 3],
+    )
+
 @pytest.mark.parametrize("backend", backends)
 def test_compare_backends(backend):
     x = np.random.uniform(size=(10, 3, 10)).astype("float32")
