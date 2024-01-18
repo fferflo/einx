@@ -24,8 +24,10 @@ def assign_global(
     # Add the type signatures to {filename}_generated_types.py
     assert filename.endswith(".py"), f'{filename=} must end with ".py"'
     in_file = Path(filename)
-    out_file = in_file.parent / f"{in_file.stem}_generated_types.py"
-    aggregate_file = in_file.parent / "generated_types.py"
+    types_dir = in_file.parent / "_generated_types"
+    types_dir.mkdir(exist_ok=True)
+    out_file = types_dir / in_file.name
+    aggregate_file = types_dir / "__init__.py"
 
     # If this is the first file being processed, delete the aggregate typing file
     if not _seen_files:
@@ -44,7 +46,7 @@ def assign_global(
 
         # Add the file to the aggregate typing file
         with aggregate_file.open("a") as f:
-            _ = f.write(f"from .{in_file.stem}_generated_types import *\n")
+            _ = f.write(f"from .{in_file.stem} import *\n")
 
         _seen_files.add(out_file_str)
 
@@ -56,7 +58,7 @@ def assign_global(
         # Write the function docstring
         if docstring := func.__doc__:
             docstring = docstring.replace("\n", "\n\t\t")
-            _ = f.write(f"\t\t\"\"\"\n\t\t{docstring}\n\t\t\"\"\"\n")
+            _ = f.write(f'\t\t"""\n\t\t{docstring}\n\t\t"""\n')
 
         # Write the function body
         _ = f.write("\t\t...\n\n")
