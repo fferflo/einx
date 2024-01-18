@@ -1,4 +1,5 @@
 import einx
+from ..type_util import assign_global
 from . import util
 from functools import partial
 import numpy as np
@@ -114,13 +115,13 @@ def elementwise(arg0, *args, **kwargs):
     2. ``input1, input2, ...``
         All input expressions are specified explicitly. If one of the input expressions is a parent of or equal to all other input expressions,
         it is used as the output expression. Otherwise, an exception is raised.
-        
+
         Example: ``a b, a`` resolves to ``a b, a -> a b``.
 
     3. ``input1`` with ``[]``-brackets
         The function accepts two input tensors. `[]`-brackets mark all subexpressions in the
         first input that should also appear in the second input.
-        
+
         Example: ``a [b]`` resolves to ``a b, b``
 
     Args:
@@ -185,7 +186,8 @@ def _make(name):
         return elementwise(*args, op=name, **kwargs)
     func.__name__ = name
     func.__doc__ = f"Alias for :func:`einx.elementwise` with ``op=\"{name}\"``"
-    globals()[name] = func
+    # globals()[name] = func
+    assign_global(name, func, __file__)
 
 for name in _op_names:
     _make(name)

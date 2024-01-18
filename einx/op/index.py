@@ -1,5 +1,7 @@
 import einx
 from functools import partial
+
+from ..type_util import assign_global
 from . import util
 import numpy as np
 
@@ -197,7 +199,8 @@ def _make(name):
         return index(*args, op=name, **kwargs)
     func.__name__ = name
     func.__doc__ = f"Alias for :func:`einx.index` with ``op=\"{name}\"``"
-    globals()[name] = func
+    # globals()[name] = func
+    assign_global(name, func, __file__)
 
 for name in _op_names:
     _make(name)
