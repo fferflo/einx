@@ -10,11 +10,12 @@ _seen_files = set[str]()
 def assign_global(
     name: str,
     func: Any,
+    globals_dict: dict[str, Any],
     signature: str,
     filename: str,
     format_file: bool = False,
 ):
-    globals()[name] = func
+    globals_dict[name] = func
 
     if not bool(int(os.environ.get("EINX_GENERATE_TYPES", "0"))):
         return
@@ -75,33 +76,20 @@ def assign_global(
 
 
 if TYPE_CHECKING:
-    from typing import Literal, Never
+    from typing import Literal
 
+    from jax import Array as JaxArray
+    from numpy.typing import ArrayLike as NumpyArray
+    from tensorflow import Tensor as TensorFlowTensor
+    from torch import Tensor as TorchTensor
     from typing_extensions import TypeVar
-
-    try:
-        from jax import Array as JaxArray
-    except ImportError:
-        JaxArray = Never
-    try:
-        from numpy.typing import ArrayLike as NumpyArray
-    except ImportError:
-        NumpyArray = Never
-    try:
-        from torch import Tensor as TorchTensor
-    except ImportError:
-        TorchTensor = Never
-    try:
-        from tensorflow import Tensor as TensorFlowTensor
-    except ImportError:
-        TensorFlowTensor = Never
 
     TArray = TypeVar(
         "TArray",
+        TensorFlowTensor,
+        NumpyArray,
         TorchTensor,
         JaxArray,
-        NumpyArray,
-        TensorFlowTensor,
         infer_variance=True,
     )
 

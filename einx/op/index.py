@@ -203,6 +203,7 @@ def _make(name):
     assign_global(
         name,
         func,
+        globals(),
         "(description: str, tensor: TArray, coordinates: TArray, update: t.Optional[TArray] = None, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray",
         __file__,
     )
