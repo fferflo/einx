@@ -1,8 +1,31 @@
-def get_at(*args, **kwargs): ...
+from typing import TYPE_CHECKING
 
-def set_at(*args, **kwargs): ...
+if TYPE_CHECKING:
+	import typing as t
 
-def add_at(*args, **kwargs): ...
+	from einx.type_util import Backend, TArray
 
-def subtract_at(*args, **kwargs): ...
+	def get_at(description: str, tensor: TArray, coordinates: TArray, update: t.Optional[TArray] = None, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.index` with ``op="get_at"``
+		"""
+		...
+
+	def set_at(description: str, tensor: TArray, coordinates: TArray, update: t.Optional[TArray] = None, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.index` with ``op="set_at"``
+		"""
+		...
+
+	def add_at(description: str, tensor: TArray, coordinates: TArray, update: t.Optional[TArray] = None, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.index` with ``op="add_at"``
+		"""
+		...
+
+	def subtract_at(description: str, tensor: TArray, coordinates: TArray, update: t.Optional[TArray] = None, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.index` with ``op="subtract_at"``
+		"""
+		...
 

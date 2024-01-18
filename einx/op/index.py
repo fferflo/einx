@@ -200,7 +200,12 @@ def _make(name):
     func.__name__ = name
     func.__doc__ = f"Alias for :func:`einx.index` with ``op=\"{name}\"``"
     # globals()[name] = func
-    assign_global(name, func, __file__)
+    assign_global(
+        name,
+        func,
+        "(description: str, tensor: TArray, coordinates: TArray, update: t.Optional[TArray] = None, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray",
+        __file__,
+    )
 
 for name in _op_names:
     _make(name)

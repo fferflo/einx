@@ -1,34 +1,109 @@
-def add(*args, **kwargs): ...
+from typing import TYPE_CHECKING
 
-def subtract(*args, **kwargs): ...
+if TYPE_CHECKING:
+	import typing as t
 
-def multiply(*args, **kwargs): ...
+	from einx.type_util import Backend, TArray
 
-def true_divide(*args, **kwargs): ...
+	def add(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="add"``
+		"""
+		...
 
-def floor_divide(*args, **kwargs): ...
+	def subtract(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="subtract"``
+		"""
+		...
 
-def divide(*args, **kwargs): ...
+	def multiply(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="multiply"``
+		"""
+		...
 
-def logical_and(*args, **kwargs): ...
+	def true_divide(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="true_divide"``
+		"""
+		...
 
-def logical_or(*args, **kwargs): ...
+	def floor_divide(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="floor_divide"``
+		"""
+		...
 
-def where(*args, **kwargs): ...
+	def divide(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="divide"``
+		"""
+		...
 
-def less(*args, **kwargs): ...
+	def logical_and(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="logical_and"``
+		"""
+		...
 
-def less_equal(*args, **kwargs): ...
+	def logical_or(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="logical_or"``
+		"""
+		...
 
-def greater(*args, **kwargs): ...
+	def where(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="where"``
+		"""
+		...
 
-def greater_equal(*args, **kwargs): ...
+	def less(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="less"``
+		"""
+		...
 
-def equal(*args, **kwargs): ...
+	def less_equal(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="less_equal"``
+		"""
+		...
 
-def not_equal(*args, **kwargs): ...
+	def greater(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="greater"``
+		"""
+		...
 
-def maximum(*args, **kwargs): ...
+	def greater_equal(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="greater_equal"``
+		"""
+		...
 
-def minimum(*args, **kwargs): ...
+	def equal(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="equal"``
+		"""
+		...
+
+	def not_equal(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="not_equal"``
+		"""
+		...
+
+	def maximum(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="maximum"``
+		"""
+		...
+
+	def minimum(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.elementwise` with ``op="minimum"``
+		"""
+		...
 

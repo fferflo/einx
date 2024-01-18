@@ -1,22 +1,73 @@
-def sum(*args, **kwargs): ...
+from typing import TYPE_CHECKING
 
-def mean(*args, **kwargs): ...
+if TYPE_CHECKING:
+	import typing as t
 
-def var(*args, **kwargs): ...
+	from einx.type_util import Backend, TArray
 
-def std(*args, **kwargs): ...
+	def sum(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="sum"``
+		"""
+		...
 
-def prod(*args, **kwargs): ...
+	def mean(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="mean"``
+		"""
+		...
 
-def count_nonzero(*args, **kwargs): ...
+	def var(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="var"``
+		"""
+		...
 
-def any(*args, **kwargs): ...
+	def std(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="std"``
+		"""
+		...
 
-def all(*args, **kwargs): ...
+	def prod(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="prod"``
+		"""
+		...
 
-def max(*args, **kwargs): ...
+	def count_nonzero(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="count_nonzero"``
+		"""
+		...
 
-def min(*args, **kwargs): ...
+	def any(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="any"``
+		"""
+		...
 
-def logsumexp(*args, **kwargs): ...
+	def all(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="all"``
+		"""
+		...
+
+	def max(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="max"``
+		"""
+		...
+
+	def min(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="min"``
+		"""
+		...
+
+	def logsumexp(description: str, *tensors: TArray, backend: t.Optional[Backend] = None, cse: bool = True, graph: bool = False, **parameters: TArray) -> TArray:
+		"""
+		Alias for :func:`einx.reduce` with ``op="logsumexp"``
+		"""
+		...
 
