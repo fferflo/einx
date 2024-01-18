@@ -35,13 +35,17 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
+    if not with_update:
+        for expr in expr_out.all():
+            if einx.expr.stage3.is_marked(expr):
+                raise ValueError("Brackets in the output expression are not allowed")
     exprs_in = list(exprs_in)
 
     marked_coordinate_axes = [expr for expr in exprs_in[1].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)]
     if len(marked_coordinate_axes) > 1:
-        raise ValueError(f"Expected at most one coordinate axis, got {len(marked_coordinate_axes)}")
+        raise ValueError(f"Expected at most one coordinate axis in the second expression, got {len(marked_coordinate_axes)}")
     ndim = marked_coordinate_axes[0].value if len(marked_coordinate_axes) == 1 else 1
-    coordinate_axis_name = marked_coordinate_axes[0].name if len(marked_coordinate_axes) == 1 else None
+    coordinate_axis_name = marked_coordinate_axes[0].name if len(marked_coordinate_axes) == 1 and (not marked_coordinate_axes[0].is_unnamed or marked_coordinate_axes[0].value != 1) else None
 
     marked_tensor_axis_names = set(expr.name for expr in exprs_in[0].all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr))
     if len(marked_tensor_axis_names) != ndim:

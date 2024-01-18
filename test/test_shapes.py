@@ -373,6 +373,14 @@ def test_shape_index(backend):
     with pytest.raises(Exception):
         einx.get_at("b ([1 1]) c, b p [2] -> b p c", x, y)
 
+    x = backend.zeros((4, 5, 6))
+    y = backend.cast(backend.zeros((4, 5)), coord_dtype)
+    assert einx.get_at("b t [d], b t -> b t", x, y).shape == (4, 5)
+    assert einx.get_at("... [d], ... -> ...", x, y).shape == (4, 5)
+    assert einx.get_at("b t [d], b (t [1]) -> b (t 1)", x, y).shape == (4, 5)
+    with pytest.raises(ValueError):
+        einx.get_at("b t [d], b (t [1]) -> b (t [1])", x, y)
+
 @pytest.mark.parametrize("backend", backends)
 def test_shape_vmap_with_axis(backend):
     x = backend.ones((10, 10), "float32")
