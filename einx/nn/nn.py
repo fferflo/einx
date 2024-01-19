@@ -6,6 +6,8 @@ import einx
 def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs):
     if backend is None:
         backend = einx.backend.get([x, mean if not isinstance(mean, bool) else None, var if not isinstance(var, bool) else None, scale, bias])
+    elif isinstance(backend, str):
+        backend = einx.backend.get(backend)
 
     expr_in, expr_stats = einx.reduce.parse(stats, einx.param.get_shape(x), **kwargs)
     expr_in = einx.expr.stage3.demark(expr_in)
