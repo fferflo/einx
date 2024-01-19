@@ -2,16 +2,24 @@ import numpy as np
 import einx, sys, inspect, importlib
 
 def get_shape(x):
+    if isinstance(x, (tuple, list)):
+        subshapes = set(get_shape(y) for y in x)
+        if len(subshapes) != 1:
+            raise ValueError(f"Failed to determine shape in input tensor")
+        subshape = subshapes.pop()
+        if subshape is None:
+            raise ValueError(f"Failed to determine shape in input tensor")
+        return (len(x),) + subshape
+    elif isinstance(x, (float, int, np.floating, np.integer)):
+        # Single number
+        return ()
+
     try:
         # Concrete tensor
         return tuple(int(i) for i in x.shape)
     except:
-        if isinstance(x, (float, int, np.floating, np.integer)):
-            # Single number
-            return ()
-        else:
-            # Tensor factory
-            return None
+        # Cannot determine shape (e.g. tensor factory)
+        return None
 
 def is_tensor_factory(x):
     if isinstance(x, einx.backend.tracer.Input):

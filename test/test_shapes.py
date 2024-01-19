@@ -12,6 +12,7 @@ if importlib.util.find_spec("tensorflow"):
 
 import einx, pytest
 from functools import partial
+import numpy as np
 
 backends = [b for b in einx.backend.backends if b != einx.backend.tracer]
 
@@ -195,6 +196,15 @@ def test_shape_reduce(backend):
     x = backend.ones((16, 16, 32))
     bias = backend.ones((4,))
     assert einx.add("b... (g [c])", x, bias).shape == (16, 16, 32)
+
+    assert einx.logsumexp("[a]", [0.0, 1.0]).shape == ()
+    assert einx.logsumexp("[a]", [np.asarray(0.0), np.asarray(1.0)]).shape == ()
+    assert einx.mean("[a]", [backend.to_tensor(0.0), np.asarray(1.0)]).shape == ()
+    assert einx.sum("[a]", [backend.to_tensor(0.0), backend.to_tensor(1.0)]).shape == ()
+    assert einx.logsumexp("[a] 1", [[0.0], [1.0]]).shape == (1,)
+    assert einx.logsumexp("[a]", [0.0] * 10).shape == ()
+    with pytest.raises(ValueError):
+        einx.logsumexp("a", [0.0, [1.0]])
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_elementwise(backend):
