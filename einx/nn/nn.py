@@ -7,7 +7,7 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
     if backend is None:
         backend = einx.backend.get([x, mean if not isinstance(mean, bool) else None, var if not isinstance(var, bool) else None, scale, bias])
 
-    (expr_in,), (expr_stats,) = einx.reduce.parse(stats, einx.param.get_shape(x), **kwargs)
+    expr_in, expr_stats = einx.reduce.parse(stats, einx.param.get_shape(x), **kwargs)
     expr_in = einx.expr.stage3.demark(expr_in)
     expr_stats = einx.expr.stage3.demark(expr_stats)
 

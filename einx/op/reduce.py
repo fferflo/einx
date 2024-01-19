@@ -6,17 +6,21 @@ from functools import partial
 _op_names = ["sum", "mean", "var", "std", "prod", "count_nonzero", "any", "all", "max", "min", "logsumexp"]
 _any = any # Is overwritten below
 
-@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, op, backend=None: c(exprs_in, [t(x) for x in tensors_in], exprs_out, op=op))
-def reduce_stage3(exprs_in, tensors_in, exprs_out, op, backend=None):
-    for root in list(exprs_in) + list(exprs_out):
+@einx.lru_cache(trace=lambda t, c: lambda expr_in, tensor_in, expr_out, op, backend=None: c(expr_in, t(tensor_in), expr_out, op=op))
+def reduce_stage3(expr_in, tensor_in, expr_out, op, backend=None):
+    for root in [expr_in, expr_out]:
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
-    return einx.vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, backend=backend)
+    tensors_out, exprs_out = einx.vmap_with_axis_stage3([expr_in], [tensor_in], [expr_out], op, backend=backend)
+    return tensors_out[0], exprs_out[0]
 
 @einx.lru_cache
-def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
+def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
+
+    if "," in description:
+        raise ValueError("Only a single input and output expression is allowed")
 
     if "->" in description:
         if not keepdims is None:
@@ -25,42 +29,32 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
         if len(description) != 2:
             raise ValueError("Operation cannot contain more than one '->'")
 
-        exprs_in, exprs_out = description
-        exprs_in = exprs_in.split(",")
-        exprs_out = exprs_out.split(",")
-        exprs = exprs_in + exprs_out
-        if len(exprs_in) != len(tensors_shapes):
-            raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_shapes)}")
+        expr_in, expr_out = description
 
-        exprs = einx.expr.solve(
-                [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
-              + [einx.expr.Equation(expr_out) for expr_out in exprs_out] \
+        expr_in, expr_out = einx.expr.solve(
+                [einx.expr.Equation(expr_in, tensor_shape)] \
+              + [einx.expr.Equation(expr_out)] \
               + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
             cse_in_markers=True,
-        )[:len(exprs_in) + len(exprs_out)]
-        exprs_in, exprs_out = exprs[:len(exprs_in)], exprs[len(exprs_in):]
+        )[:2]
 
-        # If no axes are marked for reduction in exprs_in, mark all axes that don't appear in exprs_out
-        if not _any(einx.expr.stage3.is_marked(axis) for expr_in in exprs_in for axis in expr_in.all()):
-            axes_names_out = set(axis.name for expr in exprs_out for axis in expr.all() if isinstance(axis, einx.expr.stage3.Axis))
-            exprs_in = [einx.expr.stage3.mark(expr, lambda expr: isinstance(expr, einx.expr.stage3.Axis) and expr.name not in axes_names_out) for expr in exprs_in]
+        # If no axes are marked for reduction in expr_in, mark all axes that don't appear in expr_out
+        if not _any(einx.expr.stage3.is_marked(expr) for expr in expr_in.all()):
+            axes_names_out = set(axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis))
+            expr_in = einx.expr.stage3.mark(expr_in, lambda expr: isinstance(expr, einx.expr.stage3.Axis) and expr.name not in axes_names_out)
 
     else:
-        exprs_in = description.split(",")
-        if len(exprs_in) != 1:
-            raise ValueError("Operation with implicit output shape cannot contain more than one input expression")
-        if len(exprs_in) != len(tensors_shapes):
-            raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_shapes)}")
+        expr_in = description
 
-        exprs_in = einx.expr.solve(
-                [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)] \
+        expr_in = einx.expr.solve(
+                [einx.expr.Equation(expr_in, tensor_shape)] \
               + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
             cse=cse,
             cse_in_markers=True,
-        )[:len(exprs_in)]
+        )[0]
 
-        if not _any(isinstance(expr, einx.expr.stage3.Marker) for root in exprs_in for expr in root.all()):
+        if not _any(isinstance(expr, einx.expr.stage3.Marker) for expr in expr_in.all()):
             raise ValueError("No axes are marked for reduction")
 
         # Determine output expressions by removing markers from input expressions
@@ -70,15 +64,15 @@ def parse(description, *tensors_shapes, keepdims=None, cse=True, **parameters):
                     return [einx.expr.stage3.Axis(None, 1)]
                 else:
                     return []
-        exprs_out = [einx.expr.stage3.replace(expr_in, replace) for expr_in in exprs_in]
+        expr_out = einx.expr.stage3.replace(expr_in, replace)
 
-    return exprs_in, exprs_out
+    return expr_in, expr_out
 
-@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def reduce_stage0(description, *tensors, op, keepdims=None, backend=None, cse=True, **parameters):
-    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], keepdims=keepdims, cse=cse, **parameters)
-    tensors, exprs_out = reduce_stage3(exprs_in, tensors, exprs_out, op=op, backend=backend)
-    return tensors[0] if len(exprs_out) == 1 else tensors
+@einx.lru_cache(trace=lambda t, c: lambda description, tensor, backend=None, **kwargs: c(description, t(tensor), **kwargs))
+def reduce_stage0(description, tensor, op, keepdims=None, backend=None, cse=True, **parameters):
+    expr_in, expr_out = parse(description, einx.param.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters)
+    tensor, expr_out = reduce_stage3(expr_in, tensor, expr_out, op=op, backend=backend)
+    return tensor
 
 def reduce(arg0, *args, **kwargs):
     """Applies a reduction operation on the given tensors. Specializes :func:`einx.vmap_with_axis`.
@@ -88,11 +82,11 @@ def reduce(arg0, *args, **kwargs):
 
     The `description` argument specifies the input and output expressions, as well as reduced axes. It must meet one of the following formats:
 
-    1. ``input1, input2, ... -> output1, output2, ...``
-        All input and output expressions are specified explicitly. Reduced axes are marked with ``[]``-brackets in the input expressions. If no axes are
-        marked, reduces all axes that do not appear in one of the output expressions.
+    1. ``input -> output``
+        Input and output expressions are specified explicitly. Reduced axes are marked with ``[]``-brackets in the input expression. If no axes are
+        marked, reduces all axes that do not appear in the output expression.
 
-    2. ``input1``
+    2. ``input``
         A single input expression is specified. Reduced axes are marked with ``[]``-brackets. The output expression is determined by removing all marked expressions
         from the input expression.
 
@@ -100,7 +94,7 @@ def reduce(arg0, *args, **kwargs):
 
     Args:
         description: Description string in Einstein notation (see above).
-        tensors: Input tensors or tensor factories matching the description string.
+        tensor: Input tensor or tensor factory matching the description string.
         op: Backend reduction operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
         keepdims: Whether to replace marked expressions with 1s instead of removing them. Defaults to False.
         backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
