@@ -165,12 +165,6 @@ def elementwise(arg0, *args, **kwargs):
         >>> x, w = np.random.uniform(size=(4, 16, 16, 64)), np.random.uniform(size=(64,))
         >>> einx.add("b... [c]", x, w).shape
         (4, 16, 16, 64)
-
-        Split a tensor in two parts and add them together:
-
-        >>> x = np.random.uniform(size=(4, 64))
-        >>> einx.add("a (b + b) -> a b", x).shape
-        (4, 32)
     """
     if isinstance(arg0, str):
         return elementwise_stage0(arg0, *args, **kwargs)

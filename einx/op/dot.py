@@ -186,7 +186,7 @@ def dot(arg0, *args, **kwargs):
         Compute an inner product between two vectors:
 
         >>> a, b = np.random.uniform(size=(10,)), np.random.uniform(size=(10,))
-        >>> einx.dot("a, b ->", a, b).shape
+        >>> einx.dot("a, a ->", a, b).shape
         ()
 
         Compute a matrix-vector product:
@@ -214,12 +214,6 @@ def dot(arg0, *args, **kwargs):
         >>> x, w = np.random.uniform(size=(4, 16, 16, 64)), np.random.uniform(size=(64, 32,))
         >>> einx.dot("b... [c1|c2]", x, w).shape
         (4, 16, 16, 32)
-
-        Split a tensor in two parts and compute an inner product along the split axis:
-
-        >>> x = np.random.uniform(size=(4, 64))
-        >>> einx.dot("a (b + b) -> a", x).shape
-        (4,)
     """
     if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
         return dot_stage0(arg0, *args, **kwargs)
