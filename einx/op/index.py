@@ -141,12 +141,7 @@ def parse(description, *tensors_shapes, cse=True, **parameters):
     return exprs_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def index_stage0(description, *tensors, op=None, backend=None, cse=True, **parameters):
-    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensor, expr_out = index_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)
-    return tensor
-
-def index(arg0, *args, **kwargs):
+def index(description, *tensors, op=None, backend=None, cse=True, **parameters):
     """Updates and/ or returns values from an array at the given coordinates. Specializes :func:`einx.vmap`.
 
     The `description` argument specifies the input and output expressions and must meet one of the following formats:
@@ -189,11 +184,9 @@ def index(arg0, *args, **kwargs):
         >>> einx.set_at("b [h w] c, p [2], p c -> b [h w] c", tensor, coordinates, updates).shape
         (4, 128, 128, 3)
     """
-    if isinstance(arg0, str):
-        return index_stage0(arg0, *args, **kwargs)
-    else:
-        return index_stage3(arg0, *args, **kwargs)
-index._op_names = _op_names
+    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensor, expr_out = index_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)
+    return tensor
 index.parse = parse
 
 def _make(name):

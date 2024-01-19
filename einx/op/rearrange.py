@@ -62,12 +62,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, exprs_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def rearrange_stage0(description, *tensors, backend=None, cse=True, **parameters):
-    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensors, exprs_out = rearrange_stage3(exprs_in, tensors, exprs_out, backend=backend)
-    return tensors[0] if len(exprs_out) == 1 else tensors
-
-def rearrange(arg0, *args, **kwargs):
+def rearrange(description, *tensors, backend=None, cse=True, **parameters):
     """Rearranges the input tensors to match the output expressions.
 
     See :doc:`How does einx handle input and output tensors? </faq/flatten>`.
@@ -118,8 +113,7 @@ def rearrange(arg0, *args, **kwargs):
         >>> einx.rearrange("(b + c + d) -> (d + c + b)", x, b=2, c=2)
         array([4, 5, 2, 3, 0, 1])
     """
-    if isinstance(arg0, str):
-        return rearrange_stage0(arg0, *args, **kwargs)
-    else:
-        return rearrange_stage3(arg0, *args, **kwargs)
+    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensors, exprs_out = rearrange_stage3(exprs_in, tensors, exprs_out, backend=backend)
+    return tensors[0] if len(exprs_out) == 1 else tensors
 rearrange.parse = parse

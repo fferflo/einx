@@ -148,12 +148,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, exprs_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def vmap_with_axis_stage0(description, *tensors, op, backend=None, cse=True, kwargs={}, **parameters):
-    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensors, exprs_out = vmap_with_axis_stage3(exprs_in, tensors, exprs_out, op=op, kwargs=kwargs, backend=backend)
-    return tensors[0] if len(exprs_out) == 1 else tensors
-
-def vmap_with_axis(arg0, *args, **kwargs):
+def vmap_with_axis(description, *tensors, op, backend=None, cse=True, kwargs={}, **parameters):
     """Applies a function to the marked axes of the input tensors by passing the ``axis`` argument.
 
     The function flattens all input tensors, applies the given operation and rearranges
@@ -204,12 +199,10 @@ def vmap_with_axis(arg0, *args, **kwargs):
         >>> einx.vmap_with_axis("a ([b] c) -> c a", x, op=np.sum, b=2).shape
         (16, 20)
     """
-    if isinstance(arg0, str):
-        return vmap_with_axis_stage0(arg0, *args, **kwargs)
-    else:
-        return vmap_with_axis_stage3(arg0, *args, **kwargs)
+    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensors, exprs_out = vmap_with_axis_stage3(exprs_in, tensors, exprs_out, op=op, kwargs=kwargs, backend=backend)
+    return tensors[0] if len(exprs_out) == 1 else tensors
 vmap_with_axis.parse = parse
-vmap_with_axis._op_names = _op_names
 
 def flip(description, tensor, **kwargs):
     """Alias for :func:`einx.vmap_with_axis` with ``op="flip"``

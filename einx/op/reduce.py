@@ -69,12 +69,7 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
     return expr_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, tensor, backend=None, **kwargs: c(description, t(tensor), **kwargs))
-def reduce_stage0(description, tensor, op, keepdims=None, backend=None, cse=True, **parameters):
-    expr_in, expr_out = parse(description, einx.param.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters)
-    tensor, expr_out = reduce_stage3(expr_in, tensor, expr_out, op=op, backend=backend)
-    return tensor
-
-def reduce(arg0, *args, **kwargs):
+def reduce(description, tensor, op, keepdims=None, backend=None, cse=True, **parameters):
     """Applies a reduction operation on the given tensors. Specializes :func:`einx.vmap_with_axis`.
 
     The function flattens all input tensors, applies the given reduction operation and rearranges
@@ -134,11 +129,9 @@ def reduce(arg0, *args, **kwargs):
         >>> einx.var("[...] c", x).shape
         (3,)
     """
-    if isinstance(arg0, str):
-        return reduce_stage0(arg0, *args, **kwargs)
-    else:
-        return reduce_stage3(arg0, *args, **kwargs)
-reduce._op_names = _op_names
+    expr_in, expr_out = parse(description, einx.param.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters)
+    tensor, expr_out = reduce_stage3(expr_in, tensor, expr_out, op=op, backend=backend)
+    return tensor
 reduce.parse = parse
 
 def _make(name):
@@ -147,6 +140,11 @@ def _make(name):
     func.__name__ = name
     func.__doc__ = f"Alias for :func:`einx.reduce` with ``op=\"{name}\"``"
     globals()[name] = func
+
+    def func(*args, **kwargs):
+        return reduce_stage3(*args, op=name, **kwargs)
+    func.__name__ = name + "_stage3"
+    globals()[name + "_stage3"] = func
 
 for name in _op_names:
     _make(name)

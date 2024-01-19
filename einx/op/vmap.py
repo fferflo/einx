@@ -227,12 +227,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, exprs_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def vmap_stage0(description, *tensors, op, flat=False, backend=None, cse=True, kwargs={}, pass_backend=False, **parameters):
-    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensors, exprs_out = vmap_stage3(exprs_in, tensors, exprs_out, flat=flat, backend=backend, op=op, kwargs=kwargs, pass_backend=pass_backend)
-    return tensors[0] if len(exprs_out) == 1 else tensors
-
-def vmap(arg0, *args, **kwargs):
+def vmap(description, *tensors, op, flat=False, backend=None, cse=True, kwargs={}, pass_backend=False, **parameters):
     """Applies a function to the marked axes of the input tensors using vectorization.
 
     The function flattens all input tensors, applies the vectorized operation on the tensors and rearranges
@@ -288,7 +283,6 @@ def vmap(arg0, *args, **kwargs):
         >>> einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot).shape
         (5, 3)
     """
-    if isinstance(arg0, str):
-        return vmap_stage0(arg0, *args, **kwargs)
-    else:
-        return vmap_stage3(arg0, *args, **kwargs)
+    exprs_in, exprs_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensors, exprs_out = vmap_stage3(exprs_in, tensors, exprs_out, flat=flat, backend=backend, op=op, kwargs=kwargs, pass_backend=pass_backend)
+    return tensors[0] if len(exprs_out) == 1 else tensors

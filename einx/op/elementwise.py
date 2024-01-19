@@ -95,12 +95,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def elementwise_stage0(description, *tensors, op, backend=None, cse=True, **parameters):
-    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensor, expr_out = elementwise_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)
-    return tensor
-
-def elementwise(arg0, *args, **kwargs):
+def elementwise(description, *tensors, op, backend=None, cse=True, **parameters):
     """Applies an element-by-element operation over the given tensors. Specializes :func:`einx.vmap_with_axis`.
 
     The function flattens all input tensors, applies the given element-by-element operation yielding a single output tensor, and rearranges
@@ -166,11 +161,9 @@ def elementwise(arg0, *args, **kwargs):
         >>> einx.add("b... [c]", x, w).shape
         (4, 16, 16, 64)
     """
-    if isinstance(arg0, str):
-        return elementwise_stage0(arg0, *args, **kwargs)
-    else:
-        return elementwise_stage3(arg0, *args, **kwargs)
-elementwise._op_names = _op_names
+    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensor, expr_out = elementwise_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)
+    return tensor
 elementwise.parse = parse
 
 
@@ -180,6 +173,11 @@ def _make(name):
     func.__name__ = name
     func.__doc__ = f"Alias for :func:`einx.elementwise` with ``op=\"{name}\"``"
     globals()[name] = func
+
+    def func(*args, **kwargs):
+        return elementwise_stage3(*args, op=name, **kwargs)
+    func.__name__ = name + "_stage3"
+    globals()[name + "_stage3"] = func
 
 for name in _op_names:
     _make(name)

@@ -140,12 +140,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def dot_stage0(description, *tensors, backend=None, cse=True, **parameters):
-    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensor, expr = dot_stage3(exprs_in, tensors, expr_out, backend=backend)
-    return tensor
-
-def dot(arg0, *args, **kwargs):
+def dot(description, *tensors, backend=None, cse=True, **parameters):
     """Computes a general dot-product of the input tensors.
 
     The function flattens all input tensors, applies the general dot-product yielding a single output tensor, and rearranges
@@ -215,8 +210,7 @@ def dot(arg0, *args, **kwargs):
         >>> einx.dot("b... [c1|c2]", x, w).shape
         (4, 16, 16, 32)
     """
-    if isinstance(arg0, str) or (isinstance(arg0, tuple) and isinstance(arg0[0], str)):
-        return dot_stage0(arg0, *args, **kwargs)
-    else:
-        return dot_stage3(arg0, *args, **kwargs)
+    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    tensor, expr = dot_stage3(exprs_in, tensors, expr_out, backend=backend)
+    return tensor
 dot.parse = parse

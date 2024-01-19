@@ -31,7 +31,7 @@ def arange_stage3(expr_in, expr_out, backend, dtype="int32"):
     expr_out_flat_withconcat = einx.expr.stage3.replace(expr_out_flat, replace)
     expr_out_flat_withconcat = einx.expr.stage3.demark(expr_out_flat_withconcat)
 
-    (tensor,), _ = einx.rearrange(
+    (tensor,), _ = einx.rearrange_stage3(
         [axis.__deepcopy__() for axis in expr_in],
         [backend.arange(axis.value, dtype=dtype) for axis in expr_in],
         [expr_out_flat_withconcat]
@@ -82,12 +82,7 @@ def parse(description, cse=True, **parameters):
     return expr_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, backend=None, **kwargs: c(description, **kwargs))
-def arange_stage0(description, *, backend, dtype="int32", cse=True, **parameters):
-    expr_in, expr_out = parse(description, cse=cse, **parameters)
-    tensor, expr_out = arange_stage3(expr_in, expr_out, backend=backend, dtype=dtype)
-    return tensor
-
-def arange(arg0, *args, **kwargs):
+def arange(description, *, backend, dtype="int32", cse=True, **parameters):
     """n-dimensional ``arange`` operation.
 
     Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the single marked axis in ``output``. Always uses ``start=0`` and ``step=1``.
@@ -136,8 +131,7 @@ def arange(arg0, *args, **kwargs):
         >>> einx.arange("a", a=5, backend="numpy").shape
         (5,)
     """
-    if isinstance(arg0, str):
-        return arange_stage0(arg0, *args, **kwargs)
-    else:
-        return arange_stage3(arg0, *args, **kwargs)
+    expr_in, expr_out = parse(description, cse=cse, **parameters)
+    tensor, expr_out = arange_stage3(expr_in, expr_out, backend=backend, dtype=dtype)
+    return tensor
 arange.parse = parse

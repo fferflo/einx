@@ -249,8 +249,6 @@ def to_eval_str(x, names, lines, constants):
 
 class Graph:
     def __init__(self, output, name, args, kwargs):
-        if name.endswith("_stage0"):
-            name = name[:-len("_stage0")]
         self.output = output
         self.name = name
         self.args = args

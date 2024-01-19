@@ -40,10 +40,10 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
 
     # Normalize mean and variance
     if not mean is None:
-        x, _ = einx.subtract([expr_in, expr_stats], [x, mean], expr_in)
+        x, _ = einx.subtract_stage3([expr_in, expr_stats], [x, mean], expr_in)
     if not var is None:
         inv_std = backend.rsqrt(var + epsilon)
-        x, _ = einx.multiply([expr_in, expr_stats], [x, inv_std], expr_in)
+        x, _ = einx.multiply_stage3([expr_in, expr_stats], [x, inv_std], expr_in)
 
     # Apply scale and bias
     if not scale is None:
@@ -70,7 +70,7 @@ def linear(x, expr, weight, bias=None, **kwargs):
                 expr_bias.append(a.__deepcopy__())
         expr_bias = einx.expr.stage3.List(expr_bias)
 
-        x, _ = einx.add([expr_afterdot, expr_bias], [x, bias], expr_afterdot)
+        x, _ = einx.add_stage3([expr_afterdot, expr_bias], [x, bias], expr_afterdot)
 
     return x
 
@@ -83,6 +83,6 @@ def dropout(x, expr, drop_rate, rng=None, **kwargs):
     (expr_in, expr_mask), expr_out = einx.elementwise.parse(expr, einx.param.get_shape(x), None, **kwargs)
 
     drop_mask = backend.random.bernoulli(rng=rng, p=keep_rate, shape=expr_mask.shape)
-    x, _ = einx.where([expr_mask, expr_in, einx.expr.stage3.List([])], [drop_mask, x, 0], expr_out)
+    x, _ = einx.where_stage3([expr_mask, expr_in, einx.expr.stage3.List([])], [drop_mask, x, 0], expr_out)
 
     return x / keep_rate
