@@ -1,8 +1,9 @@
 import torch, einx, math
 from functools import partial
 import numpy as np
+from typing import Callable, Union, Optional, Any
 
-def param(uninitialized, init=None):
+def param(uninitialized: Union[torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer], init: Optional[Callable] = None):
     """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
     When the tensor factory is invoked, it calls the ``materialize`` method of ``uninitialized`` with the given shape and returns ``uninitialized``.
@@ -64,7 +65,7 @@ class Norm(torch.nn.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, epsilon=1e-5, fastvar=True, dtype="float32", decay_rate=None, **kwargs):
+    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, epsilon: float = 1e-5, fastvar: bool = True, dtype: Union[torch.dtype, str] = "float32", decay_rate: Optional[float] = None, **kwargs: Any):
         super().__init__()
         self.stats = stats
         self.params = params
@@ -92,8 +93,8 @@ class Norm(torch.nn.Module):
             x,
             self.stats,
             self.params,
-            mean=self.mean if use_ema else self.use_mean,
-            var=self.var if use_ema else self.use_var,
+            mean=self.mean if use_ema and self.use_mean else self.use_mean,
+            var=self.var if use_ema and self.use_var else self.use_var,
             scale=self.scale if not self.scale is None else None,
             bias=self.bias if not self.bias is None else None,
             epsilon=self.epsilon,
@@ -144,7 +145,7 @@ class Linear(torch.nn.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr, bias=True, dtype="float32", **kwargs):
+    def __init__(self, expr: str, bias: bool = True, dtype: Union[torch.dtype, str] = "float32", **kwargs: Any):
         super().__init__()
 
         self.weight = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype])
@@ -180,7 +181,7 @@ class Dropout(torch.nn.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr, drop_rate, **kwargs):
+    def __init__(self, expr: str, drop_rate: float, **kwargs: Any):
         super().__init__()
 
         self.expr = expr

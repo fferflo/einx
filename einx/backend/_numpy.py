@@ -1,8 +1,8 @@
 import numpy as np
 from functools import partial
-from .base import base_backend, associative_binary_to_nary
+from .base import Backend, associative_binary_to_nary
 
-class numpy(base_backend):
+class numpy(Backend):
     @staticmethod
     def to_tensor(tensor):
         return np.asarray(tensor)

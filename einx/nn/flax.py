@@ -2,8 +2,9 @@ import flax.linen as nn
 import einx, flax
 from functools import partial
 import jax.numpy as jnp
+from typing import Callable, Union, Optional, Any
 
-def param(bound_method, name=None, init=None, dtype=None, col=None):
+def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, init: Optional[str] = None, dtype: Optional[nn.dtypes.Dtype] = None, col: Optional[str] = None):
     """Create a tensor factory for Flax parameters.
 
     Args:
@@ -80,7 +81,7 @@ class _Norm(nn.Module):
     decay_rate: float = None
     epsilon: float = 1e-5
     fastvar: bool = True
-    dtype: str = "float32"
+    dtype: nn.dtypes.Dtype = "float32"
     kwargs: dict = None
 
     @nn.compact
@@ -113,7 +114,7 @@ class _Norm(nn.Module):
 
         return x
 
-def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, fastvar=True, dtype="float32", name=None, **kwargs):
+def Norm(stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, decay_rate: Optional[float] = None, epsilon: float = 1e-5, fastvar: bool = True, dtype: nn.dtypes.Dtype = "float32", name: Optional[str] = None, **kwargs: Any):
     """Normalization layer.
 
     Args:
@@ -136,7 +137,7 @@ def Norm(stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, d
 class _Linear(nn.Module):
     expr: str
     bias: bool = True
-    dtype: str = "float32"
+    dtype: nn.dtypes.Dtype = "float32"
     kwargs: dict = None
 
     @nn.compact
@@ -149,7 +150,7 @@ class _Linear(nn.Module):
             **(self.kwargs if not self.kwargs is None else {}),
         )
 
-def Linear(expr, bias=True, dtype="float32", name=None, **kwargs):
+def Linear(expr: str, bias: bool = True, dtype: nn.dtypes.Dtype = "float32", name: Optional[str] = None, **kwargs: Any):
     """Linear layer.
 
     Args:
@@ -181,7 +182,7 @@ class _Dropout(nn.Module):
         else:
             return x
 
-def Dropout(expr, drop_rate, rng_collection="dropout", name=None, **kwargs):
+def Dropout(expr: str, drop_rate: float, rng_collection: str = "dropout", name: Optional[str] = None, **kwargs: Any):
     """Dropout layer.
 
     Args:

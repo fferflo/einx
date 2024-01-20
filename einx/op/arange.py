@@ -2,6 +2,8 @@ import einx
 from functools import partial
 from . import util
 import numpy as np
+from typing import Union
+import numpy.typing as npt
 
 @einx.lru_cache(trace=lambda t, c: lambda exprs_in, expr_out, backend=None, dtype="int32": c(exprs_in, expr_out, dtype=dtype))
 def arange_stage3(expr_in, expr_out, backend, dtype="int32"):
@@ -82,12 +84,12 @@ def parse(description, cse=True, **parameters):
     return expr_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, backend=None, **kwargs: c(description, **kwargs))
-def arange(description, *, backend, dtype="int32", cse=True, **parameters):
+def arange(description: str, *, backend: Union[einx.Backend, str], dtype: str = "int32", cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """n-dimensional ``arange`` operation.
 
     Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the single marked axis in ``output``. Always uses ``start=0`` and ``step=1``.
 
-    The `description` argument specifies the output expression and must meet one of the following formats:
+    The `description` argument must meet one of the following formats:
 
     1. ``input -> output``
         Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the marked axis in ``output``. The values are stacked in the order

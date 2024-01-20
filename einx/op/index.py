@@ -2,8 +2,8 @@ import einx
 from functools import partial
 from . import util
 import numpy as np
-
-_op_names = ["get_at", "set_at", "add_at", "subtract_at"]
+from typing import Callable, Union
+import numpy.typing as npt
 
 def _index(tensor, coordinates, update=None, axis=None, op=None, backend=None):
     if axis is None:
@@ -141,7 +141,7 @@ def parse(description, *tensors_shapes, cse=True, **parameters):
     return exprs_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def index(description, *tensors, op=None, backend=None, cse=True, **parameters):
+def index(description: str, *tensors: einx.Tensor, op: Callable, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Updates and/ or returns values from an array at the given coordinates. Specializes :func:`einx.vmap`.
 
     The `description` argument specifies the input and output expressions and must meet one of the following formats:
@@ -189,12 +189,20 @@ def index(description, *tensors, op=None, backend=None, cse=True, **parameters):
     return tensor
 index.parse = parse
 
-def _make(name):
-    def func(*args, **kwargs):
-        return index(*args, op=name, **kwargs)
-    func.__name__ = name
-    func.__doc__ = f"Alias for :func:`einx.index` with ``op=\"{name}\"``"
-    globals()[name] = func
 
-for name in _op_names:
-    _make(name)
+
+def get_at(description: str, tensor: einx.Tensor, coordinates: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.index` with ``op="get_at"``"""
+    return index(description, tensor, coordinates, op="get_at", backend=backend, cse=cse, **parameters)
+
+def set_at(description: str, tensor: einx.Tensor, coordinates: einx.Tensor, update: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.index` with ``op="set_at"``"""
+    return index(description, tensor, coordinates, update, op="set_at", backend=backend, cse=cse, **parameters)
+
+def add_at(description: str, tensor: einx.Tensor, coordinates: einx.Tensor, update: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.index` with ``op="add_at"``"""
+    return index(description, tensor, coordinates, update, op="add_at", backend=backend, cse=cse, **parameters)
+
+def subtract_at(description: str, tensor: einx.Tensor, coordinates: einx.Tensor, update: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.index` with ``op="subtract_at"``"""
+    return index(description, tensor, coordinates, update, op="subtract_at", backend=backend, cse=cse, **parameters)

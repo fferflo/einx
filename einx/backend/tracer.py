@@ -1,6 +1,7 @@
 from functools import partial
 import numpy as np
 import operator, einx
+from .base import Backend
 
 class Tracer:
     def __init__(self, shape):
@@ -357,7 +358,7 @@ def map(tensor, axis, op, *args, **kwargs):
 def index(tensor, coordinates, update=None, op=None):
     return Op(op, args=[tensor, coordinates, update], output_shapes=np.asarray(coordinates[0].shape)).output_tracers
 
-class tracer:
+class tracer(Backend):
     Input = Input
     Constant = Constant
     Op = Op

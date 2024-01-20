@@ -1,10 +1,10 @@
 from functools import partial
-from .base import base_backend, associative_binary_to_nary
+from .base import Backend, associative_binary_to_nary
 
 def make_tensorflow_backend():
     import tensorflow as tf
     import tensorflow.experimental.numpy as tnp
-    class tensorflow(base_backend):
+    class tensorflow(Backend):
         @staticmethod
         def to_tensor(tensor):
             tensor = tf.convert_to_tensor(tensor)

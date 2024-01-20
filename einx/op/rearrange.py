@@ -1,6 +1,8 @@
 import einx
 from . import util
 import numpy as np
+from typing import Union, Tuple
+import numpy.typing as npt
 
 @einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, backend=None: c(exprs_in, [t(x) for x in tensors_in], exprs_out))
 def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
@@ -62,7 +64,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, exprs_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def rearrange(description, *tensors, backend=None, cse=True, **parameters):
+def rearrange(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> Union[einx.Tensor, Tuple[einx.Tensor, ...]]:
     """Rearranges the input tensors to match the output expressions.
 
     See :doc:`How does einx handle input and output tensors? </faq/flatten>`.

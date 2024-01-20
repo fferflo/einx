@@ -10,7 +10,7 @@ def associative_binary_to_nary(binary_op):
         return x
     return nary_op
 
-class base_backend:
+class Backend:
     @classmethod
     def apply(backend, op, args, kwargs, output_shapes):
         if isinstance(op, str):

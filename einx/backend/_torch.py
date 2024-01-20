@@ -1,5 +1,5 @@
 import einx
-from .base import base_backend, associative_binary_to_nary
+from .base import Backend, associative_binary_to_nary
 
 def to_tuple(x):
     if isinstance(x, tuple):
@@ -13,7 +13,7 @@ def to_tuple(x):
 
 def make_torch_backend():
     import torch as torch_
-    class torch(base_backend):
+    class torch(Backend):
         @staticmethod
         def to_tensor(tensor):
             if torch_.is_tensor(tensor):

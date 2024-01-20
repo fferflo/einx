@@ -1,10 +1,10 @@
 from functools import partial
-from .base import base_backend, associative_binary_to_nary
+from .base import Backend, associative_binary_to_nary
 
 def make_jax_backend():
     import jax as jax_
     import jax.numpy as jnp
-    class jax(base_backend):
+    class jax(Backend):
         @staticmethod
         def to_tensor(tensor):
             return jnp.asarray(tensor)

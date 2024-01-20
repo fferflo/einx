@@ -1,5 +1,7 @@
 import sys, einx, threading
 
+from .base import Backend
+
 backends = []
 backend_factories = {}
 lock = threading.Lock()

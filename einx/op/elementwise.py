@@ -2,8 +2,8 @@ import einx
 from . import util
 from functools import partial
 import numpy as np
-
-_op_names = ["add", "subtract", "multiply", "true_divide", "floor_divide", "divide", "logical_and", "logical_or", "where", "less", "less_equal", "greater", "greater_equal", "equal", "not_equal", "maximum", "minimum"]
+from typing import Callable, Union
+import numpy.typing as npt
 
 @einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, op, backend=None: c(exprs_in, [t(x) for x in tensors_in], expr_out, op))
 def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
@@ -95,7 +95,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, expr_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def elementwise(description, *tensors, op, backend=None, cse=True, **parameters):
+def elementwise(description: str, *tensors: einx.Tensor, op: Callable, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Applies an element-by-element operation over the given tensors. Specializes :func:`einx.vmap_with_axis`.
 
     The function flattens all input tensors, applies the given element-by-element operation yielding a single output tensor, and rearranges
@@ -167,17 +167,122 @@ def elementwise(description, *tensors, op, backend=None, cse=True, **parameters)
 elementwise.parse = parse
 
 
-def _make(name):
-    def func(*args, **kwargs):
-        return elementwise(*args, op=name, **kwargs)
-    func.__name__ = name
-    func.__doc__ = f"Alias for :func:`einx.elementwise` with ``op=\"{name}\"``"
-    globals()[name] = func
 
-    def func(*args, **kwargs):
-        return elementwise_stage3(*args, op=name, **kwargs)
-    func.__name__ = name + "_stage3"
-    globals()[name + "_stage3"] = func
+def add(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="add"``"""
+    return elementwise(description, *tensors, op="add", backend=backend, cse=cse, **parameters)
 
-for name in _op_names:
-    _make(name)
+def add_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="add", **kwargs)
+
+def subtract(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="subtract"``"""
+    return elementwise(description, *tensors, op="subtract", backend=backend, cse=cse, **parameters)
+
+def subtract_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="subtract", **kwargs)
+
+def multiply(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="multiply"``"""
+    return elementwise(description, *tensors, op="multiply", backend=backend, cse=cse, **parameters)
+
+def multiply_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="multiply", **kwargs)
+
+def true_divide(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="true_divide"``"""
+    return elementwise(description, *tensors, op="true_divide", backend=backend, cse=cse, **parameters)
+
+def true_divide_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="true_divide", **kwargs)
+
+def floor_divide(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="floor_divide"``"""
+    return elementwise(description, *tensors, op="floor_divide", backend=backend, cse=cse, **parameters)
+
+def floor_divide_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="floor_divide", **kwargs)
+
+def divide(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="divide"``"""
+    return elementwise(description, *tensors, op="divide", backend=backend, cse=cse, **parameters)
+
+def divide_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="divide", **kwargs)
+
+def logical_and(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="logical_and"``"""
+    return elementwise(description, *tensors, op="logical_and", backend=backend, cse=cse, **parameters)
+
+def logical_and_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="logical_and", **kwargs)
+
+def logical_or(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="logical_or"``"""
+    return elementwise(description, *tensors, op="logical_or", backend=backend, cse=cse, **parameters)
+
+def logical_or_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="logical_or", **kwargs)
+
+def where(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="where"``"""
+    return elementwise(description, *tensors, op="where", backend=backend, cse=cse, **parameters)
+
+def where_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="where", **kwargs)
+
+def less(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="less"``"""
+    return elementwise(description, *tensors, op="less", backend=backend, cse=cse, **parameters)
+
+def less_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="less", **kwargs)
+
+def less_equal(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="less_equal"``"""
+    return elementwise(description, *tensors, op="less_equal", backend=backend, cse=cse, **parameters)
+
+def less_equal_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="less_equal", **kwargs)
+
+def greater(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="greater"``"""
+    return elementwise(description, *tensors, op="greater", backend=backend, cse=cse, **parameters)
+
+def greater_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="greater", **kwargs)
+
+def greater_equal(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="greater_equal"``"""
+    return elementwise(description, *tensors, op="greater_equal", backend=backend, cse=cse, **parameters)
+
+def greater_equal_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="greater_equal", **kwargs)
+
+def equal(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="equal"``"""
+    return elementwise(description, *tensors, op="equal", backend=backend, cse=cse, **parameters)
+
+def equal_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="equal", **kwargs)
+
+def not_equal(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="not_equal"``"""
+    return elementwise(description, *tensors, op="not_equal", backend=backend, cse=cse, **parameters)
+
+def not_equal_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="not_equal", **kwargs)
+
+def maximum(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="maximum"``"""
+    return elementwise(description, *tensors, op="maximum", backend=backend, cse=cse, **parameters)
+
+def maximum_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="maximum", **kwargs)
+
+def minimum(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+    """Specialization of :func:`einx.elementwise` with ``op="minimum"``"""
+    return elementwise(description, *tensors, op="minimum", backend=backend, cse=cse, **parameters)
+
+def minimum_stage3(*args, **kwargs):
+    return elementwise_stage3(*args, op="minimum", **kwargs)

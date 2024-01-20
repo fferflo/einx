@@ -1,6 +1,8 @@
 import einx
 import numpy as np
 from collections import defaultdict
+from typing import Mapping, Optional
+import numpy.typing as npt
 
 @einx.lru_cache
 def _solve(description, *tensor_shapes, cse=True, **parameters):
@@ -36,13 +38,58 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
 
     return values2
 
-def solve(description, *tensors, cse=True, **parameters):
+def solve(description: str, *tensors: einx.Tensor, cse: bool = False, **parameters: npt.ArrayLike) -> Optional[Mapping[str, npt.ArrayLike]]:
+    """Solve for the axis values of the given expressions and tensors.
+
+    The `description` argument must meet the following format:
+    ``input1, input2, ...``
+
+    Args:
+        description: Description string in Einstein notation.
+        tensors: Input tensors or tensor factories matching the description string.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        A mapping from axis name to axis value, or ``None`` if no solution was found.
+
+    Examples:
+        >>> x = np.zeros((10, 5))
+        >>> einx.solve("a b", x)
+        {'a': 10, 'b': 5}
+    """
     return _solve(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
 
-def matches(description, *tensors, cse=True, **parameters):
+def matches(description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike) -> bool:
+    """Check whether the given expressions and tensors match.
+
+    The `description` argument must meet the following format:
+    ``input1, input2, ...``
+
+    Args:
+        description: Description string in Einstein notation.
+        tensors: Input tensors or tensor factories matching the description string.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+
+    Returns:
+        True if the expressions and tensors match, False otherwise.
+    """
     return not solve(description, *tensors, cse=cse, **parameters) is None
 
-def check(description, *tensors, cse=True, **parameters):
+def check(description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike) -> None:
+    """Check whether the given expressions and tensors match and raise an exception if they don't.
+
+    The `description` argument must meet the following format:
+    ``input1, input2, ...``
+
+    Args:
+        description: Description string in Einstein notation.
+        tensors: Input tensors or tensor factories matching the description string.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+
     description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
 
     exprs = description.split(",")

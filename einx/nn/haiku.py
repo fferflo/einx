@@ -2,8 +2,9 @@ import haiku as hk
 import einx
 from functools import partial
 from haiku._src.base import current_module
+from typing import Any, Callable, Literal, Optional
 
-def param(func=hk.get_parameter, name=None, init=None, dtype=None):
+def param(func: Literal[hk.get_parameter, hk.get_state] = hk.get_parameter, name: Optional[str] = None, init: Optional[Callable] = None, dtype: Optional[Any] = None):
     """Create a tensor factory for Haiku parameters.
 
     Args:
@@ -70,7 +71,7 @@ class Norm(hk.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, epsilon=1e-5, fastvar=True, dtype="float32", decay_rate=None, name=None, **kwargs):
+    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, epsilon: float = 1e-5, fastvar: bool = True, dtype: Any = "float32", decay_rate: Optional[float] = None, name: Optional[str] = None, **kwargs: Any):
         super().__init__(name=name)
         self.stats = stats
         self.params = params
@@ -122,7 +123,7 @@ class Linear(hk.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr, bias=True, dtype="float32", name=None, **kwargs):
+    def __init__(self, expr: str, bias: bool = True, dtype: Any = "float32", name: Optional[str] = None, **kwargs: Any):
         super().__init__(name=name)
         self.expr = expr
         self.bias = bias
@@ -148,7 +149,7 @@ class Dropout(hk.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr, drop_rate, name=None, **kwargs):
+    def __init__(self, expr: str, drop_rate: float, name: Optional[str] = None, **kwargs: Any):
         super().__init__(name=name)
         self.expr = expr
         self.drop_rate = drop_rate

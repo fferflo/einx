@@ -1,7 +1,8 @@
 import keras, einx, inspect
 import numpy as np
+from typing import Any, Callable, Optional
 
-def param(layer, name=None, init=None, dtype=None, trainable=True):
+def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[Callable] = None, dtype: Optional[Any] = None, trainable: bool = True):
     """Create a tensor factory for Keras parameters.
 
     Args:
@@ -96,7 +97,7 @@ class Norm(Layer):
         decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
-    def __init__(self, stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, epsilon=1e-5, fastvar=True, dtype="float32", decay_rate=None, **kwargs):
+    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, epsilon: float = 1e-5, fastvar: bool = True, dtype: Any = "float32", decay_rate: Optional[float] = None, **kwargs: Any):
         super().__init__(dtype=dtype)
         self.stats = stats
         self.params = params
@@ -153,7 +154,7 @@ class Linear(Layer):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr, bias=True, dtype="float32", **kwargs):
+    def __init__(self, expr: str, bias: bool = True, dtype: Any = "float32", **kwargs: Any):
         super().__init__(dtype=dtype)
 
         self.expr = expr
@@ -178,7 +179,7 @@ class Dropout(Layer):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr, drop_rate, **kwargs):
+    def __init__(self, expr: str, drop_rate: float, **kwargs: Any):
         super().__init__()
 
         self.expr = expr

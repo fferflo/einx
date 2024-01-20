@@ -2,6 +2,8 @@ import einx
 from . import util
 import numpy as np
 from functools import partial
+from typing import Callable, Mapping, Union, Tuple
+import numpy.typing as npt
 
 _op_names = ["roll", "flip"]
 
@@ -148,7 +150,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     return exprs_in, exprs_out
 
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def vmap_with_axis(description, *tensors, op, backend=None, cse=True, kwargs={}, **parameters):
+def vmap_with_axis(description: str, *tensors: einx.Tensor, op: Callable, backend: Union[einx.Backend, str, None] = None, cse: bool = True, kwargs: Mapping = {}, **parameters: npt.ArrayLike):
     """Applies a function to the marked axes of the input tensors by passing the ``axis`` argument.
 
     The function flattens all input tensors, applies the given operation and rearranges
@@ -170,8 +172,8 @@ def vmap_with_axis(description, *tensors, op, backend=None, cse=True, kwargs={},
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
-        kwargs: Additional keyword arguments that are passed to the ``op``.
+        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name. 
+        kwargs: Additional keyword arguments that are passed to ``op``.
         backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
         graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
@@ -204,22 +206,18 @@ def vmap_with_axis(description, *tensors, op, backend=None, cse=True, kwargs={},
     return tensors[0] if len(exprs_out) == 1 else tensors
 vmap_with_axis.parse = parse
 
-def flip(description, tensor, **kwargs):
-    """Alias for :func:`einx.vmap_with_axis` with ``op="flip"``
-    """
-    return vmap_with_axis(description, tensor, op="flip", **kwargs)
+def flip(description: str, tensor: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
+    """Specialization of :func:`einx.vmap_with_axis` with ``op="flip"``."""
+    return vmap_with_axis(description, tensor, op="flip", backend=backend, cse=cse, **parameters)
 
-def roll(description, tensor, shift, **kwargs):
-    """Alias for :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``.
-    """
-    return vmap_with_axis(description, tensor, op="roll", kwargs={"shift": shift}, **kwargs)
+def roll(description: str, tensor: einx.Tensor, shift: Union[int, Tuple[int]], backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
+    """Specialization of :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``."""
+    return vmap_with_axis(description, tensor, op="roll", backend=backend, kwargs={"shift": shift}, cse=cse, **parameters)
 
-def softmax(description, tensor, **kwargs):
-    """Alias for :func:`einx.vmap_with_axis` with ``op="softmax"``
-    """
-    return vmap_with_axis(description, tensor, op="softmax", **kwargs)
+def softmax(description: str, tensor: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
+    """Specialization of :func:`einx.vmap_with_axis` with ``op="softmax"``"""
+    return vmap_with_axis(description, tensor, op="softmax", backend=backend, cse=cse, **parameters)
 
-def log_softmax(description, tensor, **kwargs):
-    """Alias for :func:`einx.vmap_with_axis` with ``op="log_softmax"``
-    """
-    return vmap_with_axis(description, tensor, op="log_softmax", **kwargs)
+def log_softmax(description: str, tensor: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
+    """Specialization of :func:`einx.vmap_with_axis` with ``op="log_softmax"``"""
+    return vmap_with_axis(description, tensor, op="log_softmax", backend=backend, cse=cse, **parameters)

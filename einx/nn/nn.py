@@ -1,9 +1,12 @@
 import einx
+from typing import Union, Optional, Any
 
 @einx.lru_cache(trace=lambda t, c: lambda x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs:
     c(t(x), stats, params, t(mean) if not isinstance(mean, bool) and not mean is None else mean, t(var) if not isinstance(var, bool) and not var is None else var,
         t(scale) if not scale is None else scale, t(bias) if not bias is None else bias, epsilon, fastvar, **kwargs))
-def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None, epsilon=0, fastvar=True, backend=None, **kwargs):
+def norm(x: einx.Tensor, stats: str, params: str = "b... [c]", mean: Union[einx.Tensor, bool] = True, var: Union[einx.Tensor, bool] = True, scale: Optional[einx.Tensor] = None, bias: Optional[einx.Tensor] = None, epsilon: float = 0, fastvar: bool = True, backend: Union[einx.Backend, str, None] = None, **kwargs: Any):
+    if mean is None or var is None:
+        raise ValueError("mean and var cannot be None")
     if backend is None:
         backend = einx.backend.get([x, mean if not isinstance(mean, bool) else None, var if not isinstance(var, bool) else None, scale, bias])
     elif isinstance(backend, str):
@@ -57,7 +60,7 @@ def norm(x, stats, params="b... [c]", mean=True, var=True, scale=None, bias=None
 
 @einx.lru_cache(trace=lambda t, c: lambda x, expr, weight, bias=None, **kwargs:
     c(t(x), expr, t(weight), t(bias) if not bias is None else None, **kwargs))
-def linear(x, expr, weight, bias=None, **kwargs):
+def linear(x: einx.Tensor, expr: str, weight: einx.Tensor, bias: Optional[einx.Tensor], **kwargs: Any):
     (expr_in1, expr_in2), expr_afterdot = einx.dot.parse(expr, einx.param.get_shape(x), einx.param.get_shape(weight), **kwargs)
 
     # Weight matrix multiplication
@@ -78,7 +81,7 @@ def linear(x, expr, weight, bias=None, **kwargs):
 
 @einx.lru_cache(trace=lambda t, c: lambda x, expr, drop_rate, rng=None, **kwargs:
     c(t(x), expr, drop_rate, t(rng) if not rng is None else None, **kwargs))
-def dropout(x, expr, drop_rate, rng=None, **kwargs):
+def dropout(x: einx.Tensor, expr: str, drop_rate: float, rng: Any = None, **kwargs: Any):
     backend = einx.backend.get([x])
     keep_rate = 1 - drop_rate
 

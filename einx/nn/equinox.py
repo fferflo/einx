@@ -2,7 +2,7 @@ import einx, jax
 import equinox as eqx
 from functools import partial
 import jax.numpy as jnp
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 def param(module, name=None, init=None, dtype=None, rng=None):
     """Create a tensor factory for Equinox parameters.
@@ -57,6 +57,22 @@ def to_tensor_factory(x):
 
 
 class Norm(eqx.Module):
+    """Normalization layer.
+
+    Args:
+        stats: Einstein string determining the axes along which mean and variance are computed. Will be passed to ``einx.reduce``.
+        params: Einstein string determining the axes along which learnable parameters are applied. Will be passed to ``einx.elementwise``. Defaults to ``"b... [c]"``.
+        mean: Whether to apply mean normalization. Defaults to ``True``.
+        var: Whether to apply variance normalization. Defaults to ``True``.
+        scale: Whether to apply a learnable scale according to ``params``. Defaults to ``True``.
+        bias: Whether to apply a learnable bias according to ``params``. Defaults to ``True``.
+        epsilon: A small float added to the variance to avoid division by zero. Defaults to ``1e-5``.
+        fastvar: Whether to use a fast variance computation. Defaults to ``True``.
+        dtype: Data type of the weights. Defaults to ``"float32"``.
+        decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
+        **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+
     stats: str
     params: str
     mean: bool
@@ -69,10 +85,9 @@ class Norm(eqx.Module):
     epsilon: float
     fastvar: bool
     dtype: str
-    inference: bool
     kwargs: dict
 
-    def __init__(self, stats, params="b... [c]", mean=True, var=True, scale=True, bias=True, decay_rate=None, epsilon=1e-5, fastvar=True, dtype="float32", rng=None, inference=False, **kwargs):
+    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, decay_rate: Optional[float] = None, epsilon: float = 1e-5, fastvar: bool = True, dtype: Any = "float32", **kwargs: Any):
         if not decay_rate is None:
             raise ValueError("Stateful layers are currently not supported in Equinox")
         self.stats = stats
@@ -87,7 +102,6 @@ class Norm(eqx.Module):
         self.epsilon = epsilon
         self.fastvar = fastvar
         self.dtype = dtype
-        self.inference = inference
         self.kwargs = kwargs
 
     def __call__(self, x, rng=None):
@@ -106,13 +120,22 @@ class Norm(eqx.Module):
         return x
 
 class Linear(eqx.Module):
+    """Linear layer.
+
+    Args:
+        expr: Einstein string determining the axes along which the weight matrix is multiplied. Will be passed to ``einx.dot``.
+        bias: Whether to apply a learnable bias. Defaults to ``True``.
+        dtype: Data type of the weights. Defaults to ``"float32"``.
+        **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+
     expr: str
     weight: jax.Array
     bias: Optional[jax.Array]
     use_bias: bool
     kwargs: dict
 
-    def __init__(self, expr, bias=True, dtype="float32", **kwargs):
+    def __init__(self, expr: str, bias: bool = True, dtype: Any = "float32", **kwargs: Any):
         self.expr = expr
         self.use_bias = bias
         self.weight = None
@@ -129,12 +152,21 @@ class Linear(eqx.Module):
         )
 
 class Dropout(eqx.Module):
+    """Dropout layer.
+
+    Args:
+        expr: Einstein string determining the axes along which dropout is applied. Will be passed to ``einx.elementwise``.
+        drop_rate: Drop rate.
+        inference: Whether the layer is used in inference mode (i.e. not apply dropout). Defaults to ``False``.
+        **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
+    """
+
     expr: str
     drop_rate: float
     kwargs: dict
     inference: bool
 
-    def __init__(self, expr, drop_rate, inference=False, **kwargs):
+    def __init__(self, expr: str, drop_rate: float, inference: bool = False, **kwargs: Any):
         self.expr = expr
         self.drop_rate = drop_rate
         self.kwargs = kwargs
