@@ -34,6 +34,8 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
         value = np.zeros(shape, dtype="int32")
         for coord, v in xs:
             value[coord] = v
+        if value.shape == ():
+            value = int(value)
         values2[name] = value
 
     return values2
