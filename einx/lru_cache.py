@@ -41,28 +41,38 @@ def lru_cache(func=None, trace=None):
     else:
         # Arguments are traced: Create cache for graph, then wrap cache in a function that executes graph
         @lru_cache
-        def construct_graph(*args, backend=None, **kwargs):
+        def construct_graph(*args, backend, **kwargs):
             output_tracers = func(*args, **kwargs, backend=einx.backend.tracer)
-            return einx.backend.tracer.Graph(output_tracers, name=func.__name__, args=args, kwargs=kwargs)
+            return einx.backend.tracer.Graph(output_tracers, args=args, kwargs=kwargs, backend=backend)
 
         @functools.wraps(func)
         def inner(*args, backend=None, graph=False, **kwargs):
             return_graph = graph
 
+            # Get traced arguments and cache key
             input_tracer_values = []
             index = 0
             def new_input(x):
                 nonlocal index
                 input_tracer_values.append(x)
-                x = einx.backend.tracer.Input(shape=einx.param.get_shape(x), index=index)
+                x = einx.backend.tracer.Input(shape=einx.param.get_shape(x), index=index, original_type=type(x))
                 index += 1
                 return x
-            graph = trace(new_input, construct_graph)(*args, backend=backend, **kwargs)
+            def get_args_kwargs(*args, **kwargs):
+                return args, kwargs
+            args, kwargs = trace(new_input, get_args_kwargs)(*args, **kwargs)
+
+            if backend is None:
+                backend = einx.backend.get(input_tracer_values)
+            elif isinstance(backend, str):
+                backend = einx.backend.get(backend)
+
+            graph = construct_graph(*args, backend=backend, **kwargs)
 
             if return_graph:
                 return graph
             else:
-                return graph(*input_tracer_values, backend=backend)
+                return graph(*input_tracer_values)
 
         with traced_functions_lock:
             traced_functions.append(inner)

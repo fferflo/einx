@@ -5,18 +5,13 @@ import numpy as np
 from typing import Callable, Union
 import numpy.typing as npt
 
-def _index(tensor, coordinates, update=None, axis=None, op=None, backend=None):
+def _index(tensor, coordinates, update=None, axis=None, op=None):
     if axis is None:
-        axis = 0
-        coordinates = coordinates[None]
-    if isinstance(op, str):
-        x = backend
-        for name in op.split("."):
-            x = getattr(x, name)
-        op = x
-    assert coordinates.shape[axis] == tensor.ndim
+        assert tensor.ndim == 1, f"Expected tensor to be 1D, got shape {tensor.shape}"
+    else:
+        assert tensor.ndim == coordinates.shape[axis]
+        coordinates = tuple(coordinates[(slice(None),) * axis + (i,)] for i in range(tensor.ndim))
 
-    coordinates = tuple(coordinates[(slice(None),) * axis + (i,)] for i in range(tensor.ndim))
     return op(tensor, coordinates) if update is None else op(tensor, coordinates, update)
 
 @einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, op=None, backend=None: c(exprs_in, [t(x) for x in tensors_in], expr_out, op=op))
@@ -25,8 +20,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
         backend = einx.backend.get(tensors_in)
     elif isinstance(backend, str):
         backend = einx.backend.get(backend)
-    if op is None:
-        raise TypeError("op cannot be None")
+    op = backend.op(op, tracable=False)
     with_update = len(exprs_in) == 3
     for expr in exprs_in[0]:
         if isinstance(expr, einx.expr.stage3.Axis) and expr.is_unnamed and expr.value == 1:
@@ -93,7 +87,11 @@ def index_stage3(exprs_in, tensors_in, expr_out, op=None, backend=None):
             return s
     tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(str(op)), init=str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
 
-    tensors_out, exprs_out = einx.vmap_stage3(exprs_in, tensors_in, [expr_out], op=_index, flat=True, kwargs={"axis": axis, "op": op}, pass_backend=True, backend=backend)
+    # Construct vmapped indexing function
+    op = partial(_index, axis=axis, op=op)
+    op = backend.op(op, tracable=True)
+
+    tensors_out, exprs_out = einx.vmap_stage3(exprs_in, tensors_in, [expr_out], op=op, flat=True, backend=backend)
     assert len(tensors_out) == 1 and len(exprs_out) == 1
     return tensors_out[0], exprs_out[0]
 

@@ -21,26 +21,14 @@ def get_shape(x):
         # Cannot determine shape (e.g. tensor factory)
         return None
 
-def is_tensor_factory(x):
-    if isinstance(x, einx.backend.tracer.Input):
-        return x.shape is None
-
-    for name in ["torch", "haiku", "flax", "equinox"]:
-        if name in sys.modules:
-            einn = importlib.import_module(f"einx.nn.{name}")
-            if not einn.to_tensor_factory(x) is None:
-                return True
-
-    return callable(x)
-
 def instantiate(x, shape, backend, **kwargs):
     if x is None:
         raise TypeError("instantiate cannot be called on None")
     if backend == einx.backend.tracer:
-        if is_tensor_factory(x):
-            return einx.backend.tracer.Op(instantiate, [x], {**{"shape": shape}, **kwargs}, output_shapes=np.asarray(shape), pass_backend=True).output_tracers
+        if x.shape is None:
+            return einx.backend.tracer.apply(instantiate, args=[x], kwargs={**{"shape": shape}, **kwargs}, output_shapes=shape)
         else:
-            return einx.backend.tracer.Op("to_tensor", [x], output_shapes=np.asarray(shape)).output_tracers
+            return backend.to_tensor(x)
     else:
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)

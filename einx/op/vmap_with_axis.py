@@ -13,8 +13,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
         backend = einx.backend.get(tensors_in)
     elif isinstance(backend, str):
         backend = einx.backend.get(backend)
-    if op is None:
-        raise TypeError("op cannot be None")
+    op = backend.op(op, tracable=False)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
     if len(set(exprs_out)) != 1:

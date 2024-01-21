@@ -98,7 +98,7 @@ def make_tensorflow_backend():
 
         allclose = tnp.allclose
 
-        def vmap(op, in_axes, out_axes):
+        def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
             def inner(*args):
                 # TODO: suboptimal (?) implementation of vmap in tensorflow that transposes the vmapped axis to the front and calls tf.vectorized_map
                 if len(args) != len(in_axes):

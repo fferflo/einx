@@ -75,14 +75,21 @@ def make_torch_backend():
         logsumexp = torch_.logsumexp
 
         def get_at(tensor, coordinates):
-            if coordinates[0].ndim == 0:
-                # Fix for https://github.com/pytorch/functorch/issues/747
-                # Scalar coordinates cause problems with torch.vmap and throw an error:
-                # "RuntimeError: vmap: It looks like you're calling .item() on a Tensor. We don't support vmap over calling .item() on a Tensor ..."
-                # As a workaround, we add a dummy dimension and remove it after the indexing operation.
-                return tensor[tuple(c[None] for c in coordinates)][0]
+            if isinstance(coordinates, tuple):
+                if coordinates[0].ndim == 0:
+                    # Fix for https://github.com/pytorch/functorch/issues/747
+                    # Scalar coordinates cause problems with torch.vmap and throw an error:
+                    # "RuntimeError: vmap: It looks like you're calling .item() on a Tensor. We don't support vmap over calling .item() on a Tensor ..."
+                    # As a workaround, we add a dummy dimension and remove it after the indexing operation.
+                    return tensor[tuple(c[None] for c in coordinates)][0]
+                else:
+                    return tensor[coordinates]
             else:
-                return tensor[coordinates]
+                if coordinates.ndim == 0:
+                    # See above
+                    return tensor[coordinates[None]][0]
+                else:
+                    return tensor[coordinates]
         def set_at(tensor, coordinates, updates):
             tensor[coordinates] = updates
             return tensor
@@ -120,7 +127,7 @@ def make_torch_backend():
 
         allclose = torch_.allclose
 
-        def vmap(op, in_axes, out_axes):
+        def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
             return torch_.vmap(
                 op,
                 in_dims=tuple(in_axes) if isinstance(in_axes, list) else in_axes,

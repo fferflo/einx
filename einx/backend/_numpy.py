@@ -91,7 +91,7 @@ class numpy(Backend):
 
     allclose = np.allclose
 
-    def vmap(op, in_axes, out_axes):
+    def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
         if not isinstance(in_axes, (tuple, list)) or not isinstance(out_axes, (tuple, list)):
             raise ValueError("in_axes and out_axes must be tuples or lists of integers")
         def inner(*args):

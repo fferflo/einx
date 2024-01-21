@@ -77,7 +77,8 @@ def make_jax_backend():
 
         allclose = jnp.allclose
 
-        vmap = jax_.vmap
+        def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
+            return jax_.vmap(op, in_axes, out_axes)
 
         class random:
             def bernoulli(rng, p, shape):
