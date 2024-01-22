@@ -24,7 +24,9 @@ backends.append(tracer)
 def _update():
     for backend_name in list(backend_factories.keys()):
         if backend_name in sys.modules:
-            backends.append(backend_factories[backend_name]())
+            backend = backend_factories[backend_name]()
+            backends.append(backend)
+            globals()[backend_name] = backend
             del backend_factories[backend_name]
 _update()
 
