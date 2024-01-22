@@ -11,7 +11,7 @@ def get_shape(x):
             raise ValueError(f"Failed to determine shape in input tensor")
         return (len(x),) + subshape
     elif isinstance(x, (float, int, np.floating, np.integer)):
-        # Single number
+        # Scalar
         return ()
 
     try:
