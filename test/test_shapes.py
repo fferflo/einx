@@ -106,6 +106,11 @@ def test_shape_rearrange(backend):
     assert einx.arange("(c... [l])", c=(4, 3), backend=backend).shape == (4 * 3 * 2,)
     assert einx.arange("c1 c2 -> ([l] c2) c1", c1=4, c2=3, backend=backend).shape == (2 * 3, 4)
 
+    x = backend.zeros((10, 20), "bool")
+    y = backend.zeros((4, 10, 20, 3), "float32")
+    x, y = einx.rearrange("h w, b h w c -> 1 h w 1, b h w c", x, y)
+    assert backend.where(x, y, 0.0).shape == (4, 10, 20, 3)
+
 @pytest.mark.parametrize("backend", backends)
 def test_shape_dot(backend):
     x = backend.zeros((10, 10), "float32")
@@ -348,6 +353,8 @@ def test_shape_index(backend):
         assert op("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 16, 16, 3)
         assert op("b [h w] c, p [2], p c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
         assert op("b [h w] c, b p [2], b p c -> b h w c", x, y, z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p [2], p c -> b h w c", x, y, z[0]).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, p [2], b p c -> b h w c", x, y[0], z).shape == (4, 16, 16, 3)
         assert op("b [h w] c, p [2], p c -> b h w c", x, y[0], z[0]).shape == (4, 16, 16, 3)
 
     x = backend.ones((16, 4, 3, 16))
