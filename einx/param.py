@@ -33,7 +33,7 @@ def instantiate(x, shape, backend, **kwargs):
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)
 
-        for name in ["torch", "haiku", "flax", "equinox"]:
+        for name in ["torch", "haiku", "flax", "equinox", "keras"]:
             if name in sys.modules:
                 einn = importlib.import_module(f"einx.nn.{name}")
                 x2 = einn.to_tensor_factory(x)
