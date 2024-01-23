@@ -113,12 +113,11 @@ einx traces the required backend operations for a given call into graph represen
 >>> x = np.zeros((3, 10, 10))
 >>> graph = einx.sum("... (g [c])", x, g=2, graph=True)
 >>> print(graph)
-
-def reduce(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (3, 10, 2, 5))
-    x3 = backend.sum(x2, axis=3)
-    return x3
+# backend: einx.backend.numpy
+def op0(i0):
+    x1 = backend.reshape(i0, (3, 10, 2, 5))
+    x0 = backend.sum(x1, axis=3)
+    return x0
 ```
 
 See [Just-in-time compilation](https://einx.readthedocs.io/en/latest/gettingstarted/jit.html) for more details.
