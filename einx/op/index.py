@@ -162,10 +162,22 @@ def parse(description, *tensors_shapes, update, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
 
     description = description.split("->")
-    if len(description) != 2:
-        raise ValueError("Operation string must contain exactly one '->'")
-    exprs_in, expr_out = description
-    exprs_in = exprs_in.split(",")
+    if update:
+        if len(description) == 1:
+            exprs_in = description[0]
+            exprs_in = exprs_in.split(",")
+            expr_out = exprs_in[0]
+        elif len(description) == 2:
+            exprs_in, expr_out = description
+            exprs_in = exprs_in.split(",")
+        else:
+            raise ValueError("Operation string must contain at most one '->'")
+    else:
+        if len(description) != 2:
+            raise ValueError("Operation string must contain exactly one '->'")
+        else:
+            exprs_in, expr_out = description
+            exprs_in = exprs_in.split(",")
     if "," in expr_out:
         raise ValueError("Only a single output expression is allowed")
     if len(tensors_shapes) != len(exprs_in):
