@@ -48,7 +48,7 @@ params, state = net.init(rng=next_rng(), x=jnp.asarray(inputs), training=True) #
 optimizer = optax.adam(3e-4)
 opt_state = optimizer.init(params)
 
-@partial(jax.jit, donate_argnums=(0, 1))
+@partial(jax.jit, donate_argnums=(0, 1, 2))
 def update_step(opt_state, params, state, images, labels, rng):
     def loss_fn(params, state):
         logits, new_state = net.apply(params, state, rng, images, training=True)

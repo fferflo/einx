@@ -52,7 +52,7 @@ if not "stats" in params:
 optimizer = optax.adam(3e-4)
 opt_state = optimizer.init(params["params"])
 
-@partial(jax.jit, donate_argnums=(0,))
+@partial(jax.jit, donate_argnums=(0, 1))
 def update_step(params, opt_state, images, labels, rng):
     def loss_fn(params, stats):
         logits, new_stats = net.apply({"params": params, "stats": stats}, images, training=True, rngs={"dropout": rng}, mutable=["stats"])
