@@ -7,14 +7,17 @@
 - Add type annotations to public API.
 - Allow passing multiple coordinate tensors in `einx.{get_at|set_at|...}`.
 - Allow implicit output shape in `einx.{set_at|add_at|...}`.
+- Allow passing backend with string argument to `einx.nn.norm`.
+- Make backends accessible as `einx.backend.{NAME}` once they are loaded.
+
+### Changed
+
 - Refactor tracing:
     - Trace vmapped functions (previously kept a pointer to an untraced function).
     - Add shape assertion when calling unsafe functions.
     - Add comments for better inspection.
     - Remove `pass_backend` argument from `einx.vmap`.
     - Cache different functions for different backends.
-- Allow passing backend with string argument to `einx.nn.norm`.
-- Make backends accessible as `einx.backend.{NAME}` once they are loaded.
 
 ### Fixed
 
