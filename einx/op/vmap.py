@@ -84,8 +84,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
                 print("    ", expr_out, tensor_out.shape)
 
         for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
-            if tensor_out.shape != expr_out.shape:
-                raise ValueError(f"Expected output shape {expr_out.shape} from {i}-th (zero-based) output of vmapped function, but got {tensor_out.shape}")
+            assert tensor_out.shape == expr_out.shape, f"Expected output shape {expr_out.shape} from {i}-th (zero-based) output of vmapped function, but got {tensor_out.shape}"
 
         if not flat:
             exprs_out_funcargs_flat2, tensors_out = util.flatten(exprs_out_funcargs, tensors_out, backend=backend)
@@ -100,6 +99,10 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
 
     op = backend.op(op, tracable=True)
 
+    axes_names_in = [[a.name for a in root] for root in exprs_in_flat]
+    axes_names_in_set = set(a.name for root in exprs_in_flat for a in root)
+    is_broadcast_axis = lambda expr: isinstance(expr, einx.expr.stage3.Axis) and not expr.name in axes_names_in_set and not einx.expr.stage3.is_marked(expr)
+
     # Get ordered list of vmapped axes
     def is_vmapped(expr):
         return not einx.expr.stage3.is_marked(expr)
@@ -112,13 +115,10 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
         print(f"Vmapping the following axes: {vmapped_axes}")
     for root in list(exprs_in_flat) + list(exprs_out_flat):
         for v in root:
-            if (v.name in vmapped_axes) != is_vmapped(v):
+            if (v.name in vmapped_axes or is_broadcast_axis(v)) != is_vmapped(v):
                 raise ValueError(f"Axis {v.name} appears both as vmapped and non-vmapped")
 
     # Apply vmap to op
-    axes_names_in = [[a.name for a in root] for root in exprs_in_flat]
-    axes_names_in_set = set(a.name for root in exprs_in_flat for a in root)
-    is_broadcast_axis = lambda expr: isinstance(expr, einx.expr.stage3.Axis) and not expr.name in axes_names_in_set and not einx.expr.stage3.is_marked(expr)
     exprs_out_flat_without_broadcast = [einx.expr.stage3.remove(expr, is_broadcast_axis) for expr in exprs_out_flat]
     axes_names_out_without_broadcast = [[a.name for a in root] for root in exprs_out_flat_without_broadcast]
 
@@ -164,7 +164,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
     # Apply op to tensors
     if verbose:
         print("\nSending shapes to backend.vmap:", [str(a.shape) for a in tensors_in])
-    tensors = backend.apply(op, args=tensors_in, kwargs={}, output_shapes=[expr.shape for expr in exprs_out_flat_without_broadcast])
+    tensors = backend.apply(op, args=tensors_in, kwargs={}, output_shapes=tuple(expr.shape for expr in exprs_out_flat_without_broadcast))
     if verbose:
         for tensor, expr in zip(tensors, exprs_out_flat_without_broadcast):
             print("Got overall flat tensor_out:", tensor.shape, expr)

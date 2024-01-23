@@ -263,7 +263,7 @@ def test_shape_vmap(backend):
 
     with pytest.raises(ValueError):
         einx.vmap("b -> [b] 3", x, op=lambda x: x + backend.zeros((3,)))
-    with pytest.raises(ValueError):
+    with pytest.raises(AssertionError):
         einx.vmap("b -> b 3", x, op=lambda x: x + backend.ones((3,)))
 
     x = backend.zeros((4, 13, 2), "float32")
@@ -342,8 +342,15 @@ def test_shape_index(backend):
     coord_dtype = "int32" if backend.name != "torch" else "long"
     x = backend.ones((4, 16, 16, 3))
     y = backend.cast(backend.ones((4, 128, 2)), coord_dtype)
+    y2 = backend.cast(backend.ones((128, 4, 2)), coord_dtype)
     z = backend.ones((4, 128, 3))
     assert einx.get_at("b [h w] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, p b [2] -> b p c", x, y2).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, b p, b p -> b p c", x, y[..., 0], y[..., 1]).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, b (p [1]), b p -> b p c", x, y[..., 0], y[..., 1]).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, b p, p b -> b p c", x, y[..., 0], y2[..., 1]).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, p, p b -> b p c", x, y[0, ..., 0], y2[..., 1]).shape == (4, 128, 3)
+    assert einx.get_at("b [h w] c, b (p [1]), p b -> b p c", x, y[..., 0], y2[..., 1]).shape == (4, 128, 3)
     assert einx.get_at("b [h w] c, b p [2] -> b p c", x, lambda shape: backend.ones(shape, coord_dtype), p=128).shape == (4, 128, 3)
     assert einx.get_at("b [h w] c, b p [l] -> b p c", x, lambda shape: backend.ones(shape, coord_dtype), p=128).shape == (4, 128, 3)
     assert einx.get_at("b [16 w] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
@@ -351,6 +358,10 @@ def test_shape_index(backend):
     assert einx.get_at("b [h w] c, p [2] -> b p c", x, y[0]).shape == (4, 128, 3)
     for op in [einx.set_at, einx.add_at, einx.subtract_at]:
         assert op("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p, b p, b p c -> b [h w] c", x, y[..., 0], y[..., 1], z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p, p b, b p c -> b [h w] c", x, y[..., 0], y2[..., 1], z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p, p b, p c -> b [h w] c", x, y[..., 0], y2[..., 1], z[0]).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p, p b, c -> b [h w] c", x, y[..., 0], y2[..., 1], z[0, 0]).shape == (4, 16, 16, 3)
         assert op("b [h w] c, p [2], p c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
         assert op("b [h w] c, b p [2], b p c -> b h w c", x, y, z).shape == (4, 16, 16, 3)
         assert op("b [h w] c, b p [2], p c -> b h w c", x, y, z[0]).shape == (4, 16, 16, 3)
@@ -397,6 +408,33 @@ def test_shape_index(backend):
     assert einx.get_at("b t [d], b (t [1]) -> b (t 1)", x, y).shape == (4, 5)
     with pytest.raises(ValueError):
         einx.get_at("b t [d], b (t [1]) -> b (t [1])", x, y)
+
+    consts = {"b": 4, "h": 16, "w": 16, "c": 3, "p": 128}
+    make_coords = lambda shape: backend.cast(backend.zeros(shape), coord_dtype)
+    xs = ["([h] b) [w] c", "[h] c [w]", "[h w]"]
+    ys = ["b (p [2])", "[2] p", "[2]"]
+    ys2 = ["p b", "p", "[1]"]
+    zs = ["b p c", "c (p b)"]
+    for x in xs:
+        for z in zs:
+            shape = einx.add(f"{z}, ", backend.zeros, 0, **consts).shape
+            for y in ys:
+                assert einx.get_at(f"{x}, {y} -> {z}", backend.zeros, make_coords, **consts, backend=backend).shape == shape
+            for y1 in ys2:
+                for y2 in ys2:
+                    assert einx.get_at(f"{x}, {y1}, {y2} -> {z}", backend.zeros, make_coords, make_coords, **consts, backend=backend).shape == shape
+
+    for x in xs:
+        shape = einx.add(f"{x.replace('[', '').replace(']', '')}, ", backend.zeros, 0, **consts).shape
+        for z in zs:
+            z_axes = set(a for a in z if a.isalpha())
+            for y in ys:
+                if all(a in (x + y) for a in z_axes):
+                    assert einx.set_at(f"{x}, {y}, {z} -> {x}", backend.ones, make_coords, backend.zeros, **consts, backend=backend).shape == shape
+            for y1 in ys2:
+                for y2 in ys2:
+                    if all(a in (x + y1 + y2) for a in z_axes):
+                        assert einx.set_at(f"{x}, {y1}, {y2}, {z} -> {x}", backend.ones, make_coords, make_coords, backend.zeros, **consts, backend=backend).shape == shape
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_vmap_with_axis(backend):

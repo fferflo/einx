@@ -137,6 +137,12 @@ class Ellipsis(Expression):
         yield self.inner
 
 class Concatenation(Expression):
+    def maybe(l, *args, **kwargs):
+        if len(l) == 1:
+            return l[0]
+        else:
+            return Concatenation(l, *args, **kwargs)
+
     def __init__(self, children, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
         self.children = children

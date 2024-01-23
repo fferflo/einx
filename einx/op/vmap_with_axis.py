@@ -71,7 +71,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
     # Apply operation
     in_axis_names = set(axis.name for expr in exprs_in for axis in expr)
     output_shape = np.asarray([(axis.value if axis.name in in_axis_names else 1) for axis in exprs_out_flat[0]])
-    output_shapes = [output_shape] * len(exprs_out_flat) if len(exprs_out_flat) > 1 else output_shape
+    output_shapes = (output_shape,) * len(exprs_out_flat) if len(exprs_out_flat) > 1 else output_shape
     tensors_out = backend.apply(op, args=tensors_in, kwargs=kwargs, output_shapes=output_shapes)
     if not isinstance(tensors_out, (tuple, list)):
         tensors_out = (tensors_out,)

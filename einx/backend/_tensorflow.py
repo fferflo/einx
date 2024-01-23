@@ -4,6 +4,25 @@ from .base import Backend, associative_binary_to_nary
 def make_tensorflow_backend():
     import tensorflow as tf
     import tensorflow.experimental.numpy as tnp
+
+    def prepare_coordinates_and_update(coordinates, updates):
+        if isinstance(coordinates, tuple):
+            shape = coordinates[0].shape
+            for c in coordinates[1:]:
+                shape = tf.broadcast_static_shape(shape, c.shape)
+            coordinates = [tf.broadcast_to(c, shape) for c in coordinates]
+            coordinates = tf.stack(coordinates, axis=-1)
+        else:
+            coordinates = coordinates[..., tf.newaxis]
+        assert updates.ndim + 1 == coordinates.ndim
+
+        # Broadcast to common shape
+        shape = tf.broadcast_static_shape(updates.shape, coordinates.shape[:-1])
+        coordinates = tf.broadcast_to(coordinates, shape + coordinates.shape[-1:])
+        updates = tf.broadcast_to(updates, shape)
+
+        return coordinates, updates
+
     class tensorflow(Backend):
         @staticmethod
         def to_tensor(tensor):
@@ -63,11 +82,14 @@ def make_tensorflow_backend():
         def get_at(tensor, coordinates):
             return tensor[coordinates]
         def set_at(tensor, coordinates, updates):
-            return tf.tensor_scatter_nd_update(tensor, tf.stack(coordinates, axis=-1), updates)
+            coordinates, updates = prepare_coordinates_and_update(coordinates, updates)
+            return tf.tensor_scatter_nd_update(tensor, coordinates, updates)
         def add_at(tensor, coordinates, updates):
-            return tf.tensor_scatter_nd_add(tensor, tf.stack(coordinates, axis=-1), updates)
+            coordinates, updates = prepare_coordinates_and_update(coordinates, updates)
+            return tf.tensor_scatter_nd_add(tensor, coordinates, updates)
         def subtract_at(tensor, coordinates, updates):
-            return tf.tensor_scatter_nd_sub(tensor, tf.stack(coordinates, axis=-1), updates)
+            coordinates, updates = prepare_coordinates_and_update(coordinates, updates)
+            return tf.tensor_scatter_nd_sub(tensor, coordinates, updates)
 
         def flip(x, axis):
             if isinstance(axis, int):

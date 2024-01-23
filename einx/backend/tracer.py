@@ -400,6 +400,13 @@ class Scope:
             name = "{" + ", ".join(f"\"{k}\": {self.eval(v)}" for k, v in x.items()) + "}"
         elif isinstance(x, (int, float)):
             name = str(x)
+        elif isinstance(x, slice):
+            if not x.step is None:
+                return f"slice({self.eval(x.start)}, {self.eval(x.stop)}, {self.eval(x.step)})"
+            elif not x.stop is None:
+                return f"slice({self.eval(x.start)}, {self.eval(x.stop)})"
+            else:
+                return f"slice({self.eval(x.start)})"
         elif x is None:
             name = "None"
         else:
@@ -487,7 +494,70 @@ def map(tensor, axis, op, *args, **kwargs):
 
 def index(tensor, coordinates, update=None, op=None):
     if update is None:
-        return OpApplication(op, args=[tensor, coordinates], output_shapes=coordinates[0].shape if isinstance(coordinates, tuple) else coordinates.shape).output_tracers
+        coordinates2 = (coordinates,) if not isinstance(coordinates, tuple) else coordinates
+        if len(coordinates2) > len(tensor.shape):
+            raise ValueError(f"Too many indices for tensor of dimension {len(tensor.shape)}")
+ 
+        def is_multidim(c):
+            if isinstance(c, (slice, int, np.integer)):
+                return False
+            elif isinstance(c, list):
+                return True
+            else:
+                return c.ndim > 0
+
+        if any(is_multidim(c) for c in coordinates2):
+            # Got multi-dimensional indices
+
+            # Find front and back slices
+            front_slices = []
+            back_slices = []
+            i = 0
+            is_front = True
+            for i in range(tensor.ndim):
+                if is_front:
+                    if isinstance(coordinates2[i], slice):
+                        front_slices.append(i)
+                    else:
+                        is_front = False
+                else:
+                    if isinstance(coordinates2[i], slice):
+                        back_slices.append(i)
+
+            # Broadcast coordinates expressions
+            def broadcast(dims):
+                dims = np.asarray(list(set(int(i) for i in dims)))
+                assert np.all(dims > 0)
+                if len(dims) > 2 or len(dims) == 2 and np.amin(dims) > 1:
+                    raise ValueError(f"Cannot broadcast coordinates")
+                return np.amax(dims)
+            shapes = [c.shape for c in coordinates2 if not isinstance(c, slice)]
+            if len(set(len(s) for s in shapes)) != 1:
+                raise ValueError(f"Expected all coordinates to have same number of dimensions")
+            shapes = np.asarray(shapes)
+            shape = [broadcast(shapes[:, i]) for i in range(shapes.shape[1])]
+
+            # Prepend and append slices
+            shape = tuple([tensor.shape[i] for i in front_slices] + shape + [tensor.shape[i] for i in back_slices])
+        else:
+            output_shape = []
+            input_shape = tensor.shape
+            for s in coordinates:
+                if isinstance(s, (int, np.integer)):
+                    input_shape = input_shape[1:]
+                elif isinstance(s, slice):
+                    start, stop, step = s.indices(input_shape[0])
+                    output_shape.append((stop - start) // step)
+                    input_shape = input_shape[1:]
+                elif s is None:
+                    output_shape.append(1)
+                elif isinstance(s, Tracer) and s.ndim == 0:
+                    input_shape = input_shape[1:]
+                else:
+                    raise TypeError(f"Invalid coordinate type: {type(s)}")
+            shape = tuple(output_shape) + tuple(input_shape)
+
+        return OpApplication(op, args=[tensor, coordinates], output_shapes=shape).output_tracers
     else:
         return OpApplication(op, args=[tensor, coordinates, update], output_shapes=tensor.shape).output_tracers
 
@@ -522,7 +592,11 @@ class tracer(Backend):
     def apply(op, args, kwargs, output_shapes):
         op = tracer.op(op)
         if op.tracable:
-            return op(*args, **kwargs)
+            x = op(*args, **kwargs)
+            def assertion(tensor, shape):
+                assert tuple(tensor.shape) == tuple(shape)
+            einx.tree_util.tree_map(assertion, x, output_shapes)
+            return x
         else:
             return OpApplication(op, args=args, kwargs=kwargs, output_shapes=output_shapes).output_tracers
 

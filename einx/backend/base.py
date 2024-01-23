@@ -12,7 +12,7 @@ def associative_binary_to_nary(binary_op):
 
 class Backend:
     @classmethod
-    def op(backend, op):
+    def op(backend, op, tracable=None):
         if isinstance(op, str):
             x = backend
             for name in op.split("."):
