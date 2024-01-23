@@ -253,16 +253,29 @@ def index(description: str, *tensors: einx.Tensor, op: Callable, update: bool, b
         Get values from a batch of images (different indices per image):
 
         >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
-        >>> coordinates = np.random.uniform(size=(4, 100, 2))
+        >>> coordinates = np.ones((4, 100, 2))
         >>> einx.get_at("b [h w] c, b p [2] -> b p c", tensor, coordinates).shape
+        (4, 100, 3)
+
+        >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
+        >>> coordinates_x = np.ones((4, 100), "int32")
+        >>> coordinates_y = np.ones((4, 100), "int32")
+        >>> einx.get_at("b [h w] c, b p, b p -> b p c", tensor, coordinates_x, coordinates_y).shape
         (4, 100, 3)
 
         Set values in a batch of images (same indices per image):
 
         >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
-        >>> coordinates = np.random.uniform(size=(100, 2))
+        >>> coordinates = np.ones((100, 2), "int32")
         >>> updates = np.random.uniform(size=(100, 3))
         >>> einx.set_at("b [h w] c, p [2], p c -> b [h w] c", tensor, coordinates, updates).shape
+        (4, 128, 128, 3)
+
+        >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
+        >>> coordinates_x = np.ones((100,), "int32")
+        >>> coordinates_y = np.ones((100,), "int32")
+        >>> updates = np.random.uniform(size=(100, 3))
+        >>> einx.set_at("b [h w] c, p, p, p c -> b [h w] c", tensor, coordinates_x, coordinates_y, updates).shape
         (4, 128, 128, 3)
     """
     exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], update=update, cse=cse, **parameters)
