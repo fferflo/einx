@@ -529,7 +529,9 @@ class tracer(Backend):
     def cast(tensor, dtype):
         return OpApplication("cast", args=[tensor], kwargs={"dtype": dtype}, output_shapes=tensor.shape).output_tracers
     def reshape(tensor, shape):
-        if isinstance(tensor, OpOutput) and tensor.op.op == "reshape":
+        if tensor.shape == shape:
+            return tensor
+        elif isinstance(tensor, OpOutput) and tensor.op.op == "reshape":
             # Merge consecutive reshapes
             return OpApplication("reshape", args=[tensor.op.args[0], shape], output_shapes=shape).output_tracers
         else:
