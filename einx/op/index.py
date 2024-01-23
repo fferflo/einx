@@ -5,6 +5,8 @@ import numpy as np
 from typing import Callable, Union
 import numpy.typing as npt
 
+
+
 def _index(*tensors, update, layout, expr_update_inner, expr_common, op=None):
     if update:
         tensor_in = tensors[0]
@@ -74,7 +76,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
             return "embedding"
         else:
             return s
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(str(op)), init=str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(util._op_to_str(op)), init=util._op_to_str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
 
     expr_tensor = exprs_in[0]
     exprs_coordinates = (exprs_in[1:-1] if update else exprs_in[1:])

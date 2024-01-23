@@ -27,7 +27,7 @@ def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
             return "scale"
         else:
             return s
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(str(op)), init=str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name=get_name(util._op_to_str(op)), init=util._op_to_str(op)) for tensor, expr in zip(tensors_in, exprs_in)]
 
     tensors_out, exprs_out = einx.vmap_with_axis_stage3(exprs_in, tensors_in, [expr_out], op, backend=backend)
     assert len(tensors_out) == 1 and len(exprs_out) == 1

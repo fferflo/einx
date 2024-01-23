@@ -136,6 +136,13 @@ class Op:
         self.tracable = tracable
 
     @property
+    def __name__(self):
+        if "__name" in dir(self.op):
+            return self.op.__name__
+        else:
+            return str(self.op)
+
+    @property
     def requires_dynamic_type_check(self):
         return not self.tracable
 

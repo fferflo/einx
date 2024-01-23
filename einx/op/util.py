@@ -198,3 +198,9 @@ def _clean_description_and_parameters(description, parameters):
     parameters = {k: v for k, v in parameters.items() if k in axis_names}
 
     return description, parameters
+
+def _op_to_str(op):
+    if "__name__" in dir(op):
+        return op.__name__
+    else:
+        return str(op)
