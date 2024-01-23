@@ -38,10 +38,10 @@ To verify that the correct backend calls are made, the just-in-time compiled fun
 
 >>> graph = einx.rearrange("a b c -> a c b", x, graph=True)
 >>> print(graph)
-def rearrange(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.transpose(x1, (0, 2, 1))
-    return x2
+# backend: einx.backend.numpy
+def op0(i0):
+    x0 = backend.transpose(i0, (0, 2, 1))
+    return x0
 
 The function shows that einx performs the expected call to ``np.transpose``.
 
@@ -86,16 +86,16 @@ that it uses a `np.reshape <https://numpy.org/doc/stable/reference/generated/num
 operation with the requested shape:
 
 >>> print(einx.rearrange("(a b) c -> a b c", x, a=2, graph=True))
-def rearrange(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (2, 3, 4))
-    return x2
+# backend: einx.backend.numpy
+def op0(i0):
+    x0 = backend.reshape(i0, (2, 3, 4))
+    return x0
 
 >>> print(einx.rearrange("a b c -> (a b) c", x, graph=True))
-def rearrange(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (6, 4))
-    return x2
+# backend: einx.backend.numpy
+def op0(i0):
+    x0 = backend.reshape(i0, (6, 4))
+    return x0
 
 .. note::
 
@@ -135,12 +135,12 @@ This operation requires multiple backend calls in index-based notation that migh
 the intent of the operation and requires less code:
 
 >>> print(einx.rearrange("(s p)... c -> (s...) p... c", x, p=8, graph=True))
-def rearrange(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (32, 8, 32, 8, 3))
-    x3 = backend.transpose(x2, (0, 2, 1, 3, 4))
-    x4 = backend.reshape(x3, (1024, 8, 8, 3))
-    return x4
+# backend: einx.backend.numpy
+def op0(i0):
+    x2 = backend.reshape(i0, (32, 8, 32, 8, 3))
+    x1 = backend.transpose(x2, (0, 2, 1, 3, 4))
+    x0 = backend.reshape(x1, (1024, 8, 8, 3))
+    return x0
 
 In einops-style notation, an ellipsis can only appear once at root level without a preceding expression. To be fully compatible with einops notation, einx implicitly
 converts anonymous ellipses by adding an axis in front:
@@ -200,12 +200,11 @@ This can be used for example to concatenate tensors that do not have compatible 
 The graph shows that einx first reshapes ``y`` by adding a channel dimension, and then concatenates the tensors along that axis:
 
 >>> print(einx.rearrange("h w c, h w -> h w (c + 1)", x, y, graph=True))
-def rearrange(i0, i1, backend):
-    x1 = backend.to_tensor(i0)
-    x3 = backend.to_tensor(i1)
-    x4 = backend.reshape(x3, (256, 256, 1))
-    x5 = backend.concatenate([x1, x4], 2)
-    return x5
+# backend: einx.backend.numpy
+def op0(i0, i1):
+    x1 = backend.reshape(i1, (256, 256, 1))
+    x0 = backend.concatenate([i0, x1], 2)
+    return x0
 
 Splitting is supported analogously:
 

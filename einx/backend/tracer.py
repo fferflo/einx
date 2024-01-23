@@ -234,7 +234,7 @@ class Scope:
 
     def __str__(self):
         string = ""
-        string += f"# backend: {repr(self.backend)}\n"
+        string += f"# backend: einx.backend.{self.backend.name}\n"
         for const_name, value in self.root_scope.constants:
             string += f"# {const_name}: {str(type(value))} = {value}\n"
         string += "\n".join(self.lines)

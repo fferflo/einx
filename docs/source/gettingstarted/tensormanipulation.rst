@@ -39,16 +39,16 @@ Using :func:`einx.rearrange` often produces more readable and concise code than 
 inspected using the just-in-time compiled function that einx creates for this expression (see :doc:`Just-in-time compilation </gettingstarted/jit>`):
 
 >>> print(einx.rearrange("b (s p) (c + 1) -> (b s) p c, (b p) s 1", x, p=8, graph=True))
-def rearrange(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (4, 32, 8, 17))
-    x3 = x2[:, :, :, 0:16]
-    x4 = backend.reshape(x3, (128, 8, 16))
-    x5 = x2[:, :, :, 16:17]
-    x6 = backend.reshape(x5, (4, 32, 8))
-    x7 = backend.transpose(x6, (0, 2, 1))
-    x8 = backend.reshape(x7, (32, 32, 1))
-    return [x4, x8]
+# backend: einx.backend.numpy
+def op0(i0):
+    x1 = backend.reshape(i0, (4, 32, 8, 17))
+    x2 = x1[:, :, :, 0:16]
+    x0 = backend.reshape(x2, (128, 8, 16))
+    x6 = x1[:, :, :, 16:17]
+    x5 = backend.reshape(x6, (4, 32, 8))
+    x4 = backend.transpose(x5, (0, 2, 1))
+    x3 = backend.reshape(x4, (32, 32, 1))
+    return [x0, x3]
 
 Reduction ops
 -------------
@@ -177,7 +177,7 @@ einx provides a family of functions that perform multi-dimensional indexing and 
 .. code::
 
    image = np.ones((256, 256, 3))
-   coordinataes = np.ones((100, 2), dtype=np.int32)
+   coordinates = np.ones((100, 2), dtype=np.int32)
    updates = np.ones((100, 3))
 
    # Retrieve values at specific locations in an image
@@ -192,7 +192,14 @@ einx provides a family of functions that perform multi-dimensional indexing and 
    y = image
 
 Brackets in the first input indicate axes that are indexed, and a single bracket in the second input indicates the coordinate axis. The length of the coordinate axis should equal
-the number of indexed axes in the first input.
+the number of indexed axes in the first input. Coordinates can also be passed in separate tensors:
+
+.. code::
+
+   coordinates_x = np.ones((100,), dtype=np.int32)
+   coordinates_y = np.ones((100,), dtype=np.int32)
+
+   y = einx.get_at("[h w] c, i, i -> i c", image, coordinates_x, coordinates_y)
 
 Indexing functions are specializations of :func:`einx.index` and fully support Einstein expression rearranging:
 
@@ -325,13 +332,12 @@ not the output are reduced via a dot-product:
 The graph representation shows that the inputs and output are rearranged as required and the dot-product is forwarded to the ``einsum`` function of the backend:
 
 >>> print(einx.dot("b (g c1), c1 c2 -> b (g c2)", x, w, g=2, graph=True))
-def dot(i0, i1, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (20, 2, 8))
-    x4 = backend.to_tensor(i1)
-    x5 = backend.einsum("abc,cd->abd", x2, x4)
-    x6 = backend.reshape(x5, (20, 8))
-    return x6
+# backend: einx.backend.numpy
+def op0(i0, i1):
+    x2 = backend.reshape(i0, (20, 2, 8))
+    x1 = backend.einsum("abc,cd->abd", x2, i1)
+    x0 = backend.reshape(x1, (20, 8))
+    return x0
 
 Shorthand notation in :func:`einx.dot` is supported as follows. When given two input tensors, the expression of the second input is determined implicitly by marking
 its components in the input and output expression:
@@ -361,11 +367,10 @@ The graph representation shows that the expression forwarded to the ``einsum`` c
 >>> x = np.ones((4, 8))
 >>> y = np.ones((8, 5))
 >>> print(einx.dot("a [b|c]", x, y, graph=True))
-def dot(i0, i1, backend):
-    x1 = backend.to_tensor(i0)
-    x3 = backend.to_tensor(i1)
-    x4 = backend.einsum("ab,bc->ac", x1, x3)
-    return x4
+# backend: einx.backend.numpy
+def op0(i0, i1):
+    x0 = backend.einsum("ab,bc->ac", i0, i1)
+    return x0
 
 .. _lazytensorconstruction:
 
