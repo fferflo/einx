@@ -189,37 +189,39 @@ if importlib.util.find_spec("equinox"):
 
 if importlib.util.find_spec("keras"):
     import keras, einx.nn.keras
-    import tensorflow as tf
+    version = [int(i) for i in keras.__version__.split(".")]
+    if version[0] >= 3:
+        import tensorflow as tf
 
-    def test_keras_linear():
-        x = tf.zeros((4, 128, 128, 3))
+        def test_keras_linear():
+            x = tf.zeros((4, 128, 128, 3))
 
-        layer = einx.nn.keras.Linear("b... [c1|c2]", c2=32)
-        model = keras.Sequential([layer])
-        assert model(x, training=True).shape == (4, 128, 128, 32)
-        assert model(x, training=True).shape == (4, 128, 128, 32)
-        assert model(x, training=False).shape == (4, 128, 128, 32)
-        assert model(x, training=False).shape == (4, 128, 128, 32)
+            layer = einx.nn.keras.Linear("b... [c1|c2]", c2=32)
+            model = keras.Sequential([layer])
+            assert model(x, training=True).shape == (4, 128, 128, 32)
+            assert model(x, training=True).shape == (4, 128, 128, 32)
+            assert model(x, training=False).shape == (4, 128, 128, 32)
+            assert model(x, training=False).shape == (4, 128, 128, 32)
 
-    def test_keras_norm():
-        x = tf.zeros((4, 128, 128, 32))
-        for expr, kwargs in norms:
-            for mean in [True, False]:
-                for scale in [True, False]:
-                    for decay_rate in [None, 0.9]:
-                        layer = einx.nn.keras.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
-                        model = keras.Sequential([layer])
-                        assert model(x, training=True).shape == (4, 128, 128, 32)
-                        assert model(x, training=True).shape == (4, 128, 128, 32)
-                        assert model(x, training=False).shape == (4, 128, 128, 32)
-                        assert model(x, training=False).shape == (4, 128, 128, 32)
+        def test_keras_norm():
+            x = tf.zeros((4, 128, 128, 32))
+            for expr, kwargs in norms:
+                for mean in [True, False]:
+                    for scale in [True, False]:
+                        for decay_rate in [None, 0.9]:
+                            layer = einx.nn.keras.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
+                            model = keras.Sequential([layer])
+                            assert model(x, training=True).shape == (4, 128, 128, 32)
+                            assert model(x, training=True).shape == (4, 128, 128, 32)
+                            assert model(x, training=False).shape == (4, 128, 128, 32)
+                            assert model(x, training=False).shape == (4, 128, 128, 32)
 
-    def test_keras_dropout():
-        x = tf.zeros((4, 128, 128, 3))
+        def test_keras_dropout():
+            x = tf.zeros((4, 128, 128, 3))
 
-        layer = einx.nn.keras.Dropout("[b] ... [c]", drop_rate=0.2)
-        model = keras.Sequential([layer])
-        assert model(x, training=True).shape == (4, 128, 128, 3)
-        assert model(x, training=True).shape == (4, 128, 128, 3)
-        assert model(x, training=False).shape == (4, 128, 128, 3)
-        assert model(x, training=False).shape == (4, 128, 128, 3)
+            layer = einx.nn.keras.Dropout("[b] ... [c]", drop_rate=0.2)
+            model = keras.Sequential([layer])
+            assert model(x, training=True).shape == (4, 128, 128, 3)
+            assert model(x, training=True).shape == (4, 128, 128, 3)
+            assert model(x, training=False).shape == (4, 128, 128, 3)
+            assert model(x, training=False).shape == (4, 128, 128, 3)
