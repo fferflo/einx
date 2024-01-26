@@ -202,6 +202,8 @@ def test_shape_reduce(backend):
     bias = backend.ones((4,))
     assert einx.add("b... (g [c])", x, bias).shape == (16, 16, 32)
 
+    assert einx.logsumexp("a [...]", x).shape == (16,)
+
     assert einx.logsumexp("[a]", [0.0, 1.0]).shape == ()
     assert einx.logsumexp("[a]", [np.asarray(0.0), np.asarray(1.0)]).shape == ()
     assert einx.mean("[a]", [backend.to_tensor(0.0), np.asarray(1.0)]).shape == ()
