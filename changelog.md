@@ -18,6 +18,23 @@
     - Add comments for better inspection.
     - Remove `pass_backend` argument from `einx.vmap`.
     - Cache different functions for different backends.
+    - Don't call `backend.to_tensor` if input already has correct type.
+
+  For example, tracing `einx.get_at` now gives the following jit-compiled code:
+    ```python
+    >>> print(einx.get_at("b [h w] c, b p [2] -> b p c", x, y, graph=True))
+    # backend: einx.backend.numpy
+    def op1(i0, i1):
+        x1 = i1[:, 0]
+        x2 = i1[:, 1]
+        x0 = backend.get_at(i0, (x1, x2))
+        return (x0,)
+    def op0(i0, i1, op1=op1):
+        op2 = backend.vmap(op1, in_axes=(0, 0), out_axes=(0,))
+        op3 = backend.vmap(op2, in_axes=(3, None), out_axes=(2,))
+        x0 = op3(i0, i1)
+        return x0[0]
+    ```
 
 ### Fixed
 
