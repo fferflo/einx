@@ -3,6 +3,13 @@ from functools import partial
 import numpy as np
 from typing import Callable, Union, Optional, Any
 
+def _allow_in_graph(func):
+    if "compiler" in dir(torch):
+        return torch.compiler.allow_in_graph(func)
+    else:
+        import torch._dynamo as _dynamo
+        return _dynamo.allow_in_graph(func)
+
 def param(uninitialized: Union[torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer], init: Optional[Callable] = None):
     """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
@@ -118,7 +125,7 @@ class Norm(torch.nn.Module):
                     self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
         return x
 
-@torch.compiler.allow_in_graph
+@_allow_in_graph
 def _norm(x, stats, params, mean, var, scale, bias, epsilon, fastvar, kwargs):
     with x.device:
         return einx.nn.norm(
@@ -160,7 +167,7 @@ class Linear(torch.nn.Module):
     def forward(self, x):
         return _linear(x, self.expr, self.weight, self.bias, self.kwargs)
 
-@torch.compiler.allow_in_graph
+@_allow_in_graph
 def _linear(x, expr, weight, bias, kwargs):
     with x.device:
         return einx.nn.linear(
@@ -194,7 +201,7 @@ class Dropout(torch.nn.Module):
         else:
             return x
 
-@torch.compiler.allow_in_graph
+@_allow_in_graph
 def _dropout(x, expr, drop_rate, kwargs):
     with x.device:
         return einx.nn.dropout(
