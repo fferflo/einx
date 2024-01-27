@@ -2,11 +2,16 @@
 
 from setuptools import setup, find_packages
 
+with open("README.md") as f:
+    long_description = f.read()
+
 setup(
     name="einx",
     version="0.1.2",
     python_requires=">=3.8",
     description="Tensor Operations Expressed in Einstein-Inspired Notation",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Florian Fervers",
     author_email="florian.fervers@gmail.com",
     url="https://github.com/fferflo/einx",
