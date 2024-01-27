@@ -234,7 +234,7 @@ def index(description: str, *tensors: einx.Tensor, op: Callable, update: bool, b
        when only returning values from the tensor.
 
     Brackets in the ``tensor`` expression mark the axes that will be indexed. Brackets in the ``coordinates`` expression mark the single coordinate axis. All other
-    axes are considered batch axes.
+    axes are considered batch axes. Using multiple coordinate expressions will yield the same output as concatenating the coordinate expressions along the coordinate axis first.
 
     Args:
         description: Description string in Einstein notation (see above).
