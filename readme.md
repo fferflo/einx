@@ -29,6 +29,8 @@ einx is a Python library that allows formulating many tensor operations as conci
 pip install einx
 ```
 
+See [Installation](https://einx.readthedocs.io/en/latest/gettingstarted/installation.html) for more information.
+
 ## What does einx look like?
 
 #### Tensor manipulation
