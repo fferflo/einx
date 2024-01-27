@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="einx",
-    version="0.1.1",
+    version="0.1.2",
     python_requires=">=3.8",
     description="Tensor Operations Expressed in Einstein-Inspired Notation",
     author="Florian Fervers",
