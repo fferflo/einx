@@ -23,6 +23,10 @@ setup(
         "sympy",
         "frozendict",
     ],
+    extras_require={
+        "torch": ["torch>=2"],
+        "keras": ["keras>=3"],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
