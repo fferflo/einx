@@ -3,6 +3,10 @@ from functools import partial
 import numpy as np
 from typing import Callable, Union, Optional, Any
 
+_version = tuple(int(i) for i in torch.__version__.split(".")[:2])
+if _version < (2, 0):
+    raise ImportError(f"einx.nn.torch requires PyTorch version >= 2, but found {torch.__version__}")
+
 def _allow_in_graph(func):
     if "compiler" in dir(torch):
         return torch.compiler.allow_in_graph(func)

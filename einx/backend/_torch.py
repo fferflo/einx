@@ -1,5 +1,5 @@
 import einx
-from .base import Backend, associative_binary_to_nary
+from .base import Backend, ErrorBackend, associative_binary_to_nary
 
 def to_tuple(x):
     if isinstance(x, tuple):
@@ -13,6 +13,13 @@ def to_tuple(x):
 
 def make_torch_backend():
     import torch as torch_
+
+    version = tuple(int(i) for i in torch_.__version__.split(".")[:2])
+    if version < (2, 0):
+        message = f"einx with PyTorch requires PyTorch version >= 2, but found {torch_.__version__}. einx functions are disabled for PyTorch."
+        print(f"WARNING: {message}")
+        return ErrorBackend(message)
+
     class torch(Backend):
         @staticmethod
         def to_tensor(tensor):

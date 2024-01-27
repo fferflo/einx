@@ -2,6 +2,10 @@ import keras, einx, inspect
 import numpy as np
 from typing import Any, Callable, Optional
 
+_version = tuple(int(i) for i in keras.__version__.split(".")[:2])
+if _version < (3, 0):
+    raise ImportError(f"einx.nn.keras requires Keras version >= 3, but found {keras.__version__}")
+
 def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[Callable] = None, dtype: Optional[Any] = None, trainable: bool = True):
     """Create a tensor factory for Keras parameters.
 

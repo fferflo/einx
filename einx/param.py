@@ -33,13 +33,11 @@ def instantiate(x, shape, backend, **kwargs):
         if isinstance(x, (int, float, np.integer, np.floating)):
             return backend.to_tensor(x)
 
-        for name in ["torch", "haiku", "flax", "equinox", "keras"]:
-            if name in sys.modules:
-                einn = importlib.import_module(f"einx.nn.{name}")
-                x2 = einn.to_tensor_factory(x)
-                if not x2 is None:
-                    x = x2
-                    break
+        for einn in einx.nn.get_frameworks():
+            x2 = einn.to_tensor_factory(x)
+            if not x2 is None:
+                x = x2
+                break
 
         if callable(x):
             # Try to find keyword parameters of the tensor factory and forward all kwargs that are accepted. Pass no keyword parameters if this fails.

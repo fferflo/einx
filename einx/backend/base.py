@@ -23,3 +23,10 @@ class Backend:
     @classmethod
     def apply(backend, op, args, kwargs, output_shapes):
         return backend.op(op)(*args, **kwargs)
+
+class ErrorBackend:
+    def __init__(self, message):
+        self.message = message
+
+    def __getattr__(self, name):
+        raise RuntimeError(self.message)

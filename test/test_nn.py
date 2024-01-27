@@ -188,10 +188,11 @@ if importlib.util.find_spec("equinox"):
         assert layer(x, rng=rng).shape == (4, 128, 128, 3)
 
 if importlib.util.find_spec("keras"):
-    import keras, einx.nn.keras
-    version = [int(i) for i in keras.__version__.split(".")]
-    if version[0] >= 3:
+    import keras
+    version = tuple(int(i) for i in keras.__version__.split(".")[:2])
+    if version > (3, 0):
         import tensorflow as tf
+        import einx.nn.keras
 
         def test_keras_linear():
             x = tf.zeros((4, 128, 128, 3))
