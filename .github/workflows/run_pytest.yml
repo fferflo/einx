@@ -1,4 +1,4 @@
-name: einx
+name: Test with pytest
 
 on:
   push:
