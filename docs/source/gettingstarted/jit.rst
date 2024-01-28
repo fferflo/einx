@@ -54,6 +54,23 @@ def op0(i0, i1):
     x0 = backend.reshape(x1, (10, 16))
     return x0
 
+A call to ``einx.get_at`` that applies ``backend.vmap`` to handle batch axes:
+
+>>> x = np.zeros((4, 128, 128, 3))
+>>> y = np.zeros((4, 1024, 2), "int32")
+>>> print(einx.get_at("b [h w] c, b p [2] -> b p c", x, y, graph=True))
+# backend: einx.backend.numpy
+def op1(i0, i1):
+    x1 = i1[:, 0]
+    x2 = i1[:, 1]
+    x0 = backend.get_at(i0, (x1, x2))
+    return (x0,)
+def op0(i0, i1, op1=op1):
+    op2 = backend.vmap(op1, in_axes=(0, 0), out_axes=(0,))
+    op3 = backend.vmap(op2, in_axes=(3, None), out_axes=(2,))
+    x0 = op3(i0, i1)
+    return x0[0]
+
 An operation that requires concatenation of tensors:
 
 >>> x = np.zeros((10, 10, 3))

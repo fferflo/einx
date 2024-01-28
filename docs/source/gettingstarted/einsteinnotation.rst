@@ -116,8 +116,9 @@ True
 
 The number of repetitions is determined from the rank of the input tensors: 
 
->>> einx.rearrange("a b... -> b... a", x).shape # Expands to "a b.0 b.1 -> b.0 b.1 a"
-(3, 4, 2)
+>>> x = np.ones((2, 3, 4, 5))
+>>> einx.matches("a b...", x) # Expands to "a b.0 b.1 b.2"
+True
 
 Using ellipses e.g. for spatial dimensions often results in simpler and more readable expressions, and allows using the same expression for tensors with different dimensionality:
 
@@ -253,9 +254,19 @@ einx introduces the ``[]``-notation to denote axes that an operation is applied 
     # same as
     np.sum(x, axis=tuple(range(1, x.ndim)))
 
-:func:`einx.sum` is part of a family of functions that specialize :func:`einx.reduce` and apply a reduction operation to the input tensor
-(see :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>`). In this case, ``[]`` denotes axes
-that are reduced.
+The usage of brackets in all einx functions follows a general principle:
+
+**Brackets mark axes that an operation is applied to, while all other axes
+are batch axes that the operation is repeated over.**
+
+Some other examples:
+
+..  code::
+
+    einx.flip("a [b]", x, c=2) # Flip pairs of values
+    einx.add("... [c]", x, b) # Add bias
+    einx.get_at("b [h w] c, b i [2] -> b i c", x, indices) # Gather values
+    einx.softmax("b q [k] h", attn) # Part of attention operation
 
 Bracket notation is fully compatible with expression rearranging and can therefore be placed anywhere inside a nested Einstein expression:
 
@@ -270,13 +281,15 @@ Bracket notation is fully compatible with expression rearranging and can therefo
 (4, 64, 64, 3)
 
 >>> print(einx.mean("b (s [ds])... c", x, ds=4, graph=True))
-def reduce(i0, backend):
-    x1 = backend.to_tensor(i0)
-    x2 = backend.reshape(x1, (4, 64, 4, 64, 4, 3))
-    x3 = backend.mean(x2, axis=(2, 4))
-    return x3
+# backend: einx.backend.numpy
+def op0(i0):
+    x1 = backend.reshape(i0, (4, 64, 4, 64, 4, 3))
+    x0 = backend.mean(x1, axis=(2, 4))
+    return x0
 
-See :doc:`How does einx handle input and output tensors? </faq/flatten>` for details on how operations are applied to tensors with nested Einstein expressions.
+.. note::
+
+    See :doc:`How does einx handle input and output tensors? </faq/flatten>` for details on how operations are applied to tensors with nested Einstein expressions.
 
 Operations are sensitive to the positioning of brackets, e.g. allowing for flexible ``keepdims=True`` behavior out-of-the-box:
 
@@ -290,19 +303,7 @@ Operations are sensitive to the positioning of brackets, e.g. allowing for flexi
 
 In the second example, ``c`` is reduced within the composition ``(c)``, resulting in an empty composition ``()``, i.e. a trivial axis with size 1.
 
-The operation :func:`einx.vmap` can be used to apply arbitrary functions to tensors. Analogous to the above examples, ``[]`` denotes axes that the function is applied on:
-
->>> x = np.ones((16, 8))
->>> def op(x): # c1 -> c2
->>>     return x[:-1]
->>> einx.vmap("b [c1] -> b [c2]", x, op=op, c2=7).shape
-(16, 7)
-
-.. note::
-
-    :func:`einx.vmap` does not know the shape of the function output until the function is invoked, and thus requires specifying the additional constraint ``c2=7``.
-
-The bracket notation also allows using a shorthand with ``[..|..]``-notation where two expressions are specified jointly:
+*Brief notation:* The bracket notation also allows using a shorthand with ``[..|..]``-notation where two expressions are specified jointly:
 
 ..  code::
 
