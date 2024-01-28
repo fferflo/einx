@@ -1,5 +1,23 @@
 # Changelog
 
+
+
+## [0.1.3]
+
+### Added
+
+- Add option to install einx via `pip install einx[torch]` or `pip install einx[keras]` to enforce version requirements on PyTorch or Keras.
+
+### Changed
+
+- Fail gracefully and report error when run with incompatible version of PyTorch and Keras.
+
+### Fixed
+
+- Fix compatibility with 2.0 <= PyTorch < 2.1.
+
+
+
 ## [0.1.2]
 
 ### Added
