@@ -23,6 +23,10 @@ einx passes this string and variables such as ``backend`` to `exec() <https://do
 It then invokes the function using the required arguments. The traced function is cached, such that subsequent calls with the same signature of inputs can
 reuse it and incur no overhead other than for cache lookup.
 
+The function signature includes the types of the input arguments as well as their shape. einx therefore retraces a function every time it is called
+with different input shapes. The environment variable ``EINX_WARN_ON_RETRACE`` can be used to print a warning when excessive retracing takes place. For example,
+``EINX_WARN_ON_RETRACE=10`` will issue a warning when a function is retraced 10 times from the same call site.
+
 When using just-in-time compilation like `jax.jit <https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html>`_, einx incurs zero overhead (other than during
 initialization).
 

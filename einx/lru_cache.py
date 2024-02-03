@@ -1,6 +1,7 @@
-import collections, threading, functools, os, einx, inspect, threading, frozendict
+import collections, threading, functools, os, einx, inspect, threading, frozendict, inspect
 from functools import partial
 import numpy as np
+from collections import defaultdict
 
 def _freeze(x):
     if isinstance(x, np.ndarray):
@@ -24,6 +25,55 @@ traced_functions_decorators = []
 traced_functions = []
 traced_functions_lock = threading.Lock()
 
+thread_local = threading.local()
+thread_local.warn = True
+
+def _with_retrace_warning(func):
+    warn_on_retrace_num = int(os.environ.get("EINX_WARN_ON_RETRACE", 0))
+
+    if warn_on_retrace_num > 0:
+        cache_failures = defaultdict(lambda: 0)
+
+        @functools.wraps(func)
+        def func_with_warn(*args, **kwargs):
+            has_warned = False
+            if warn_on_retrace_num > 0:
+                stack = inspect.stack()
+                # Exclude frames called from this file
+                last_index = 0
+                for i, frame in enumerate(stack):
+                    if frame.filename == __file__:
+                        last_index = i
+                stack = stack[last_index + 1:]
+
+                if len(stack) > 0:
+                    # Generate string description of call stack
+                    trace = ""
+                    for frame in reversed(stack):
+                        trace += f"File \"{frame.filename}\", line {frame.lineno}, in {frame.function}\n"
+                        if not frame.code_context is None:
+                            trace += f"  {frame.code_context[0].strip()}\n"
+                    cache_failures[trace] += 1
+                    if thread_local.warn and cache_failures[trace] == warn_on_retrace_num:
+                        # Print warning
+                        has_warned = True
+                        print(f"WARNING (einx): The following call stack has resulted in {warn_on_retrace_num} retraces of an einx function.\n"
+                            f"A retrace happens when the function is called with different signatures of input arguments.\n"
+                            f"Call stack (most recent call last):\n"
+                            f"{trace}")
+
+            # Don't warn in inner functions that also use lru_cache
+            if has_warned:
+                thread_local.warn = False
+                result = func(*args, **kwargs)
+                thread_local.warn = True
+            else:
+                result = func(*args, **kwargs)
+            return result
+        return func_with_warn
+    else:
+        return func
+
 def lru_cache(func=None, trace=None):
     if func is None:
         return partial(lru_cache, trace=trace)
@@ -34,6 +84,7 @@ def lru_cache(func=None, trace=None):
         inner = func
     elif trace is None:
         # No arguments are traced: Wrap function in cache
+        func = _with_retrace_warning(func)
         if max_cache_size < 0:
             inner = freeze(functools.lru_cache(maxsize=None)(func)) # No cache limit
         else:
