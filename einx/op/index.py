@@ -222,6 +222,10 @@ def parse(description, *tensors_shapes, update, cse=True, **parameters):
 
     return exprs_in, expr_out
 
+def _has_zero_shape(tensor):
+    shape = einx.param.get_shape(tensor)
+    return shape is not None and any(s == 0 for s in shape)
+
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def index(description: str, *tensors: einx.Tensor, op: Callable, update: bool, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Updates and/ or returns values from an array at the given coordinates.
@@ -278,6 +282,9 @@ def index(description: str, *tensors: einx.Tensor, op: Callable, update: bool, b
         >>> einx.set_at("b [h w] c, p, p, p c -> b [h w] c", tensor, coordinates_x, coordinates_y, updates).shape
         (4, 128, 128, 3)
     """
+    if update and any(_has_zero_shape(tensor) for tensor in tensors[1:]):
+        # Skip update if no coordinates are given
+        return tensors[0]
     exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], update=update, cse=cse, **parameters)
     tensor, expr_out = index_stage3(exprs_in, tensors, expr_out, op=op, update=update, backend=backend)
     return tensor

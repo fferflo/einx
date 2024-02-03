@@ -412,6 +412,15 @@ def test_shape_index(backend):
     with pytest.raises(ValueError):
         einx.get_at("b t [d], b (t [1]) -> b (t [1])", x, y)
 
+    x = backend.ones((4, 128, 128, 3))
+    y = backend.cast(backend.zeros((4, 0, 2)), coord_dtype)
+    y2 = backend.cast(backend.zeros((4, 2)), coord_dtype)
+    z = backend.ones((4, 0, 3))
+    z2 = backend.ones((4, 3))
+    assert einx.set_at("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 128, 128, 3)
+    assert einx.set_at("b [h w] c, b p [2], b c -> b [h w] c", x, y, z2).shape == (4, 128, 128, 3)
+    assert einx.set_at("b [h w] c, b [2], b p c -> b [h w] c", x, y, z2).shape == (4, 128, 128, 3)
+
     consts = {"b": 4, "h": 16, "w": 16, "c": 3, "p": 128}
     make_coords = lambda shape: backend.cast(backend.zeros(shape), coord_dtype)
     xs = ["([h] b) [w] c", "[h] c [w]", "[h w]"]
