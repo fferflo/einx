@@ -116,16 +116,8 @@ class Norm(torch.nn.Module):
         if update_ema:
             with torch.no_grad():
                 if not mean is None:
-                    if isinstance(self.mean, torch.nn.parameter.UninitializedBuffer):
-                        assert False
-                        # self.mean has not been initialized in einx.nn.norm
-                        param(self.mean, init=torch.nn.init.zeros_)(mean.shape)
                     self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
                 if not var is None:
-                    if isinstance(self.var, torch.nn.parameter.UninitializedBuffer):
-                        assert False
-                        # self.var has not been initialized in einx.nn.norm
-                        param(self.var, init=torch.nn.init.ones_)(var.shape)
                     self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
         return x
 
