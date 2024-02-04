@@ -22,13 +22,19 @@ e.g. using `tf.ensure_shape <https://www.tensorflow.org/api_docs/python/tf/ensur
 `functional API <https://keras.io/guides/functional_api/>`_, the batch size argument is dynamic by default and should be specified with some dummy value,
 e.g. ``keras.Input(shape=(...), batch_size=1)``.
 
-5. **einx implements a custom vmap for Numpy using Python loops**. This is slower than ``vmap``
+5. **einx retraces functions when called with different input shapes.** This can lead to an unexpected slowdown when calling an einx function many times with different input shapes.
+The problem typically does not arise in frameworks like Jax
+`where the usage of dynamic shapes is limited <https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html#dynamic-shapes>`_.
+
+6. **einx implements a custom vmap for Numpy using Python loops**. This is slower than ``vmap``
 in other backends, but is included for debugging and testing purposes.
 
-6. **In einx.nn layers, weights are created on the first forward pass** (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`). This is common practice in jax-based frameworks like Flax and Haiku where the
+7. **In einx.nn layers, weights are created on the first forward pass** (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
+This is common practice in jax-based frameworks like Flax and Haiku where the
 model is initialized using a forward pass on a dummy batch. In other frameworks, an initial forward pass should be added before using the model. (In some
 circumstances the first actual training batch might be sufficient, but it is safer to always include the initial forward pass.) In PyTorch,
-`torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_ should only be applied after the initial forward pass.
+`torch.compile <https://pytorch.org/tutorials/intermediate/torch_compile_tutorial.html>`_ should only be applied after the initial forward pass. See the
+`training scripts <https://github.com/fferflo/einx/blob/master/examples>`_ for examples on how to include the dummy forward pass.
 
-7. **einx.nn.equinox does not support stateful layers** since Equinox requires the shape of states to be known in the layer's ``__init__``
+8. **einx.nn.equinox does not support stateful layers** since Equinox requires the shape of states to be known in the layer's ``__init__``
 method.
