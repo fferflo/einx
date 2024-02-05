@@ -1,4 +1,4 @@
-import einx, importlib
+import einx, importlib, pytest
 import numpy as np
 from functools import partial
 
@@ -23,23 +23,25 @@ if importlib.util.find_spec("torch"):
         layer = torch.compile(layer)
         assert layer.forward(x).shape == (4, 128, 128, 32)
 
-    def test_torch_norm():
+    @pytest.mark.parametrize("expr_kwargs", norms)
+    @pytest.mark.parametrize("mean", [True, False])
+    @pytest.mark.parametrize("scale", [True, False])
+    @pytest.mark.parametrize("decay_rate", [None, 0.9])
+    def test_torch_norm(expr_kwargs, mean, scale, decay_rate):
+        expr, kwargs = expr_kwargs
         x = torch.zeros((4, 128, 128, 32))
-        for expr, kwargs in norms:
-            for mean in [True, False]:
-                for scale in [True, False]:
-                    for decay_rate in [None, 0.9]:
-                        layer = einx.nn.torch.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
-                        layer.train()
-                        assert layer.forward(x).shape == (4, 128, 128, 32)
-                        layer.eval()
-                        assert layer.forward(x).shape == (4, 128, 128, 32)
 
-                        layer = torch.compile(layer)
-                        layer.train()
-                        assert layer.forward(x).shape == (4, 128, 128, 32)
-                        layer.eval()
-                        assert layer.forward(x).shape == (4, 128, 128, 32)
+        layer = einx.nn.torch.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
+        layer.train()
+        assert layer.forward(x).shape == (4, 128, 128, 32)
+        layer.eval()
+        assert layer.forward(x).shape == (4, 128, 128, 32)
+
+        layer = torch.compile(layer, fullgraph=True)
+        layer.train()
+        assert layer.forward(x).shape == (4, 128, 128, 32)
+        layer.eval()
+        assert layer.forward(x).shape == (4, 128, 128, 32)
 
     def test_torch_dropout():
         x = torch.zeros((4, 128, 128, 3))
@@ -74,24 +76,25 @@ if importlib.util.find_spec("haiku"):
         y, state = jax.jit(model.apply)(params=params, state=state, x=x, rng=rng)
         assert y.shape == (4, 128, 128, 32)
 
-    def test_haiku_norm():
+    @pytest.mark.parametrize("expr_kwargs", norms)
+    @pytest.mark.parametrize("mean", [True, False])
+    @pytest.mark.parametrize("scale", [True, False])
+    @pytest.mark.parametrize("decay_rate", [None, 0.9])
+    def test_haiku_norm(expr_kwargs, mean, scale, decay_rate):
+        expr, kwargs = expr_kwargs
         x = jnp.zeros((4, 128, 128, 32))
         rng = jax.random.PRNGKey(42)
 
-        for expr, kwargs in norms:
-            for mean in [True, False]:
-                for scale in [True, False]:
-                    for decay_rate in [None, 0.9]:
-                        def model(x, training):
-                            return einx.nn.haiku.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)(x, training)
-                        model = hk.transform_with_state(model)
+        def model(x, training):
+            return einx.nn.haiku.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)(x, training)
+        model = hk.transform_with_state(model)
 
-                        params, state = model.init(rng=rng, x=x, training=True)
+        params, state = model.init(rng=rng, x=x, training=True)
 
-                        y, state = jax.jit(partial(model.apply, training=False))(params=params, state=state, x=x, rng=rng)
-                        assert y.shape == (4, 128, 128, 32)
-                        y, state = jax.jit(partial(model.apply, training=True))(params=params, state=state, x=x, rng=rng)
-                        assert y.shape == (4, 128, 128, 32)
+        y, state = jax.jit(partial(model.apply, training=False))(params=params, state=state, x=x, rng=rng)
+        assert y.shape == (4, 128, 128, 32)
+        y, state = jax.jit(partial(model.apply, training=True))(params=params, state=state, x=x, rng=rng)
+        assert y.shape == (4, 128, 128, 32)
 
     def test_haiku_dropout():
         x = jnp.zeros((4, 128, 128, 3))
@@ -124,23 +127,24 @@ if importlib.util.find_spec("flax"):
         y = jax.jit(model.apply)(params, x=x)
         assert y.shape == (4, 128, 128, 32)
 
-    def test_flax_norm():
+    @pytest.mark.parametrize("expr_kwargs", norms)
+    @pytest.mark.parametrize("mean", [True, False])
+    @pytest.mark.parametrize("scale", [True, False])
+    @pytest.mark.parametrize("decay_rate", [None, 0.9])
+    def test_flax_norm(expr_kwargs, mean, scale, decay_rate):
+        expr, kwargs = expr_kwargs
         x = jnp.zeros((4, 128, 128, 32))
         rng = jax.random.PRNGKey(42)
 
-        for expr, kwargs in norms:
-            for mean in [True, False]:
-                for scale in [True, False]:
-                    for decay_rate in [None, 0.9]:
-                        model = einx.nn.flax.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
+        model = einx.nn.flax.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
 
-                        params = model.init(rng, x, training=True)
-                        state, params = flax.core.pop(params, "params")
+        params = model.init(rng, x, training=True)
+        state, params = flax.core.pop(params, "params")
 
-                        y, state = jax.jit(partial(model.apply, training=False, mutable=list(state.keys())))({"params": params, **state}, x=x)
-                        assert y.shape == (4, 128, 128, 32)
-                        y, state = jax.jit(partial(model.apply, training=True, mutable=list(state.keys())))({"params": params, **state}, x=x)
-                        assert y.shape == (4, 128, 128, 32)
+        y, state = jax.jit(partial(model.apply, training=False, mutable=list(state.keys())))({"params": params, **state}, x=x)
+        assert y.shape == (4, 128, 128, 32)
+        y, state = jax.jit(partial(model.apply, training=True, mutable=list(state.keys())))({"params": params, **state}, x=x)
+        assert y.shape == (4, 128, 128, 32)
 
     def test_flax_dropout():
         x = jnp.zeros((4, 128, 128, 3))
@@ -171,7 +175,12 @@ if importlib.util.find_spec("equinox"):
         assert layer(x).shape == (4, 128, 128, 32)
         assert layer(x).shape == (4, 128, 128, 32)
 
-    def test_equinox_norm():
+    @pytest.mark.parametrize("expr_kwargs", norms)
+    @pytest.mark.parametrize("mean", [True, False])
+    @pytest.mark.parametrize("scale", [True, False])
+    @pytest.mark.parametrize("decay_rate", [None])
+    def test_equinox_norm(expr_kwargs, mean, scale, decay_rate):
+        expr, kwargs = expr_kwargs
         x = jnp.zeros((4, 128, 128, 32))
         for expr, kwargs in norms:
             for mean in [True, False]:
@@ -212,18 +221,20 @@ if importlib.util.find_spec("keras"):
             assert model(x, training=False).shape == (4, 128, 128, 32)
             assert model(x, training=False).shape == (4, 128, 128, 32)
 
-        def test_keras_norm():
+        @pytest.mark.parametrize("expr_kwargs", norms)
+        @pytest.mark.parametrize("mean", [True, False])
+        @pytest.mark.parametrize("scale", [True, False])
+        @pytest.mark.parametrize("decay_rate", [None, 0.9])
+        def test_keras_norm(expr_kwargs, mean, scale, decay_rate):
+            expr, kwargs = expr_kwargs
             x = tf.zeros((4, 128, 128, 32))
-            for expr, kwargs in norms:
-                for mean in [True, False]:
-                    for scale in [True, False]:
-                        for decay_rate in [None, 0.9]:
-                            layer = einx.nn.keras.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
-                            model = keras.Sequential([layer])
-                            assert model(x, training=True).shape == (4, 128, 128, 32)
-                            assert model(x, training=True).shape == (4, 128, 128, 32)
-                            assert model(x, training=False).shape == (4, 128, 128, 32)
-                            assert model(x, training=False).shape == (4, 128, 128, 32)
+
+            layer = einx.nn.keras.Norm(expr, mean=mean, scale=scale, decay_rate=decay_rate, **kwargs)
+            model = keras.Sequential([layer])
+            assert model(x, training=True).shape == (4, 128, 128, 32)
+            assert model(x, training=True).shape == (4, 128, 128, 32)
+            assert model(x, training=False).shape == (4, 128, 128, 32)
+            assert model(x, training=False).shape == (4, 128, 128, 32)
 
         def test_keras_dropout():
             x = tf.zeros((4, 128, 128, 3))
