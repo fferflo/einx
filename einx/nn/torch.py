@@ -98,8 +98,10 @@ class Norm(torch.nn.Module):
         self.scale = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if scale else None
         self.bias = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if bias else None
 
+        self.initialized = False
+
     def forward(self, x):
-        use_ema = not self.decay_rate is None and (not self.training or isinstance(self.mean, torch.nn.parameter.UninitializedBuffer) or isinstance(self.var, torch.nn.parameter.UninitializedBuffer))
+        use_ema = not self.decay_rate is None and (not self.training or not self.initialized)
         x, mean, var = _norm(
             x,
             self.stats,
@@ -116,9 +118,10 @@ class Norm(torch.nn.Module):
         if update_ema:
             with torch.no_grad():
                 if not mean is None:
-                    self.mean = self.decay_rate * self.mean + (1 - self.decay_rate) * mean
+                    self.mean.copy_(self.decay_rate * self.mean + (1 - self.decay_rate) * mean)
                 if not var is None:
-                    self.var = self.decay_rate * self.var + (1 - self.decay_rate) * var
+                    self.var.copy_(self.decay_rate * self.var + (1 - self.decay_rate) * var)
+        self.initialized = True
         return x
 
 @_allow_in_graph

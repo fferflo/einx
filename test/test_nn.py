@@ -8,8 +8,12 @@ if importlib.util.find_spec("torch"):
     import torch, einx.nn.torch
 
     # Tests are run with many different sets of parameters which cause torch.compile to recompile the used function and hit the cache limit.
-    # Increase cache limit to avoid this issue. See: https://github.com/pytorch/pytorch/pull/108526
-    torch._dynamo.config.cache_size_limit = 64
+    # We increase the cache limit to avoid this issue.
+    try:
+        torch._dynamo.config.accumulated_cache_size_limit = 99999
+    except:
+        pass
+    torch._dynamo.config.cache_size_limit = 99999
 
     def test_torch_linear():
         x = torch.zeros((4, 128, 128, 3))
