@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add environment variable `EINX_WARN_ON_RETRACE` to warn when excessive retracing is detected.
+
+### Changed
+
+- Allow `einx.{set_at|add_at|...}` to be called with zero-sized updates or coordinates (in which case the input tensor is returned as-is).
+
+### Fixed
+
+- Fix compatibility of `einx.nn.torch.Norm` with PyTorch 2.2.
+
 
 
 ## [0.1.3]
