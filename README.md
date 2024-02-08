@@ -39,7 +39,7 @@ See [Installation](https://einx.readthedocs.io/en/latest/gettingstarted/installa
 import einx
 x = {np.asarray|torch.as_tensor|jnp.asarray|tf.convert_to_tensor}(...) # Create some tensor
 
-einx.sum("a [b]", x)                              # Sum-reduction along columns
+einx.sum("a [b]", x)                              # Sum-reduction along second axis
 einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
 einx.mean("b [s...] c", x)                        # Global mean-pooling
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
