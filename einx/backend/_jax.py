@@ -17,7 +17,6 @@ def make_jax_backend():
         transpose = jnp.transpose
         broadcast_to = jnp.broadcast_to
         einsum = partial(jnp.einsum, optimize="optimal")
-        dot = jnp.dot
         swapaxes = jnp.swapaxes
         arange = jnp.arange
 

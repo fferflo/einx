@@ -15,7 +15,6 @@ class numpy(Backend):
     transpose = np.transpose
     broadcast_to = np.broadcast_to
     einsum = partial(np.einsum, optimize="optimal")
-    dot = np.dot
     swapaxes = np.swapaxes
     arange = np.arange
 

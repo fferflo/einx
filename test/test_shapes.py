@@ -290,7 +290,7 @@ def test_shape_vmap(backend):
 
     x = backend.zeros((4, 16), "float32")
     y = backend.zeros((16, 32), "float32")
-    assert einx.vmap("b [c1], [c1] c2 -> b c2", x, y, op=backend.dot).shape == (4, 32)
+    assert einx.vmap("b [c1], [c1] c2 -> b c2", x, y, op=lambda x, y: backend.sum(x * y)).shape == (4, 32)
 
     x = backend.zeros((4,), "float32")
     y = backend.zeros((16, 32), "float32")

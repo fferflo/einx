@@ -39,7 +39,6 @@ def make_tensorflow_backend():
         transpose = tf.transpose
         broadcast_to = tf.broadcast_to
         einsum = partial(tnp.einsum, optimize="optimal")
-        dot = tnp.dot
         swapaxes = tnp.swapaxes
         arange = tnp.arange
 

@@ -644,9 +644,6 @@ class tracer(Backend):
         shape_out = tuple(values[axis] for axis in expr_out)
         return OpApplication("einsum", args=[eq, *tensors], output_shapes=shape_out).output_tracers
 
-    def dot(a, b):
-        raise NotImplementedError()
-
     def swapaxes(a, axis1, axis2):
         shape = list(a.shape)
         shape[axis1], shape[axis2] = shape[axis2], shape[axis1]

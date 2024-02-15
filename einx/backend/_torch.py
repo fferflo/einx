@@ -36,7 +36,6 @@ def make_torch_backend():
         transpose = torch_.permute
         broadcast_to = lambda tensor, shape: torch_.broadcast_to(tensor, to_tuple(shape))
         einsum = torch_.einsum
-        dot = torch_.matmul
         swapaxes = torch_.swapaxes
         def arange(n, dtype):
             return torch_.arange(n, dtype=vars(torch_)[dtype])
