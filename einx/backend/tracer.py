@@ -14,7 +14,7 @@ def to_shape(shape):
     else:
         return shape
 
-class Tracer:
+class Tensor:
     def __init__(self, shape):
         self.shape = to_shape(shape)
 
@@ -93,7 +93,7 @@ class Tracer:
     def __ne__(self, other):
         return elementwise(self, other, op="not_equal")
 
-class Input(Tracer):
+class Input(Tensor):
     def __init__(self, shape, index, original_type=None):
         super().__init__(shape)
         self.index = index
@@ -148,7 +148,7 @@ class OpApplication:
         self.output_tracers = einx.tree_util.tree_map_with_key(lambda shape, key: OpOutput(self, shape, key), self.output_shapes, is_leaf=is_leaf)
         assert not "backend" in self.kwargs
 
-class OpOutput(Tracer):
+class OpOutput(Tensor):
     def __init__(self, op, shape, key):
         super().__init__(shape)
         self.op = op
@@ -196,7 +196,7 @@ class VmappedOp:
     def __call__(self, *args, **kwargs):
         return OpApplication(self, args=args, kwargs=kwargs, output_shapes=self.output_shapes).output_tracers
 
-class VmappedOpOutput(Tracer):
+class VmappedOpOutput(Tensor):
     def __init__(self, vmapped_op, index):
         super().__init__(vmapped_op.output_shapes[index])
         self.vmapped_op = vmapped_op
@@ -408,7 +408,7 @@ class Scope:
 
 class Graph:
     def __init__(self, output, args, kwargs, backend):
-        assert any(isinstance(x, Tracer) for x in einx.tree_util.tree_flatten(output)), f"Expected at least one tracer in output, got {output}"
+        assert any(isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)), f"Expected at least one tracer in output, got {output}"
         self.output = output
         self.args = args
         self.kwargs = kwargs
@@ -537,7 +537,7 @@ def index(tensor, coordinates, update=None, op=None):
                     input_shape = input_shape[1:]
                 elif s is None:
                     output_shape.append(1)
-                elif isinstance(s, Tracer) and s.ndim == 0:
+                elif isinstance(s, Tensor) and s.ndim == 0:
                     input_shape = input_shape[1:]
                 else:
                     raise TypeError(f"Invalid coordinate type: {type(s)}")
@@ -556,12 +556,12 @@ class tracer(Backend):
         if isinstance(tensor, OpOutput) and tensor.op.op.op == "to_tensor":
             # Merge consecutive to_tensor ops
             return OpApplication("to_tensor", args=[tensor.op.args[0]], output_shapes=tensor.shape).output_tracers
-        if isinstance(tensor, Tracer):
+        if isinstance(tensor, Tensor):
             return OpApplication("to_tensor", args=[tensor], output_shapes=tensor.shape).output_tracers
         else:
             return OpApplication("to_tensor", args=[tensor], output_shapes=einx.param.get_shape(tensor)).output_tracers
 
-    tensor = Tracer
+    tensor = Tensor
     name = "tracer"
 
     def op(op, tracable=False):
