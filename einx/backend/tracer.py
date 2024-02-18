@@ -25,32 +25,7 @@ class Tracer:
         return len(self.shape)
 
     def __getitem__(self, key):
-        if self.shape is None:
-            shape = None
-        else:
-            if isinstance(key, (int, slice)) or key is None:
-                slices = (key,)
-            else:
-                slices = key
-            if len(slices) > len(self.shape):
-                raise ValueError(f"Too many indices for tensor of dimension {len(self.shape)}")
-
-            output_shape = []
-            input_shape = self.shape
-            for s in slices:
-                if isinstance(s, int):
-                    input_shape = input_shape[1:]
-                elif isinstance(s, slice):
-                    start, stop, step = s.indices(input_shape[0])
-                    output_shape.append((stop - start) // step)
-                    input_shape = input_shape[1:]
-                elif s is None:
-                    output_shape.append(1)
-                else:
-                    raise TypeError(f"Invalid key type: {type(slice)}")
-            shape = tuple(output_shape) + tuple(input_shape)
-
-        return OpApplication(operator.getitem, args=[self, key], output_shapes=shape).output_tracers
+        return index(self, key, update=None, op="get_at")
 
     def __add__(self, other):
         return elementwise(self, other, op="add")
