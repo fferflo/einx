@@ -39,7 +39,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, **get_fans(i), name="weight", init="dot") for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))]
 
     # Flatten expressions
-    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
+    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
     expr_out_flat = util.flatten([expr_out])[0]
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
     assert einx.expr.stage3.is_flat(expr_out_flat)
@@ -67,7 +67,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     expr = einx.expr.stage3.List([a.__deepcopy__() for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names])
 
     # Transpose and broadcast missing output dimensions
-    tensor = util.transpose_broadcast(expr, tensor, expr_out_flat)[0]
+    tensor = util.transpose_broadcast(expr, tensor, expr_out_flat, backend=backend)[0]
 
     # Unflatten output expression
     assert not tensor.shape is None

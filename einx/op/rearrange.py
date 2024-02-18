@@ -19,7 +19,7 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, name="embedding", init="rearrange") for tensor, expr in zip(tensors_in, exprs_in)]
 
     # Flatten expressions
-    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
+    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
     exprs_out_flat = util.flatten(exprs_out)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
@@ -32,10 +32,10 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     tensors_in = [tensors_in[i] for i in indices]
 
     # Transpose and broadcast missing output dimensions
-    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out)[0] for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
+    tensors = [util.transpose_broadcast(expr_in, tensor, expr_out, backend=backend)[0] for expr_in, tensor, expr_out in zip(exprs_in, tensors_in, exprs_out_flat)]
 
     # Unflatten output expressions
-    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend)
+    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend=backend)
 
     return tensors, exprs_out
 

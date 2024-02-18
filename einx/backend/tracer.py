@@ -6,13 +6,17 @@ from .base import Backend
 def is_leaf(key, x):
     return (isinstance(x, (tuple, list, np.ndarray)) and all([isinstance(y, (int, np.integer)) for y in x]))
 
+def to_shape(shape):
+    if isinstance(shape, np.ndarray):
+        return tuple(shape.tolist())
+    elif isinstance(shape, list):
+        return tuple(shape)
+    else:
+        return shape
+
 class Tracer:
     def __init__(self, shape):
-        if isinstance(shape, np.ndarray):
-            shape = tuple(shape.tolist())
-        elif isinstance(shape, list):
-            shape = tuple(shape)
-        self.shape = shape
+        self.shape = to_shape(shape)
 
     @property
     def ndim(self):
@@ -143,7 +147,7 @@ class Op:
             return str(self.op)
 
     @property
-    def requires_dynamic_type_check(self):
+    def requires_dynamic_shape_check(self):
         return not self.tracable
 
     def __call__(self, *args, **kwargs):
@@ -193,9 +197,9 @@ class VmappedOp:
             if isinstance(op, Op):
                 assert op.tracable
                 op = op.op
-            input_tracers = [einx.backend.tracer.Input(shape, i) for i, shape in enumerate(self.inner_input_shapes)]
+            input_tracers = [Input(shape, i) for i, shape in enumerate(self.inner_input_shapes)]
             output_tracers = op(*input_tracers)
-            op = einx.backend.tracer.Graph(output_tracers, args=input_tracers, kwargs={}, backend=einx.backend.tracer)
+            op = Graph(output_tracers, args=input_tracers, kwargs={}, backend=einx.backend.tracer)
         self.op = op
 
     @property
@@ -203,7 +207,7 @@ class VmappedOp:
         return False
 
     @property
-    def requires_dynamic_type_check(self):
+    def requires_dynamic_shape_check(self):
         return False
 
     @property
@@ -379,7 +383,7 @@ class Scope:
                     self.lines.append(f"{name} = {op}(" + args + ")")
 
                 # Shape assertion
-                if self.backend != einx.backend.tracer and x.op.requires_dynamic_type_check:
+                if self.backend != einx.backend.tracer and x.op.requires_dynamic_shape_check:
                     def assertion(tracer, shape):
                         self.lines.append(f"assert {self.eval(tracer)}.shape == {self.eval(shape)}")
                     einx.tree_util.tree_map(assertion, x.output_tracers, x.output_shapes)
@@ -570,7 +574,6 @@ def index(tensor, coordinates, update=None, op=None):
 
 class tracer(Backend):
     Input = Input
-    OpApplication = OpApplication
     Graph = Graph
 
     @staticmethod
@@ -596,8 +599,9 @@ class tracer(Backend):
         else:
             return Op(op, tracable=tracable)
 
-    def apply(op, args, kwargs, output_shapes):
-        op = tracer.op(op)
+    @classmethod
+    def apply(backend, op, args, kwargs, output_shapes):
+        op = backend.op(op)
         if op.tracable:
             x = op(*args, **kwargs)
             def assertion(tensor, shape):

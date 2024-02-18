@@ -35,10 +35,9 @@ def flatten(exprs, tensors=None, backend=None):
 
         return exprs_out
     else:
+        assert not backend is None
         if len(exprs) != len(tensors):
             raise ValueError("Got different number of expressions and tensors")
-        if backend is None:
-            backend = einx.backend.get(tensors)
         exprs_out = []
         tensors_out = []
         for expr, tensor in zip(exprs, tensors):
@@ -116,9 +115,7 @@ def assignment(exprs_in, exprs_out):
 
     return col_ind
 
-def transpose_broadcast(expr_in, tensor, expr_out, broadcast=True, backend=None):
-    if backend is None:
-        backend = einx.backend.get([tensor])
+def transpose_broadcast(expr_in, tensor, expr_out, *, backend, broadcast=True):
     assert einx.expr.stage3.is_flat(expr_in) and einx.expr.stage3.is_flat(expr_out), f"'{expr_in}' and '{expr_out}' must be flat"
 
     # Transpose axes if necessary
@@ -175,7 +172,7 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
         tensor_out = backend.reshape(tensor_out, expr_out.shape)
     return tensor_out
 
-def unflatten(exprs_in, tensors_in, exprs_out, backend=None):
+def unflatten(exprs_in, tensors_in, exprs_out, *, backend):
     if len(exprs_in) != len(tensors_in):
         raise ValueError("Got different number of input expressions and tensors")
     if backend is None:

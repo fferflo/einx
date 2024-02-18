@@ -26,7 +26,7 @@ def instantiate(x, shape, backend, **kwargs):
         raise TypeError("instantiate cannot be called on None")
     if backend == einx.backend.tracer:
         if x.shape is None:
-            return einx.backend.tracer.apply(instantiate, args=[x], kwargs={**{"shape": shape}, **kwargs}, output_shapes=shape)
+            return backend.apply(instantiate, args=[x], kwargs={**{"shape": shape}, **kwargs}, output_shapes=shape)
         else:
             return backend.to_tensor(x)
     else:

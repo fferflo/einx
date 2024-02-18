@@ -40,7 +40,7 @@ def arange_stage3(expr_in, expr_out, backend, dtype="int32"):
     )
 
     # Unflatten output expressions
-    tensor, = util.unflatten([expr_out_flat], [tensor,], [expr_out], backend)
+    tensor, = util.unflatten([expr_out_flat], [tensor,], [expr_out], backend=backend)
 
     return tensor, einx.expr.stage3.demark(expr_out)
 

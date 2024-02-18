@@ -7,7 +7,8 @@ import numpy.typing as npt
 
 
 
-def _index(*tensors, update, layout, expr_update_inner, expr_common, op=None):
+def _index(*tensors, update, layout, expr_update_inner, expr_common, op=None, backend=None):
+    assert not backend is None
     if update:
         tensor_in = tensors[0]
         tensor_coordinates = tensors[1:-1]
@@ -36,7 +37,7 @@ def _index(*tensors, update, layout, expr_update_inner, expr_common, op=None):
 
     # Transpose coordinate and update tensors to match common coordinate expression
     def transpose(tensor, expr):
-        return util.transpose_broadcast(expr, tensor, expr_common, broadcast=False)[0]
+        return util.transpose_broadcast(expr, tensor, expr_common, broadcast=False, backend=backend)[0]
     tensor_coordinates = tuple(transpose(tensor, expr) for tensor, coordinate_axis_name, expr in layout)
     if update:
         tensor_update = transpose(tensor_update, expr_update_inner)
@@ -151,7 +152,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         expr_common = einx.expr.stage3.get_marked(util.flatten([expr_out])[0])
 
     # Construct vmapped indexing function
-    op = partial(_index, op=op, update=update, layout=layout, expr_common=expr_common, expr_update_inner=expr_update_inner)
+    op = partial(_index, op=op, update=update, layout=layout, expr_common=expr_common, expr_update_inner=expr_update_inner, backend=backend)
     op = backend.op(op, tracable=True)
 
     exprs_in = [expr_tensor] + exprs_coordinates + ([expr_update] if update else [])

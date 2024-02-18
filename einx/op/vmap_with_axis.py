@@ -25,10 +25,10 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
     kwargs = {**kwargs}
 
     # Call tensor factories
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend=backend) for tensor, expr in zip(tensors_in, exprs_in)]
 
     # Flatten expressions
-    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend)
+    exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
     exprs_out_flat = util.flatten(exprs_out)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
@@ -53,7 +53,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
         # Transpose and insert trivial axes
         if marked_input_axes != marked_output_axes:
             raise ValueError("transpose_first can only be used when axes are unchanged")
-        x = [util.transpose_broadcast(expr_in, tensor_in, exprs_out_flat[0], broadcast=False) for expr_in, tensor_in in zip(exprs_in, tensors_in)]
+        x = [util.transpose_broadcast(expr_in, tensor_in, exprs_out_flat[0], broadcast=False, backend=backend) for expr_in, tensor_in in zip(exprs_in, tensors_in)]
         tensors_in = [x[0] for x in x]
         exprs_in = [x[1] for x in x]
         assert len(set(len(expr) for expr in exprs_in)) == 1
@@ -87,7 +87,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
                 else:
                     return expr.__deepcopy__()
         exprs_in = [einx.expr.stage3.replace(expr_in, replace) for expr_in in exprs_in]
-        tensors_out = [util.transpose_broadcast(exprs_in[0], tensor_out, expr_out)[0] for tensor_out, expr_out in zip(tensors_out, exprs_out_flat)]
+        tensors_out = [util.transpose_broadcast(exprs_in[0], tensor_out, expr_out, backend=backend)[0] for tensor_out, expr_out in zip(tensors_out, exprs_out_flat)]
     else:
         # Already transposed, only broadcast to flat output shape
         def broadcast(tensor, expr):
@@ -97,7 +97,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
         tensors_out = [broadcast(tensor, expr) for tensor, expr in zip(tensors_out, exprs_out_flat)]
 
     # Unflatten output expressions
-    tensors_out = util.unflatten(exprs_out_flat, tensors_out, exprs_out, backend)
+    tensors_out = util.unflatten(exprs_out_flat, tensors_out, exprs_out, backend=backend)
 
     return tensors_out, exprs_out
 

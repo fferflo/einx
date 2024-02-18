@@ -20,7 +20,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
                 raise ValueError("Concatenation not allowed")
 
     # Call tensor factories
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend) for tensor, expr in zip(tensors_in, exprs_in)]
+    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend=backend) for tensor, expr in zip(tensors_in, exprs_in)]
 
     if verbose:
         print("Expressions:")
@@ -28,7 +28,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
         print("    OUT:", [str(e) for e in exprs_out])
 
     # Flatten expressions
-    exprs_in_flat, tensors_in = util.flatten(exprs_in, tensors_in, backend)
+    exprs_in_flat, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
     exprs_out_flat = util.flatten(exprs_out)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in_flat)
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
@@ -53,8 +53,6 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
         print("    OUT_FLAT:", [str(e) for e in exprs_out_funcargs_flat])
 
     def op(*tensors_in_flat, op=op):
-        assert not backend is None
-
         if verbose:
             print("Flat input tensors that arrived in op:", [str(a.shape) for a in tensors_in_flat])
             print("Input types to vmapped function:", [type(t) for t in tensors_in_flat])
@@ -170,14 +168,14 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
             print("Got overall flat tensor_out:", tensor.shape, expr)
 
     # Transpose and broadcast missing output dimensions
-    tensors = [util.transpose_broadcast(expr_out_wb, tensor, expr_out)[0] for expr_out_wb, tensor, expr_out in zip(exprs_out_flat_without_broadcast, tensors, exprs_out_flat)]
+    tensors = [util.transpose_broadcast(expr_out_wb, tensor, expr_out, backend=backend)[0] for expr_out_wb, tensor, expr_out in zip(exprs_out_flat_without_broadcast, tensors, exprs_out_flat)]
     if verbose:
         print("Got overall transposed+broadcasted tensors_out:")
         for tensor, expr in zip(tensors, exprs_out_flat):
             print("    ", tensor.shape, expr)
 
     # Unflatten output expressions
-    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend)
+    tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend=backend)
     if verbose:
         print("Got overall unflattened tensors_out:", [str(a.shape) for a in tensors])
 
