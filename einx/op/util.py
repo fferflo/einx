@@ -188,11 +188,20 @@ def unflatten(exprs_in, tensors_in, exprs_out, *, backend):
 
     return tensors_out
 
+def _clean_parameter(k, v):
+    try:
+        v = np.asarray(v)
+    except:
+        raise ValueError(f"Got invalid parameter {k}={v}")
+    if not np.issubdtype(v.dtype, np.integer):
+        raise ValueError(f"Got invalid parameter {k}={v}")
+    return v
+
 def _clean_description_and_parameters(description, parameters):
     # Remove parameters that are not used in the description
     exprs = [einx.expr.stage1.parse(d) for d in description.split("->") for d in d.split(",")]
     axis_names = {axis.name for root in exprs for axis in root.all() if isinstance(axis, einx.expr.stage1.NamedAxis)}
-    parameters = {k: v for k, v in parameters.items() if k in axis_names}
+    parameters = {k: _clean_parameter(k, v) for k, v in parameters.items() if k in axis_names}
 
     return description, parameters
 
