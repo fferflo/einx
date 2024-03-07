@@ -100,7 +100,7 @@ class Input(Tensor):
         self.original_type = original_type
 
     def __str__(self):
-        return f"tracer.Input({self.shape})"
+        return f"Input({self.shape})"
 
     def __hash__(self):
         return 712873 + hash(self.shape) + hash(self.original_type)
@@ -116,7 +116,7 @@ class Op:
 
     @property
     def __name__(self):
-        if "__name" in dir(self.op):
+        if "__name__" in dir(self.op):
             return self.op.__name__
         else:
             return str(self.op)
@@ -149,9 +149,9 @@ class OpApplication:
         assert not "backend" in self.kwargs
 
 class OpOutput(Tensor):
-    def __init__(self, op, shape, key):
+    def __init__(self, application, shape, key):
         super().__init__(shape)
-        self.op = op
+        self.application = application
         self.key = key
 
 def drop_axis(shape, axis):
@@ -195,12 +195,6 @@ class VmappedOp:
 
     def __call__(self, *args, **kwargs):
         return OpApplication(self, args=args, kwargs=kwargs, output_shapes=self.output_shapes).output_tracers
-
-class VmappedOpOutput(Tensor):
-    def __init__(self, vmapped_op, index):
-        super().__init__(vmapped_op.output_shapes[index])
-        self.vmapped_op = vmapped_op
-        self.index = index
 
 class Scope:
     def __init__(self, backend, parent_scope=None):
@@ -332,9 +326,6 @@ class Scope:
 
                 line = f"{name} = {tensor}[" + slices + "]"
                 self.lines.append(line)
-            elif x.op.op == "to_tensor" and self.backend != einx.backend.tracer and isinstance(x.args[0], Input) and not x.args[0].original_type is None and issubclass(x.args[0].original_type, self.backend.tensor):
-                # Skip to_tensor op if tensor already has right type
-                name = self.eval(x.args[0])
             else:
                 args = x.args
                 kwargs = x.kwargs
@@ -363,7 +354,7 @@ class Scope:
                         self.lines.append(f"assert {self.eval(tracer)}.shape == {self.eval(shape)}")
                     einx.tree_util.tree_map(assertion, x.output_tracers, x.output_shapes)
         elif isinstance(x, OpOutput):
-            name = self.eval(x.op)
+            name = self.eval(x.application)
             for k in x.key:
                 name += f"[{self.eval(k)}]"
         elif isinstance(x, VmappedOp):
@@ -373,9 +364,6 @@ class Scope:
                 self.lines.append(f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)}, input_shapes={self.eval(x.input_shapes)}, output_shapes={self.eval(x.output_shapes)})")
             else:
                 self.lines.append(f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)})")
-        elif isinstance(x, VmappedOpOutput):
-            name = self.eval(x.op)
-            name = f"{name}[{self.eval(x.index)}]"
         elif isinstance(x, str):
             name = f"\"{x}\""
         elif isinstance(x, tuple):
@@ -406,10 +394,61 @@ class Scope:
         self.locals[id(x)] = name
         return name
 
+def optimize(output, backend):
+    new_nodes = {}
+
+    def _optimize(node):
+        if id(node) in new_nodes:
+            return new_nodes[id(node)]
+
+        if isinstance(node, OpApplication):
+            if node.op.op == "reshape" and isinstance(node.args[0], OpOutput) and node.args[0].application.op.op == "reshape":
+                # Merge consecutive reshape ops
+                new_node = OpApplication("reshape", args=[node.args[0].application.args[0], node.output_shapes], output_shapes=node.output_shapes)
+            elif node.op.op == "to_tensor" and isinstance(node.args[0], OpOutput) and node.args[0].application.op.op == "to_tensor":
+                # Merge consecutive to_tensor ops
+                new_node = _optimize(node.args[0].application)
+            else:
+                new_node = OpApplication(node.op, args=[_optimize(a) for a in node.args], kwargs={k: _optimize(v) for k, v in node.kwargs.items()}, output_shapes=node.output_shapes)
+        elif isinstance(node, OpOutput):
+            if node.application.op.op == "to_tensor" and backend != einx.backend.tracer and isinstance(node.application.args[0], Input) and not node.application.args[0].original_type is None and issubclass(node.application.args[0].original_type, backend.tensor):
+                # Skip to_tensor op if tensor already has right type
+                new_node = _optimize(node.application.args[0])
+            elif node.application.op.op == "reshape" and node.application.args[0].shape == node.shape:
+                # Skip reshape op if tensor already has right shape
+                new_node = _optimize(node.application.args[0])
+            else:
+                new_node = OpOutput(_optimize(node.application), node.shape, node.key)
+            # TODO: skip transpose ops etc. Remove checks in all functions
+        elif isinstance(node, VmappedOp):
+            new_node = VmappedOp(_optimize(node.op), node.in_axes, node.out_axes, node.input_shapes, node.output_shapes)
+        elif isinstance(node, Op):
+            new_node = Op(_optimize(node.op), tracable=node.tracable)
+        elif isinstance(node, Input):
+            new_node = node
+        elif isinstance(node, Graph):
+            assert False, "TODO"
+        elif isinstance(node, list):
+            new_node = [_optimize(x) for x in node]
+        elif isinstance(node, tuple):
+            new_node = tuple(_optimize(x) for x in node)
+        elif isinstance(node, dict):
+            new_node = {k: _optimize(v) for k, v in node.items()}
+        else:
+            new_node = node
+
+        new_nodes[id(node)] = new_node
+        return new_node
+
+    new_output = _optimize(output)
+    return new_output
+
+
+
 class Graph:
     def __init__(self, output, args, kwargs, backend):
-        assert any(isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)), f"Expected at least one tracer in output, got {output}"
-        self.output = output
+        assert any(isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)), f"No output value is traced"
+        self.output = optimize(output, backend)
         self.args = args
         self.kwargs = kwargs
         self.backend = backend
@@ -553,9 +592,6 @@ class tracer(Backend):
 
     @staticmethod
     def to_tensor(tensor):
-        if isinstance(tensor, OpOutput) and tensor.op.op.op == "to_tensor":
-            # Merge consecutive to_tensor ops
-            return OpApplication("to_tensor", args=[tensor.op.args[0]], output_shapes=tensor.shape).output_tracers
         if isinstance(tensor, Tensor):
             return OpApplication("to_tensor", args=[tensor], output_shapes=tensor.shape).output_tracers
         else:
@@ -589,13 +625,7 @@ class tracer(Backend):
     def cast(tensor, dtype):
         return OpApplication("cast", args=[tensor], kwargs={"dtype": dtype}, output_shapes=tensor.shape).output_tracers
     def reshape(tensor, shape):
-        if tensor.shape == shape:
-            return tensor
-        elif isinstance(tensor, OpOutput) and tensor.op.op == "reshape":
-            # Merge consecutive reshapes
-            return OpApplication("reshape", args=[tensor.op.args[0], shape], output_shapes=shape).output_tracers
-        else:
-            return OpApplication("reshape", args=[tensor, shape], output_shapes=shape).output_tracers
+        return OpApplication("reshape", args=[tensor, shape], output_shapes=shape).output_tracers
 
     def transpose(tensor, perm):
         shape = [tensor.shape[i] for i in perm]
