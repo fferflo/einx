@@ -24,6 +24,10 @@ class Backend:
     def apply(backend, op, args, kwargs, output_shapes):
         return backend.op(op)(*args, **kwargs)
 
+    @staticmethod
+    def _decorate_construct_graph(f):
+        return f
+
 class ErrorBackend:
     def __init__(self, message):
         self.message = message

@@ -121,7 +121,8 @@ class Norm(torch.nn.Module):
                     self.mean.copy_(self.decay_rate * self.mean + (1 - self.decay_rate) * mean)
                 if not var is None:
                     self.var.copy_(self.decay_rate * self.var + (1 - self.decay_rate) * var)
-        self.initialized = True
+        if not self.initialized:
+            self.initialized = True
         return x
 
 @_allow_in_graph

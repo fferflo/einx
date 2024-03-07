@@ -118,7 +118,7 @@ def lru_cache(func=None, trace=None):
             elif isinstance(backend, str):
                 backend = einx.backend.get(backend)
 
-            graph = construct_graph(*args, backend=backend, **kwargs)
+            graph = backend._decorate_construct_graph(construct_graph)(*args, backend=backend, **kwargs)
 
             if return_graph:
                 return graph

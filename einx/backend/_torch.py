@@ -147,6 +147,14 @@ def make_torch_backend():
             def bernoulli(rng, p, shape):
                 return torch_.bernoulli(torch_.full(shape, p), generator=rng) > 0.5
 
+        @staticmethod
+        def _decorate_construct_graph(f):
+            if "compiler" in dir(torch_):
+                return torch_.compiler.disable(f)
+            else:
+                import torch._dynamo as _dynamo
+                return _dynamo.disable(f)
+
     if "compiler" in dir(torch_):
         einx.lru_cache.decorate_traced_functions(torch_.compiler.allow_in_graph)
     else:
