@@ -43,8 +43,10 @@ def make_torch_backend():
         stack = torch_.stack
         concatenate = torch_.cat
 
-        zeros = lambda shape, dtype="float32": torch_.zeros(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
-        ones = lambda shape, dtype="float32": torch_.ones(*shape, dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
+        def zeros(shape, dtype="float32"):
+            return torch_.zeros(to_tuple(shape), dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
+        def ones(shape, dtype="float32"):
+            return torch_.ones(to_tuple(shape), dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
 
         add = associative_binary_to_nary(torch_.add)
         subtract = torch_.subtract
