@@ -17,7 +17,10 @@ def param(func: Literal[hk.get_parameter, hk.get_state] = hk.get_parameter, name
         A tensor factory with the given default parameters.
     """
 
+    name0 = name
     def haiku_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
+        if not name0 is None:
+            name = name0
         if name is None:
             raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
 

@@ -21,7 +21,10 @@ def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, 
     if isinstance(bound_method, nn.Module):
         bound_method = bound_method.param
 
+    name0 = name
     def flax_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
+        if not name0 is None:
+            name = name0
         if name is None:
             raise ValueError("Must specify name for tensor factory flax.linen.Module.{param|variable}")
 

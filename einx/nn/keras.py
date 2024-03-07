@@ -20,7 +20,10 @@ def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[
         A tensor factory with the given default parameters.
     """
 
+    name0 = name
     def keras_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
+        if not name0 is None:
+            name = name0
         if name is None:
             raise ValueError("Must specify name for tensor factory keras.layers.Layer")
 
