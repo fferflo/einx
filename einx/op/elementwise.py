@@ -137,13 +137,13 @@ def elementwise(description: str, *tensors: einx.Tensor, op: Callable, backend: 
         >>> einx.elementwise("a, a -> a", a, b, op=np.add).shape
         (10,)
 
-        Add a vector on all rows of a matrix:
+        Add a vector on all columns of a matrix:
 
         >>> a, b = np.random.uniform(size=(10, 10)), np.random.uniform(size=(10,))
         >>> einx.add("a b, a -> a b", a, b).shape
         (10, 10,)
 
-        Subtract a vector from all columns of a matrix:
+        Subtract a vector from all rows of a matrix:
 
         >>> a, b = np.random.uniform(size=(10, 10)), np.random.uniform(size=(10,))
         >>> einx.subtract("a b, b -> a b", a, b).shape
