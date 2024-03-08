@@ -372,7 +372,7 @@ class Scope:
             name = "[" + ", ".join(self.eval(a) for a in x) + "]"
         elif isinstance(x, dict):
             name = "{" + ", ".join(f"\"{k}\": {self.eval(v)}" for k, v in x.items()) + "}"
-        elif isinstance(x, (int, float)):
+        elif isinstance(x, (int, float, np.integer, np.floating)):
             name = str(x)
         elif isinstance(x, slice):
             if not x.step is None:

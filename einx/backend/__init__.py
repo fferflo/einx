@@ -18,6 +18,9 @@ backend_factories["torch"] = make_torch_backend
 from ._tensorflow import make_tensorflow_backend
 backend_factories["tensorflow"] = make_tensorflow_backend
 
+from ._mlx import make_mlx_backend
+backend_factories["mlx"] = make_mlx_backend
+
 from .tracer import tracer
 backends.append(tracer)
 

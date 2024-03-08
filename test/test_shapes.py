@@ -9,6 +9,8 @@ if importlib.util.find_spec("tensorflow"):
     import tensorflow
     import tensorflow.experimental.numpy as tnp
     tnp.experimental_enable_numpy_behavior()
+if importlib.util.find_spec("mlx"):
+    import mlx
 
 import einx, pytest
 from functools import partial
@@ -113,6 +115,8 @@ def test_shape_rearrange(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_dot(backend):
+    if backend.name == "mlx":
+        pytest.xfail(reason="mlx does not support einsum yet")
     x = backend.zeros((10, 10), "float32")
     assert einx.dot("a..., a... -> 1", x, x).shape == (1,)
     with pytest.raises(Exception):
@@ -258,6 +262,9 @@ def test_shape_elementwise(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_vmap(backend):
+    if backend.name == "mlx":
+        pytest.xfail(reason="mlx does not fully support vmap with all primites yet")
+
     x = backend.zeros((13,), "float32")
     assert einx.vmap("b -> b [3]", x, op=lambda x: x + backend.zeros((3,))).shape == (13, 3)
 
@@ -339,6 +346,9 @@ def test_shape_vmap(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_index(backend):
+    if backend.name == "mlx":
+        pytest.xfail(reason="mlx does not fully support vmap with all primites yet")
+
     coord_dtype = "int32" if backend.name != "torch" else "long"
     x = backend.ones((4, 16, 16, 3))
     y = backend.cast(backend.ones((4, 128, 2)), coord_dtype)
