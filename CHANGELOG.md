@@ -12,7 +12,7 @@
     - `einx.{vmap_with_axis|flip|softmax|...}`
   - Not supported yet:
     - `einx.dot` (`mx.einsum` is not implemented yet)
-    - `einx.vmap` (`mx.vmap` does not fully support all primitves yet)
+    - `einx.vmap` (`mx.vmap` does not fully support all primitives yet)
     - `einx.{index|get_at|set_at|...}` (due to relying on `einx.vmap`)
 - Add environment variable `EINX_WARN_ON_RETRACE` to warn when excessive retracing is detected.
 
