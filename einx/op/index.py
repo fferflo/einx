@@ -227,6 +227,7 @@ def _has_zero_shape(tensor):
     shape = einx.param.get_shape(tensor)
     return shape is not None and any(s == 0 for s in shape)
 
+@einx.traceback_util.filter
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def index(description: str, *tensors: einx.Tensor, op: Callable, update: bool, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Updates and/ or returns values from an array at the given coordinates.
@@ -292,19 +293,22 @@ def index(description: str, *tensors: einx.Tensor, op: Callable, update: bool, b
 index.parse = parse
 
 
-
+@einx.traceback_util.filter
 def get_at(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Specialization of :func:`einx.index` with ``op="get_at"`` and ``update=False``"""
     return index(description, *tensors, op="get_at", update=False, backend=backend, cse=cse, **parameters)
 
+@einx.traceback_util.filter
 def set_at(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Specialization of :func:`einx.index` with ``op="set_at"`` and ``update=True``"""
     return index(description, *tensors, op="set_at", update=True, backend=backend, cse=cse, **parameters)
 
+@einx.traceback_util.filter
 def add_at(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Specialization of :func:`einx.index` with ``op="add_at"`` and ``update=True``"""
     return index(description, *tensors, op="add_at", update=True, backend=backend, cse=cse, **parameters)
 
+@einx.traceback_util.filter
 def subtract_at(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Specialization of :func:`einx.index` with ``op="subtract_at"`` and ``update=True``"""
     return index(description, *tensors, op="subtract_at", update=True, backend=backend, cse=cse, **parameters)

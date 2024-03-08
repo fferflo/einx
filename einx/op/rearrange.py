@@ -63,6 +63,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, exprs_out
 
+@einx.traceback_util.filter
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def rearrange(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> Union[einx.Tensor, Tuple[einx.Tensor, ...]]:
     """Rearranges the input tensors to match the output expressions.

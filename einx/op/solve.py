@@ -79,6 +79,7 @@ def matches(description: str, *tensors: einx.Tensor, cse: bool = True, **paramet
     """
     return not solve(description, *tensors, cse=cse, **parameters) is None
 
+@einx.traceback_util.filter
 def check(description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike) -> None:
     """Check whether the given expressions and tensors match and raise an exception if they don't.
 

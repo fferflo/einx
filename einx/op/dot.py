@@ -141,6 +141,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, expr_out
 
+@einx.traceback_util.filter
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def dot(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """Computes a general dot-product of the input tensors.

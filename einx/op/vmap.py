@@ -223,6 +223,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, exprs_out
 
+@einx.traceback_util.filter
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def vmap(description: str, *tensors: einx.Tensor, op: Callable, flat: bool = False, backend: Union[einx.Backend, str, None] = None, cse: bool = True, kwargs: Mapping = {}, **parameters: npt.ArrayLike):
     """Applies a function to the marked axes of the input tensors using vectorization.

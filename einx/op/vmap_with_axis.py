@@ -148,6 +148,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
     return exprs_in, exprs_out
 
+@einx.traceback_util.filter
 @einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
 def vmap_with_axis(description: str, *tensors: einx.Tensor, op: Callable, backend: Union[einx.Backend, str, None] = None, cse: bool = True, kwargs: Mapping = {}, **parameters: npt.ArrayLike):
     """Applies a function to the marked axes of the input tensors by passing the ``axis`` argument.
@@ -205,18 +206,22 @@ def vmap_with_axis(description: str, *tensors: einx.Tensor, op: Callable, backen
     return tensors[0] if len(exprs_out) == 1 else tensors
 vmap_with_axis.parse = parse
 
+@einx.traceback_util.filter
 def flip(description: str, tensor: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
     """Specialization of :func:`einx.vmap_with_axis` with ``op="flip"``."""
     return vmap_with_axis(description, tensor, op="flip", backend=backend, cse=cse, **parameters)
 
+@einx.traceback_util.filter
 def roll(description: str, tensor: einx.Tensor, shift: Union[int, Tuple[int]], backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
     """Specialization of :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``."""
     return vmap_with_axis(description, tensor, op="roll", backend=backend, kwargs={"shift": shift}, cse=cse, **parameters)
 
+@einx.traceback_util.filter
 def softmax(description: str, tensor: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
     """Specialization of :func:`einx.vmap_with_axis` with ``op="softmax"``"""
     return vmap_with_axis(description, tensor, op="softmax", backend=backend, cse=cse, **parameters)
 
+@einx.traceback_util.filter
 def log_softmax(description: str, tensor: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike):
     """Specialization of :func:`einx.vmap_with_axis` with ``op="log_softmax"``"""
     return vmap_with_axis(description, tensor, op="log_softmax", backend=backend, cse=cse, **parameters)

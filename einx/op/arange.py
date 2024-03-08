@@ -83,6 +83,7 @@ def parse(description, cse=True, **parameters):
 
     return expr_in, expr_out
 
+@einx.traceback_util.filter
 @einx.lru_cache(trace=lambda t, c: lambda description, backend=None, **kwargs: c(description, **kwargs))
 def arange(description: str, *, backend: Union[einx.Backend, str], dtype: str = "int32", cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
     """n-dimensional ``arange`` operation.
