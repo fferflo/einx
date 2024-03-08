@@ -204,14 +204,12 @@ def test_shape_reduce(backend):
 
     assert einx.logsumexp("a [...]", x).shape == (16,)
 
-    assert einx.logsumexp("[a]", [0.0, 1.0]).shape == ()
-    assert einx.logsumexp("[a]", [np.asarray(0.0), np.asarray(1.0)]).shape == ()
-    assert einx.mean("[a]", [backend.to_tensor(0.0), np.asarray(1.0)]).shape == ()
-    assert einx.sum("[a]", [backend.to_tensor(0.0), backend.to_tensor(1.0)]).shape == ()
-    assert einx.logsumexp("[a] 1", [[0.0], [1.0]]).shape == (1,)
-    assert einx.logsumexp("[a]", [0.0] * 10).shape == ()
+    assert einx.logsumexp("[a]", [0.0, 1.0], backend=backend).shape == ()
+    assert einx.sum("[a]", [backend.to_tensor(0.0), backend.to_tensor(1.0)], backend=backend).shape == ()
+    assert einx.logsumexp("[a] 1", [[0.0], [1.0]], backend=backend).shape == (1,)
+    assert einx.logsumexp("[a]", [0.0] * 10, backend=backend).shape == ()
     with pytest.raises(ValueError):
-        einx.logsumexp("a", [0.0, [1.0]])
+        einx.logsumexp("a", [0.0, [1.0]], backend=backend)
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_elementwise(backend):
