@@ -244,9 +244,9 @@ def test_shape_elementwise(backend):
     with pytest.raises(Exception):
         einx.add("a b, c", x, y)
 
-    x = backend.zeros((16, 128, 196, 64), "float32")
-    y = backend.zeros((16, 4, 16), "float32")
-    assert einx.add("b h w (g c), b (g) c -> b h w (g c)", x, y).shape == (16, 128, 196, 64)
+    x = backend.zeros((3, 128, 196, 64), "float32")
+    y = backend.zeros((3, 4, 16), "float32")
+    assert einx.add("b h w (g c), b (g) c -> b h w (g c)", x, y).shape == (3, 128, 196, 64)
 
     x = backend.zeros((10, 20), "float32")
     y = backend.zeros((10, 20, 30), "float32")
