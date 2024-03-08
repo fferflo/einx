@@ -20,7 +20,9 @@
 
 - Allow `einx.{set_at|add_at|...}` to be called with zero-sized updates or coordinates (in which case the input tensor is returned as-is).
 - Remove `backend.dot` which was not used anywhere but in the unit tests.
-- Improve error reporting when passing invalid shape constraints to einx functions.
+- Improve error reporting:
+  - Drop internal stack frames when raising exceptions.
+  - Better error when passing invalid shape constraints to einx functions.
 
 ### Fixed
 
