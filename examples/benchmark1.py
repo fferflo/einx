@@ -21,9 +21,30 @@ rows = []
 
 envs = [
     ("numpy", einx.backend.get("numpy"), lambda x: x, lambda x: x, lambda x: x, np.asarray),
-    ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),
-    ("torch-compile", einx.backend.get("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu())),
-    ("jax-jit", einx.backend.get("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x)),
+    (
+        "torch-eager",
+        einx.backend.get("torch"),
+        lambda x: x,
+        lambda x: x.cuda(),
+        lambda x: torch.cuda.synchronize(),
+        lambda x: np.asarray(x.cpu()),
+    ),
+    (
+        "torch-compile",
+        einx.backend.get("torch"),
+        torch.compile,
+        lambda x: x.cuda(),
+        lambda x: torch.cuda.synchronize(),
+        lambda x: np.asarray(x.cpu()),
+    ),
+    (
+        "jax-jit",
+        einx.backend.get("jax"),
+        jax.jit,
+        lambda x: x,
+        lambda x: x.block_until_ready(),
+        lambda x: np.asarray(x),
+    ),
 ]
 
 for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
@@ -37,49 +58,74 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
     z1 = tensor_init(xnp.ones((64 // f,), "float32"))
     w = tensor_init(xnp.ones((64 // f, 128 // f), "float32"))
 
-
     def benchmark_einx(x):
         return einx.rearrange("b h w c -> b c h w", x)
+
     def benchmark_einops(x):
         return einops.rearrange(x, "b h w c -> b c h w")
+
     def benchmark_idx(x):
         return xnp.transpose(x, (0, 3, 1, 2))
+
     experiments.append(("rearrange", (benchmark_einx, benchmark_einops, benchmark_idx), (x,), 5.0))
 
     def benchmark_einx(x):
         return einx.mean("b [s...] c", x)
+
     def benchmark_einops(x):
         return einops.reduce(x, "b h w c -> b c", reduction="mean")
+
     def benchmark_idx(x):
         return xnp.mean(x, axis=(1, 2))
-    experiments.append(("spatial_mean", (benchmark_einx, benchmark_einops, benchmark_idx), (x,), 5.0))
+
+    experiments.append((
+        "spatial_mean",
+        (benchmark_einx, benchmark_einops, benchmark_idx),
+        (x,),
+        5.0,
+    ))
 
     def benchmark_einx(x):
         return einx.mean("b s... [c]", x)
+
     def benchmark_einops(x):
         return einops.reduce(x, "b h w c -> b h w", reduction="mean")
+
     def benchmark_idx(x):
         return xnp.mean(x, axis=3)
-    experiments.append(("channel_mean", (benchmark_einx, benchmark_einops, benchmark_idx), (x,), 5.0))
+
+    experiments.append((
+        "channel_mean",
+        (benchmark_einx, benchmark_einops, benchmark_idx),
+        (x,),
+        5.0,
+    ))
 
     def benchmark_einx(x, y):
         return einx.add("b [s...] c", x, y)
+
     def benchmark_idx(x, y):
         return x + y[None, ..., None]
+
     experiments.append(("spatial_add", (benchmark_einx, None, benchmark_idx), (x, y), 5.0))
 
     def benchmark_einx(x, y):
         return einx.add("b s... [c]", x, y)
+
     def benchmark_idx(x, y):
         return x + y
+
     experiments.append(("channel_add", (benchmark_einx, None, benchmark_idx), (x, z1), 5.0))
 
     def benchmark_einx(x, w):
         return einx.dot("b... [c1|c2]", x, w)
+
     def benchmark_einops(x, w):
         return einops.einsum(x, w, "... c1, c1 c2 -> ... c2")
+
     def benchmark_idx(x, w):
         return xnp.einsum("b h w c, c d -> b h w d", x, w)
+
     experiments.append(("matmul", (benchmark_einx, benchmark_einops, benchmark_idx), (x2, w), 5.0))
 
     for name, methods, inputs, mul in experiments:
@@ -115,14 +161,24 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
                 random.shuffle(methods2)
                 for method in methods2:
                     if method is not None:
-                        times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs)), repeat=1, number=k)[0] / k)
+                        times[method.__name__].append(
+                            timeit.repeat(
+                                lambda: block_until_ready(method(*inputs)), repeat=1, number=k
+                            )[0]
+                            / k
+                        )
         elif order == "sequential":
             for method in methods:
                 if method is not None:
                     for _ in range(max(1, int(n * mul))):
-                        times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs)), repeat=1, number=k)[0] / k)
+                        times[method.__name__].append(
+                            timeit.repeat(
+                                lambda: block_until_ready(method(*inputs)), repeat=1, number=k
+                            )[0]
+                            / k
+                        )
         else:
-            assert False
+            raise AssertionError()
 
         # Store and print results
         for key in list(times.keys()):
@@ -130,27 +186,49 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
             times[key] = sorted(times[key])[p:-p]
         for method in methods:
             if method is not None:
-                print(f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}")
+                print(
+                    f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}"
+                )
         rows.append((name, times))
         print()
 
 # Print markup table
 import tabulate
+
 table = []
+
+
 def tostr(times):
     if len(times) == 0 or times is None:
         return ""
     m = f"{np.mean(times):0.3f}"
     s = f"{np.std(times):0.3f}"
     return f"{m:>7} +- {s:>7}"
+
+
 for name, times in rows:
     times = {k: np.asarray(v) for k, v in times.items()}
     table.append([
         name,
-        1000000.0 * (np.mean(times['benchmark_einx']) - np.mean(times['benchmark_idx'])),
-        1000000.0 * (np.mean(times['benchmark_einops']) - np.mean(times['benchmark_idx'])) if "benchmark_einops" in times else "",
-        tostr(1000.0 * times['benchmark_einx']),
-        tostr(1000.0 * times['benchmark_einops']) if 'benchmark_einops' in times else "",
-        tostr(1000.0 * times['benchmark_idx']),
+        1000000.0 * (np.mean(times["benchmark_einx"]) - np.mean(times["benchmark_idx"])),
+        1000000.0 * (np.mean(times["benchmark_einops"]) - np.mean(times["benchmark_idx"]))
+        if "benchmark_einops" in times
+        else "",
+        tostr(1000.0 * times["benchmark_einx"]),
+        tostr(1000.0 * times["benchmark_einops"]) if "benchmark_einops" in times else "",
+        tostr(1000.0 * times["benchmark_idx"]),
     ])
-print(tabulate.tabulate(table, headers=["Method", "einx overhead (us)", "einops overhead (us)", "einx (ms)", "einops (ms)", "index-based (ms)"], tablefmt="github"))
+print(
+    tabulate.tabulate(
+        table,
+        headers=[
+            "Method",
+            "einx overhead (us)",
+            "einops overhead (us)",
+            "einx (ms)",
+            "einops (ms)",
+            "index-based (ms)",
+        ],
+        tablefmt="github",
+    )
+)

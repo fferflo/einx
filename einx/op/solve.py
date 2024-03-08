@@ -4,9 +4,12 @@ from collections import defaultdict
 from typing import Mapping, Optional
 import numpy.typing as npt
 
+
 @einx.lru_cache
 def _solve(description, *tensor_shapes, cse=True, **parameters):
-    description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
+    description, parameters = einx.op.util._clean_description_and_parameters(
+        description, parameters
+    )
 
     exprs = description.split(",")
     if len(exprs) != len(tensor_shapes):
@@ -14,11 +17,21 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
 
     try:
         exprs = einx.expr.solve(
-              [einx.expr.Equation(expr, tensor_shape) for expr, tensor_shape in zip(exprs, tensor_shapes)] \
-            + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
+            [
+                einx.expr.Equation(expr, tensor_shape)
+                for expr, tensor_shape in zip(exprs, tensor_shapes)
+            ]
+            + [
+                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+                for k, v in parameters.items()
+            ],
             cse=cse,
         )
-    except (einx.expr.stage2.SolveDepthException, einx.expr.stage2.SolveExpansionException, einx.expr.stage3.SolveValueException):
+    except (
+        einx.expr.stage2.SolveDepthException,
+        einx.expr.stage2.SolveExpansionException,
+        einx.expr.stage3.SolveValueException,
+    ):
         return None
 
     values = defaultdict(list)
@@ -40,7 +53,10 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
 
     return values2
 
-def solve(description: str, *tensors: einx.Tensor, cse: bool = False, **parameters: npt.ArrayLike) -> Optional[Mapping[str, npt.ArrayLike]]:
+
+def solve(
+    description: str, *tensors: einx.Tensor, cse: bool = False, **parameters: npt.ArrayLike
+) -> Optional[Mapping[str, npt.ArrayLike]]:
     """Solve for the axis values of the given expressions and tensors.
 
     The `description` argument must meet the following format:
@@ -60,9 +76,14 @@ def solve(description: str, *tensors: einx.Tensor, cse: bool = False, **paramete
         >>> einx.solve("a b", x)
         {'a': 10, 'b': 5}
     """
-    return _solve(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
+    return _solve(
+        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+    )
 
-def matches(description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike) -> bool:
+
+def matches(
+    description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike
+) -> bool:
     """Check whether the given expressions and tensors match.
 
     The `description` argument must meet the following format:
@@ -79,8 +100,11 @@ def matches(description: str, *tensors: einx.Tensor, cse: bool = True, **paramet
     """
     return solve(description, *tensors, cse=cse, **parameters) is not None
 
+
 @einx.traceback_util.filter
-def check(description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike) -> None:
+def check(
+    description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike
+) -> None:
     """Check whether the given expressions and tensors match and raise an exception if they don't.
 
     The `description` argument must meet the following format:
@@ -93,7 +117,9 @@ def check(description: str, *tensors: einx.Tensor, cse: bool = True, **parameter
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
+    description, parameters = einx.op.util._clean_description_and_parameters(
+        description, parameters
+    )
 
     exprs = description.split(",")
     if len(exprs) != len(tensors):
@@ -101,7 +127,10 @@ def check(description: str, *tensors: einx.Tensor, cse: bool = True, **parameter
 
     tensor_shapes = [einx.param.get_shape(tensor) for tensor in tensors]
     einx.expr.solve(
-          [einx.expr.Equation(expr, tensor_shape) for expr, tensor_shape in zip(exprs, tensor_shapes)] \
-        + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
+        [einx.expr.Equation(expr, tensor_shape) for expr, tensor_shape in zip(exprs, tensor_shapes)]
+        + [
+            einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+            for k, v in parameters.items()
+        ],
         cse=cse,
-    ) # Raises an exception if no solution is found
+    )  # Raises an exception if no solution is found

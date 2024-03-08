@@ -1,5 +1,8 @@
 import ssl
-ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
+
+ssl._create_default_https_context = (
+    ssl._create_unverified_context
+)  # Fixed problem with downloading CIFAR10 dataset
 
 import torch
 import einx
@@ -19,14 +22,19 @@ transform = transforms.Compose([
 batch_size = 256
 
 cifar10_path = os.path.join(os.path.dirname(__file__), "cifar10")
-trainset = torchvision.datasets.CIFAR10(root=cifar10_path, train=True, download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+trainset = torchvision.datasets.CIFAR10(
+    root=cifar10_path, train=True, download=True, transform=transform
+)
+trainloader = torch.utils.data.DataLoader(
+    trainset, batch_size=batch_size, shuffle=True, num_workers=2
+)
 
-testset = torchvision.datasets.CIFAR10(root=cifar10_path, train=False, download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
-
-
-
+testset = torchvision.datasets.CIFAR10(
+    root=cifar10_path, train=False, download=True, transform=transform
+)
+testloader = torch.utils.data.DataLoader(
+    testset, batch_size=batch_size, shuffle=False, num_workers=2
+)
 
 
 class Net(nn.Module):
@@ -44,6 +52,7 @@ class Net(nn.Module):
     def forward(self, x):
         return self.blocks(x)
 
+
 net = Net()
 
 # Call on dummy batch to initialize parameters (before torch.compile!)
@@ -56,11 +65,13 @@ net = torch.compile(net)
 optimizer = optim.Adam(net.parameters(), lr=3e-4)
 criterion = nn.CrossEntropyLoss()
 
+
 @torch.compile
 def test_step(inputs, labels):
     outputs = net(inputs)
     _, predicted = torch.max(outputs.data, 1)
     return predicted == labels
+
 
 print("Starting training")
 for epoch in range(100):
@@ -68,7 +79,7 @@ for epoch in range(100):
 
     # Train
     net.train()
-    for i, data in enumerate(trainloader):
+    for data in trainloader:
         inputs, labels = data
         inputs, labels = inputs.cuda(), labels.cuda()
 
@@ -92,4 +103,6 @@ for epoch in range(100):
             total += accurate.size(0)
             correct += int(torch.count_nonzero(accurate))
 
-    print(f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)")
+    print(
+        f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)"
+    )

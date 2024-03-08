@@ -2,6 +2,7 @@ from . import stage1, stage2, stage3
 import numpy as np
 import einx
 
+
 def _get_expansion(expr):
     if isinstance(expr, stage1.Expression):
         return (expr.expansion(),)
@@ -12,8 +13,11 @@ def _get_expansion(expr):
     else:
         return None
 
+
 def _input_expr(expr):
-    if expr is None or isinstance(expr, (str, stage1.Expression, stage2.Expression, stage3.Expression)):
+    if expr is None or isinstance(
+        expr, (str, stage1.Expression, stage2.Expression, stage3.Expression)
+    ):
         return expr
     else:
         if isinstance(expr, np.ndarray):
@@ -30,6 +34,7 @@ def _input_expr(expr):
         expr = " ".join([str(i) for i in expr.flatten()])
         return expr
 
+
 class Equation:
     def __init__(self, expr1, expr2=None, depth1=0, depth2=0):
         self.expr1 = _input_expr(expr1)
@@ -42,7 +47,8 @@ class Equation:
     def __repr__(self):
         return f"{self.expr} = {self.value.tolist()} (expansion={self.expansion} at depth={self.depth})"
 
-def _to_str(l): # Print numpy arrays in a single line rather than with line breaks
+
+def _to_str(l):  # Print numpy arrays in a single line rather than with line breaks
     if l is None:
         return "None"
     elif isinstance(l, np.ndarray):
@@ -52,7 +58,10 @@ def _to_str(l): # Print numpy arrays in a single line rather than with line brea
     else:
         return str(l)
 
-def solve(equations, cse=True, cse_concat=True, cse_in_markers=False, after_stage2=None, verbose=False):
+
+def solve(
+    equations, cse=True, cse_concat=True, cse_in_markers=False, after_stage2=None, verbose=False
+):
     if any(not isinstance(c, Equation) for c in equations):
         raise ValueError("All arguments must be of type Equation")
 
@@ -65,19 +74,33 @@ def solve(equations, cse=True, cse_concat=True, cse_in_markers=False, after_stag
 
     if verbose:
         print("Stage0:")
-        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
-            print(f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = {_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})")
+        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(
+            exprs1, exprs2, expansions1, expansions2, depths1, depths2
+        ):
+            print(
+                f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = {_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
+            )
 
     exprs1 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs1]
     exprs2 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs2]
 
-    expansions1 = [expansion if expansion is not None else _get_expansion(expr) for expansion, expr in zip(expansions1, exprs1)]
-    expansions2 = [expansion if expansion is not None else _get_expansion(expr) for expansion, expr in zip(expansions2, exprs2)]
+    expansions1 = [
+        expansion if expansion is not None else _get_expansion(expr)
+        for expansion, expr in zip(expansions1, exprs1)
+    ]
+    expansions2 = [
+        expansion if expansion is not None else _get_expansion(expr)
+        for expansion, expr in zip(expansions2, exprs2)
+    ]
 
     if verbose:
         print("Stage1:")
-        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
-            print(f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = {_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})")
+        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(
+            exprs1, exprs2, expansions1, expansions2, depths1, depths2
+        ):
+            print(
+                f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = {_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
+            )
 
     exprs1, exprs2 = stage2.solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2)
 
@@ -88,7 +111,7 @@ def solve(equations, cse=True, cse_concat=True, cse_in_markers=False, after_stag
 
     if cse:
         exprs = stage2.cse(exprs1 + exprs2, cse_concat=cse_concat, cse_in_markers=cse_in_markers)
-        exprs1, exprs2 = exprs[:len(exprs1)], exprs[len(exprs1):]
+        exprs1, exprs2 = exprs[: len(exprs1)], exprs[len(exprs1) :]
 
         if verbose:
             print("Stage2.CSE:")

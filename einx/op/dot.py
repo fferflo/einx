@@ -4,7 +4,12 @@ import numpy as np
 from typing import Union
 import numpy.typing as npt
 
-@einx.lru_cache(trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, backend=None: c(exprs_in, [t(x) for x in tensors_in], expr_out))
+
+@einx.lru_cache(
+    trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, backend=None: c(
+        exprs_in, [t(x) for x in tensors_in], expr_out
+    )
+)
 def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     if backend is None:
         backend = einx.backend.get(tensors_in)
@@ -21,22 +26,44 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
 
     # Call tensor factories
     output_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
+
     def get_fans(idx):
-        other_input_axis_names = {a.name for i, expr_in in enumerate(exprs_in) for a in expr_in.all() if i != idx and isinstance(a, einx.expr.stage3.Axis)}
+        other_input_axis_names = {
+            a.name
+            for i, expr_in in enumerate(exprs_in)
+            for a in expr_in.all()
+            if i != idx and isinstance(a, einx.expr.stage3.Axis)
+        }
         in_axis = []
         out_axis = []
         batch_axis = []
         for i, child in enumerate(exprs_in[idx]):
-            any_in_other_input = any(isinstance(a, einx.expr.stage3.Axis) and a.name in other_input_axis_names for a in child.all())
-            any_in_output = any(isinstance(a, einx.expr.stage3.Axis) and a.name in output_axis_names for a in child.all())
+            any_in_other_input = any(
+                isinstance(a, einx.expr.stage3.Axis) and a.name in other_input_axis_names
+                for a in child.all()
+            )
+            any_in_output = any(
+                isinstance(a, einx.expr.stage3.Axis) and a.name in output_axis_names
+                for a in child.all()
+            )
             if any_in_other_input and not any_in_output:
                 in_axis.append(i)
             elif any_in_output and not any_in_other_input:
                 out_axis.append(i)
             else:
                 batch_axis.append(i)
-        return {"in_axis": tuple(in_axis), "out_axis": tuple(out_axis), "batch_axis": tuple(batch_axis)}
-    tensors_in = [einx.param.instantiate(tensor, expr.shape, backend, **get_fans(i), name="weight", init="dot") for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))]
+        return {
+            "in_axis": tuple(in_axis),
+            "out_axis": tuple(out_axis),
+            "batch_axis": tuple(batch_axis),
+        }
+
+    tensors_in = [
+        einx.param.instantiate(
+            tensor, expr.shape, backend, **get_fans(i), name="weight", init="dot"
+        )
+        for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))
+    ]
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
@@ -46,6 +73,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
 
     # Apply einsum
     einsum_variables = {}
+
     def get_einsum_variable(key):
         if key in einsum_variables:
             return einsum_variables[key]
@@ -55,16 +83,26 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
                 raise ValueError(f"Only supports up to {ord('z') - ord('a') + 1} unique input axes")
             einsum_variables[key] = v
             return v
+
     def to_einsum(axes):
         return "".join(get_einsum_variable(a.name) for a in axes)
 
     input_axis_names = {a.name for expr in exprs_in for a in einx.expr.stage3.get_axes(expr)}
 
-    einsum_str = ",".join(to_einsum(einx.expr.stage3.get_axes(expr)) for expr in exprs_in) \
-               + "->" + to_einsum([a for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names])
+    einsum_str = (
+        ",".join(to_einsum(einx.expr.stage3.get_axes(expr)) for expr in exprs_in)
+        + "->"
+        + to_einsum([
+            a for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names
+        ])
+    )
 
     tensor = backend.einsum(einsum_str, *tensors_in)
-    expr = einx.expr.stage3.List([a.__deepcopy__() for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names])
+    expr = einx.expr.stage3.List([
+        a.__deepcopy__()
+        for a in einx.expr.stage3.get_axes(expr_out_flat)
+        if a.name in input_axis_names
+    ])
 
     # Transpose and broadcast missing output dimensions
     tensor = util.transpose_broadcast(expr, tensor, expr_out_flat, backend=backend)[0]
@@ -76,16 +114,21 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
 
     return tensor, expr_out
 
+
 @einx.lru_cache
 def parse(description, *tensor_shapes, cse=True, **parameters):
-    description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
+    description, parameters = einx.op.util._clean_description_and_parameters(
+        description, parameters
+    )
 
     description = description.split("->")
     if len(description) == 1:
         # Description: "input -> output" using [|]-choice
         expr = description[0]
         if "," in expr:
-            raise ValueError("Only a single input expression is allowed when output expression is not given")
+            raise ValueError(
+                "Only a single input expression is allowed when output expression is not given"
+            )
         if len(tensor_shapes) != 2:
             raise ValueError(f"Expected 2 input tensors, got {len(tensor_shapes)}")
 
@@ -108,14 +151,20 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
         for root in [expr_in1, expr_out]:
             for expr in root.all():
-                if isinstance(expr, einx.expr.stage1.UnnamedAxis) and expr.value != 1 and einx.expr.stage1.is_marked(expr):
+                if (
+                    isinstance(expr, einx.expr.stage1.UnnamedAxis)
+                    and expr.value != 1
+                    and einx.expr.stage1.is_marked(expr)
+                ):
                     raise ValueError(f"Cannot mark unnamed non-trivial axes, but found {expr}")
 
         # Get ordered list of axes for second input
         names = []
         for root in [expr_in1, expr_out]:
             for expr in root.all():
-                if isinstance(expr, einx.expr.stage1.NamedAxis) and einx.expr.stage1.is_marked(expr):
+                if isinstance(expr, einx.expr.stage1.NamedAxis) and einx.expr.stage1.is_marked(
+                    expr
+                ):
                     name = expr.name
                     for _ in range(expr.depth):
                         name = name + einx.expr.stage1._ellipsis
@@ -131,19 +180,36 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensor_shapes)}")
 
     exprs = einx.expr.solve(
-            [einx.expr.Equation(expr_in, tensor_shape) for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)] \
-          + [einx.expr.Equation(expr_out)] \
-          + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
+        [
+            einx.expr.Equation(expr_in, tensor_shape)
+            for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
+        ]
+        + [einx.expr.Equation(expr_out)]
+        + [
+            einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+            for k, v in parameters.items()
+        ],
         cse=cse,
         cse_concat=False,
-    )[:len(exprs_in) + 1]
+    )[: len(exprs_in) + 1]
     exprs_in, expr_out = exprs[:-1], exprs[-1]
 
     return exprs_in, expr_out
 
+
 @einx.traceback_util.filter
-@einx.lru_cache(trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(description, *[t(x) for x in tensors], **kwargs))
-def dot(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+@einx.lru_cache(
+    trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(
+        description, *[t(x) for x in tensors], **kwargs
+    )
+)
+def dot(
+    description: str,
+    *tensors: einx.Tensor,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Computes a general dot-product of the input tensors.
 
     The function flattens all input tensors, applies the general dot-product yielding a single output tensor, and rearranges
@@ -209,11 +275,23 @@ def dot(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, st
 
         Multiply a tensor with a weight matrix:
 
-        >>> x, w = np.random.uniform(size=(4, 16, 16, 64)), np.random.uniform(size=(64, 32,))
+        >>> x, w = (
+        ...     np.random.uniform(size=(4, 16, 16, 64)),
+        ...     np.random.uniform(
+        ...         size=(
+        ...             64,
+        ...             32,
+        ...         )
+        ...     ),
+        ... )
         >>> einx.dot("b... [c1|c2]", x, w).shape
         (4, 16, 16, 32)
     """
-    exprs_in, expr_out = parse(description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters)
-    tensor, expr = dot_stage3(exprs_in, tensors, expr_out, backend=backend)
+    exprs_in, expr_out = parse(
+        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+    )
+    tensor, _expr = dot_stage3(exprs_in, tensors, expr_out, backend=backend)
     return tensor
+
+
 dot.parse = parse

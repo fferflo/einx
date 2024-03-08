@@ -4,6 +4,7 @@ import sys
 import inspect
 import importlib
 
+
 def get_shape(x):
     if isinstance(x, (tuple, list)):
         subshapes = {get_shape(y) for y in x}
@@ -24,12 +25,15 @@ def get_shape(x):
         # Cannot determine shape (e.g. tensor factory)
         return None
 
+
 def instantiate(x, shape, backend, **kwargs):
     if x is None:
         raise TypeError("instantiate cannot be called on None")
     if backend == einx.backend.tracer:
         if x.shape is None:
-            return backend.apply(instantiate, args=[x], kwargs={**{"shape": shape}, **kwargs}, output_shapes=shape)
+            return backend.apply(
+                instantiate, args=[x], kwargs={**{"shape": shape}, **kwargs}, output_shapes=shape
+            )
         else:
             return backend.to_tensor(x)
     else:
@@ -59,7 +63,9 @@ def instantiate(x, shape, backend, **kwargs):
             if not hasattr(x, "shape"):
                 raise ValueError("Tensor factory returned an object without a shape attribute")
             if x.shape != shape:
-                raise ValueError(f"Tensor factory returned a tensor of shape {x.shape}, but expected {shape}")
+                raise ValueError(
+                    f"Tensor factory returned a tensor of shape {x.shape}, but expected {shape}"
+                )
         x = backend.to_tensor(x)
 
         assert x.shape == shape, f"Shape mismatch: {x.shape} != {shape} for {type(x)}"

@@ -3,6 +3,7 @@ import numpy as np
 from functools import partial
 import einx
 
+
 class Expression:
     def __init__(self, value):
         if not isinstance(value, (int, np.int64, np.int32, np.int16, np.int8)):
@@ -13,6 +14,7 @@ class Expression:
     @property
     def shape(self):
         return tuple(x.value for x in self)
+
 
 class Composition(Expression):
     @staticmethod
@@ -57,6 +59,7 @@ class Composition(Expression):
         yield self
         yield from self.inner.all()
 
+
 class List(Expression):
     def maybe(l, *args, **kwargs):
         if not isinstance(l, list):
@@ -97,6 +100,7 @@ class List(Expression):
         yield self
         for c in self.children:
             yield from c.all()
+
 
 class Axis(Expression):
     def __init__(self, name, value):
@@ -140,6 +144,7 @@ class Axis(Expression):
     def is_unnamed(self):
         return self.name.startswith("unnamed.")
 
+
 class Concatenation(Expression):
     @staticmethod
     def maybe(l, *args, **kwargs):
@@ -157,7 +162,9 @@ class Concatenation(Expression):
         self.children = children
         for c in children:
             if len(c) != 1:
-                raise ValueError(f"Concatenation can only be used on expressions of length 1, but got expression '{c}'")
+                raise ValueError(
+                    f"Concatenation can only be used on expressions of length 1, but got expression '{c}'"
+                )
             c.parent = self
 
     def __str__(self):
@@ -182,6 +189,7 @@ class Concatenation(Expression):
         yield self
         for c in self.children:
             yield from c.all()
+
 
 class Marker(Expression):
     def __init__(self, inner):
@@ -214,20 +222,24 @@ class Marker(Expression):
         yield from self.inner.all()
 
 
-
 class SolveValueException(Exception):
     def __init__(self, exprs1, exprs2, message):
         self.exprs1 = exprs1
         self.exprs2 = exprs2
         self.message = f"Failed to solve values of expressions. {message}\nInput:\n"
         for expr1, expr2 in zip(exprs1, exprs2):
-            self.message += f"    '{einx.expr.util._to_str(expr1)} = {einx.expr.util._to_str(expr2)}'\n"
+            self.message += (
+                f"    '{einx.expr.util._to_str(expr1)} = {einx.expr.util._to_str(expr2)}'\n"
+            )
         super().__init__(self.message)
+
 
 def solve(exprs1, exprs2):
     exprs1 = list(exprs1)
     exprs2 = list(exprs2)
-    if any(expr is not None and not isinstance(expr, stage2.Expression) for expr in exprs1 + exprs2):
+    if any(
+        expr is not None and not isinstance(expr, stage2.Expression) for expr in exprs1 + exprs2
+    ):
         raise ValueError("Can only expand stage2.Expression")
     if len(exprs1) != len(exprs2):
         raise ValueError("Number of expressions must be equal")
@@ -238,7 +250,9 @@ def solve(exprs1, exprs2):
     for root in exprs1 + exprs2:
         if root is not None:
             for expr in root.all():
-                symbolic_expr_values[id(expr)] = solver.Variable(f"symbolic_expr_values[{id(expr)}]", str(expr))
+                symbolic_expr_values[id(expr)] = solver.Variable(
+                    f"symbolic_expr_values[{id(expr)}]", str(expr)
+                )
 
     # Add equations: Relations between expressions and their children
     for root in exprs1 + exprs2:
@@ -287,7 +301,9 @@ def solve(exprs1, exprs2):
             for axis in root.all():
                 if isinstance(axis, stage2.NamedAxis):
                     if axis.name not in sympy_axis_values:
-                        sympy_axis_values[axis.name] = solver.Variable(f"sympy_axis_values[{axis.name}]", axis.name)
+                        sympy_axis_values[axis.name] = solver.Variable(
+                            f"sympy_axis_values[{axis.name}]", axis.name
+                        )
                     equations.append((
                         symbolic_expr_values[id(axis)],
                         sympy_axis_values[axis.name],
@@ -301,7 +317,7 @@ def solve(exprs1, exprs2):
     axis_values = {}
     for k, v in solutions.items():
         if k.startswith("symbolic_expr_values["):
-            axis_values[int(k[len("symbolic_expr_values["):-1])] = int(v)
+            axis_values[int(k[len("symbolic_expr_values[") : -1])] = int(v)
 
     failed_axes = set()
     for root in exprs1 + exprs2:
@@ -318,12 +334,16 @@ def solve(exprs1, exprs2):
         if isinstance(expr, stage2.NamedAxis):
             assert id(expr) in axis_values
             if axis_values[id(expr)] <= 0:
-                raise SolveValueException(exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
+                raise SolveValueException(
+                    exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0"
+                )
             return Axis(expr.name, axis_values[id(expr)])
         elif isinstance(expr, stage2.UnnamedAxis):
             assert id(expr) in axis_values
             if axis_values[id(expr)] <= 0:
-                raise SolveValueException(exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0")
+                raise SolveValueException(
+                    exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0"
+                )
             return Axis(None, axis_values[id(expr)])
         elif isinstance(expr, stage2.List):
             return List([map(child) for child in expr.children])
@@ -334,14 +354,12 @@ def solve(exprs1, exprs2):
         elif isinstance(expr, stage2.Composition):
             return Composition.maybe(map(expr.inner))
         else:
-            assert False, type(expr)
+            raise AssertionError(type(expr))
+
     exprs1 = [map(root) if root is not None else None for root in exprs1]
     exprs2 = [map(root) if root is not None else None for root in exprs2]
 
     return exprs1, exprs2
-
-
-
 
 
 def expr_map(f):
@@ -361,13 +379,17 @@ def expr_map(f):
                 return [expr], signal
             else:
                 raise TypeError(f"Invalid return type {type(expr)}")
+
         return List.maybe(_expr_map(expr, f2))
+
     return outer
+
 
 expr_map.CONTINUE = 1
 expr_map.COPY_AND_STOP = 2
 expr_map.REPLACE_AND_STOP = 3
 expr_map.REPLACE_AND_CONTINUE = 4
+
 
 def _expr_map(expr, f):
     exprs, signal = f(expr)
@@ -400,7 +422,6 @@ def _expr_map(expr, f):
         raise TypeError(f"Invalid expression type {type(expr)}")
 
 
-
 @expr_map
 def decompose(expr):
     if isinstance(expr, Composition):
@@ -408,10 +429,12 @@ def decompose(expr):
     elif isinstance(expr, Concatenation):
         return None, expr_map.COPY_AND_STOP
 
+
 @expr_map
 def demark(expr):
     if isinstance(expr, Marker):
         return expr.inner, expr_map.REPLACE_AND_CONTINUE
+
 
 @expr_map
 def replace(expr, f):
@@ -419,20 +442,38 @@ def replace(expr, f):
     if expr is not None:
         return expr, expr_map.REPLACE_AND_STOP
 
+
 @expr_map
 def remove(expr, pred):
     if pred(expr):
         return [], expr_map.REPLACE_AND_STOP
 
+
 def remove_unnamed_trivial_axes(expr):
-    def is_concat_child(expr): # Do not remove direct children of concatenations
-        return expr.parent is not None and (isinstance(expr.parent, Concatenation) or (isinstance(expr.parent, Marker) and is_concat_child(expr.parent)))
-    return remove(expr, lambda expr: isinstance(expr, Axis) and expr.is_unnamed and expr.value == 1 and not is_concat_child(expr))
+    def is_concat_child(expr):  # Do not remove direct children of concatenations
+        return expr.parent is not None and (
+            isinstance(expr.parent, Concatenation)
+            or (isinstance(expr.parent, Marker) and is_concat_child(expr.parent))
+        )
+
+    return remove(
+        expr,
+        lambda expr: isinstance(expr, Axis)
+        and expr.is_unnamed
+        and expr.value == 1
+        and not is_concat_child(expr),
+    )
+
 
 @expr_map
 def mark(expr, pred):
-    if not isinstance(expr, Marker) and (expr.parent is None or not isinstance(expr.parent, Marker)) and pred(expr):
+    if (
+        not isinstance(expr, Marker)
+        and (expr.parent is None or not isinstance(expr.parent, Marker))
+        and pred(expr)
+    ):
         return Marker(expr.__deepcopy__()), expr_map.REPLACE_AND_CONTINUE
+
 
 def any_parent_is(expr, pred, include_self=True):
     if not include_self:
@@ -445,20 +486,29 @@ def any_parent_is(expr, pred, include_self=True):
         expr = expr.parent
     return False
 
+
 def is_marked(expr):
     return any_parent_is(expr, lambda expr: isinstance(expr, Marker))
+
 
 def is_at_root(expr):
     return not any_parent_is(expr, lambda expr: isinstance(expr, Composition))
 
+
 def is_flat(expr):
-    return all(not isinstance(expr, Composition) and not isinstance(expr, Concatenation) for expr in expr.all())
+    return all(
+        not isinstance(expr, Composition) and not isinstance(expr, Concatenation)
+        for expr in expr.all()
+    )
+
 
 def get_axes(expr):
     return [expr for expr in expr.all() if isinstance(expr, Axis)]
 
+
 def get_named_axes(expr):
     return [expr for expr in expr.all() if isinstance(expr, Axis) and not expr.is_unnamed]
+
 
 def _get_marked(expr):
     if isinstance(expr, Axis):
@@ -474,8 +524,10 @@ def _get_marked(expr):
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
 
+
 def get_marked(expr):
     return List.maybe(_get_marked(expr))
+
 
 def get_unmarked(expr):
     return remove(expr, lambda expr: is_marked(expr))

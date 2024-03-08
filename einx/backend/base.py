@@ -2,6 +2,7 @@ import einx
 import functools
 import numpy as np
 
+
 def associative_binary_to_nary(binary_op):
     @functools.wraps(binary_op)
     def nary_op(*args):
@@ -9,7 +10,9 @@ def associative_binary_to_nary(binary_op):
         for y in args[1:]:
             x = binary_op(x, y)
         return x
+
     return nary_op
+
 
 class Backend:
     @classmethod
@@ -28,6 +31,7 @@ class Backend:
     @staticmethod
     def _decorate_construct_graph(f):
         return f
+
 
 class ErrorBackend:
     def __init__(self, message):

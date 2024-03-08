@@ -1,13 +1,16 @@
 import importlib
+
 if importlib.util.find_spec("jax"):
     import jax
 if importlib.util.find_spec("torch"):
     import torch
 if importlib.util.find_spec("tensorflow"):
     import os
+
     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     import tensorflow
     import tensorflow.experimental.numpy as tnp
+
     tnp.experimental_enable_numpy_behavior()
 if importlib.util.find_spec("mlx"):
     import mlx
@@ -17,6 +20,7 @@ import pytest
 import numpy as np
 
 backends = [b for b in einx.backend.backends if b != einx.backend.tracer]
+
 
 @pytest.mark.parametrize("backend", backends)
 def test_values(backend):
@@ -34,7 +38,12 @@ def test_values(backend):
     if backend.name != "mlx":
         assert backend.allclose(
             einx.dot("a b c, a d -> a b c d", x, y),
-            einx.vmap("a [b c], a [d] -> a [b c d]", x, y, op=lambda x, y: einx.dot("b c, d -> b c d", x, y)),
+            einx.vmap(
+                "a [b c], a [d] -> a [b c d]",
+                x,
+                y,
+                op=lambda x, y: einx.dot("b c, d -> b c d", x, y),
+            ),
         )
 
     assert backend.allclose(
@@ -81,7 +90,9 @@ def test_values(backend):
     assert backend.allclose(k, backend.to_tensor([[2, 3]]))
 
     x = backend.to_tensor(np.arange(4).reshape((2, 2)))
-    a, b, c, d = einx.rearrange("(a + b) (c + d) -> (a c), (a d), (b c), (b d)", x, a=1, b=1, c=1, d=1)
+    a, b, c, d = einx.rearrange(
+        "(a + b) (c + d) -> (a c), (a d), (b c), (b d)", x, a=1, b=1, c=1, d=1
+    )
     assert backend.allclose(a, backend.to_tensor([0]))
     assert backend.allclose(b, backend.to_tensor([1]))
     assert backend.allclose(c, backend.to_tensor([2]))
@@ -112,11 +123,19 @@ def test_values(backend):
 
     assert backend.allclose(
         backend.cast(einx.arange("a b [2]", a=5, b=6, backend=backend), "int32"),
-        backend.to_tensor(np.stack(np.meshgrid(np.arange(5), np.arange(6), indexing="ij"), axis=-1).astype("int32")),
+        backend.to_tensor(
+            np.stack(np.meshgrid(np.arange(5), np.arange(6), indexing="ij"), axis=-1).astype(
+                "int32"
+            )
+        ),
     )
     assert backend.allclose(
         backend.cast(einx.arange("b a -> a b [2]", a=5, b=6, backend=backend), "int32"),
-        backend.to_tensor(np.stack(np.meshgrid(np.arange(6), np.arange(5), indexing="xy"), axis=-1).astype("int32")),
+        backend.to_tensor(
+            np.stack(np.meshgrid(np.arange(6), np.arange(5), indexing="xy"), axis=-1).astype(
+                "int32"
+            )
+        ),
     )
 
     if backend.name != "mlx":
@@ -127,6 +146,7 @@ def test_values(backend):
             einx.get_at("... [d], ... -> ...", x, y),
             x[:, :, 3],
         )
+
 
 @pytest.mark.parametrize("backend", backends)
 def test_compare_backends(backend):

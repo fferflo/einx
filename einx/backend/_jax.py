@@ -1,9 +1,11 @@
 from functools import partial
 from .base import Backend, associative_binary_to_nary
 
+
 def make_jax_backend():
     import jax as jax_
     import jax.numpy as jnp
+
     class jax(Backend):
         @staticmethod
         def to_tensor(tensor):
@@ -14,6 +16,7 @@ def make_jax_backend():
 
         def cast(tensor, dtype):
             return tensor.astype(dtype)
+
         reshape = jnp.reshape
         transpose = jnp.transpose
         broadcast_to = jnp.broadcast_to
@@ -59,10 +62,13 @@ def make_jax_backend():
 
         def get_at(tensor, coordinates):
             return tensor[coordinates]
+
         def set_at(tensor, coordinates, updates):
             return tensor.at[coordinates].set(updates)
+
         def add_at(tensor, coordinates, updates):
             return tensor.at[coordinates].add(updates)
+
         def subtract_at(tensor, coordinates, updates):
             return tensor.at[coordinates].add(-updates)
 

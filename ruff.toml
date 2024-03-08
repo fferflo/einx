@@ -1,12 +1,16 @@
-line-length = 120
+preview = true
+line-length = 100
 target-version = "py38"
 
 [lint]
-select = ["B9", "C", "F", "W", "YTT", "ASYNC"]
-ignore = ["F401", "F403", "E722", "F821", "E402", "E741"]
+select = ["A", "B", "C", "F", "W", "YTT", "ASYNC", "E", "UP"]
+ignore = ["F401", "F403", "E722", "F821", "E402", "E741", "C901", "B017"]
 
 [format]
+preview = true
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+docstring-code-format = true
+docstring-code-line-length = 100

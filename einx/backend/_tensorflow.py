@@ -1,6 +1,7 @@
 from functools import partial
 from .base import Backend, associative_binary_to_nary
 
+
 def make_tensorflow_backend():
     import tensorflow as tf
     import tensorflow.experimental.numpy as tnp
@@ -47,6 +48,7 @@ def make_tensorflow_backend():
 
         def zeros(shape, dtype="float32"):
             return tf.zeros(shape, dtype=dtype)
+
         def ones(shape, dtype="float32"):
             return tf.ones(shape, dtype=dtype)
 
@@ -82,12 +84,15 @@ def make_tensorflow_backend():
 
         def get_at(tensor, coordinates):
             return tensor[coordinates]
+
         def set_at(tensor, coordinates, updates):
             coordinates, updates = prepare_coordinates_and_update(coordinates, updates)
             return tf.tensor_scatter_nd_update(tensor, coordinates, updates)
+
         def add_at(tensor, coordinates, updates):
             coordinates, updates = prepare_coordinates_and_update(coordinates, updates)
             return tf.tensor_scatter_nd_add(tensor, coordinates, updates)
+
         def subtract_at(tensor, coordinates, updates):
             coordinates, updates = prepare_coordinates_and_update(coordinates, updates)
             return tf.tensor_scatter_nd_sub(tensor, coordinates, updates)
@@ -96,22 +101,29 @@ def make_tensorflow_backend():
             if isinstance(axis, int):
                 axis = [axis]
             return tf.reverse(x, axis)
+
         def roll(x, axis, shift):
             if isinstance(axis, int):
                 axis = [axis]
             if isinstance(shift, int):
                 shift = [shift]
             return tf.roll(x, tuple(shift), axis=tuple(axis))
+
         def softmax(x, axis):
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
-                    raise ValueError(f"Tensorflow only supports softmax along a single axis, got {len(axis)} axes")
+                    raise ValueError(
+                        f"Tensorflow only supports softmax along a single axis, got {len(axis)} axes"
+                    )
                 axis = axis[0]
             return tf.nn.softmax(x, axis=axis)
+
         def log_softmax(x, axis):
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
-                    raise ValueError(f"Tensorflow only supports log_softmax along a single axis, got {len(axis)} axes")
+                    raise ValueError(
+                        f"Tensorflow only supports log_softmax along a single axis, got {len(axis)} axes"
+                    )
                 axis = axis[0]
             return tf.nn.log_softmax(x, axis=axis)
 
@@ -128,7 +140,9 @@ def make_tensorflow_backend():
                     raise ValueError(f"Expected {len(in_axes)} arguments, got {len(args)}")
                 value = {arg.shape[axis] for arg, axis in zip(args, in_axes) if axis is not None}
                 if len(value) != 1:
-                    raise ValueError(f"Expected all arguments to have same size along vmap axis, got {value}")
+                    raise ValueError(
+                        f"Expected all arguments to have same size along vmap axis, got {value}"
+                    )
                 value = value.pop()
 
                 # Move vmapped axes to front
@@ -144,17 +158,31 @@ def make_tensorflow_backend():
 
                 xs = tf.vectorized_map(lambda xs: op(*xs), xs)
                 if len(xs) != len(out_axes):
-                    raise ValueError(f"Expected {len(out_axes)} arguments from vmapped function, got {len(xs)}")
+                    raise ValueError(
+                        f"Expected {len(out_axes)} arguments from vmapped function, got {len(xs)}"
+                    )
 
                 # Move vmapped axis to out_axis
-                xs = [tf.transpose(x, perm=[(a + 1 if a < out_axis else (0 if a == out_axis else a)) for a in range(len(x.shape))]) for x, out_axis in zip(xs, out_axes)]
+                xs = [
+                    tf.transpose(
+                        x,
+                        perm=[
+                            (a + 1 if a < out_axis else (0 if a == out_axis else a))
+                            for a in range(len(x.shape))
+                        ],
+                    )
+                    for x, out_axis in zip(xs, out_axes)
+                ]
 
                 return tuple(xs)
+
             inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
             return inner
 
         class random:
             def bernoulli(rng, p, shape):
-                return tf.random.uniform(shape, minval=0.0, maxval=1.0, dtype="float32", seed=rng) <= p
+                return (
+                    tf.random.uniform(shape, minval=0.0, maxval=1.0, dtype="float32", seed=rng) <= p
+                )
 
     return tensorflow

@@ -5,24 +5,32 @@ import types
 import functools
 
 path = os.path.abspath(os.path.join(__file__, ".."))
+
+
 def include_frame(fname):
     return not fname.startswith(path)
+
 
 thread_local = threading.local()
 thread_local.in_reraise = False
 
+
 def _filter_tb(tb):
     tb_list = list(traceback.walk_tb(tb))
     first_excluded_idx = 0
-    while first_excluded_idx < len(tb_list) and include_frame(tb_list[first_excluded_idx][0].f_code.co_filename):
+    while first_excluded_idx < len(tb_list) and include_frame(
+        tb_list[first_excluded_idx][0].f_code.co_filename
+    ):
         first_excluded_idx += 1
     last_excluded_idx = len(tb_list) - 1
-    while last_excluded_idx >= 0 and include_frame(tb_list[last_excluded_idx][0].f_code.co_filename):
+    while last_excluded_idx >= 0 and include_frame(
+        tb_list[last_excluded_idx][0].f_code.co_filename
+    ):
         last_excluded_idx -= 1
 
     if first_excluded_idx <= last_excluded_idx:
         tb_list1 = tb_list[:first_excluded_idx]
-        tb_list2 = tb_list[last_excluded_idx + 1:]
+        tb_list2 = tb_list[last_excluded_idx + 1 :]
         tb_list = tb_list1 + tb_list2
         tb = None
         for f, line_no in tb_list:
@@ -30,10 +38,12 @@ def _filter_tb(tb):
 
     return tb
 
+
 def filter(func):
     filter = os.environ.get("EINX_FILTER_TRACEBACK", "true").lower() in ("true", "yes", "1")
 
     if filter:
+
         @functools.wraps(func)
         def func_with_reraise(*args, **kwargs):
             if not thread_local.in_reraise:
@@ -49,6 +59,7 @@ def filter(func):
                     thread_local.in_reraise = False
             else:
                 return func(*args, **kwargs)
+
         return func_with_reraise
     else:
         return func

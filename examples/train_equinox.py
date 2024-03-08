@@ -1,5 +1,8 @@
 import ssl
-ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
+
+ssl._create_default_https_context = (
+    ssl._create_unverified_context
+)  # Fixed problem with downloading CIFAR10 dataset
 
 import torch
 import einx
@@ -22,20 +25,28 @@ transform = transforms.Compose([
 
 batch_size = 256
 rng = jax.random.PRNGKey(42)
+
+
 def next_rng():
     global rng
     rng, x = jax.random.split(rng)
     return x
 
+
 cifar10_path = os.path.join(os.path.dirname(__file__), "cifar10")
-trainset = torchvision.datasets.CIFAR10(root=cifar10_path, train=True, download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+trainset = torchvision.datasets.CIFAR10(
+    root=cifar10_path, train=True, download=True, transform=transform
+)
+trainloader = torch.utils.data.DataLoader(
+    trainset, batch_size=batch_size, shuffle=True, num_workers=2
+)
 
-testset = torchvision.datasets.CIFAR10(root=cifar10_path, train=False, download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
-
-
-
+testset = torchvision.datasets.CIFAR10(
+    root=cifar10_path, train=False, download=True, transform=transform
+)
+testloader = torch.utils.data.DataLoader(
+    testset, batch_size=batch_size, shuffle=False, num_workers=2
+)
 
 
 class Block(eqx.Module):
@@ -55,6 +66,7 @@ class Block(eqx.Module):
         x = self.dropout(x, rng=rng)
         return x
 
+
 class Net(eqx.Module):
     blocks: List[Block]
     classifier: einn.Linear
@@ -68,12 +80,14 @@ class Net(eqx.Module):
             x = block(x, rng=rng)
         return self.classifier(x, rng=rng)
 
+
 train_net = Net()
 inputs, _ = next(iter(trainloader))
-train_net(jnp.asarray(inputs), rng=next_rng()) # Run on dummy batch
+train_net(jnp.asarray(inputs), rng=next_rng())  # Run on dummy batch
 
 optimizer = optax.adam(3e-4)
 opt_state = optimizer.init(eqx.filter(train_net, eqx.is_array))
+
 
 @partial(eqx.filter_jit, donate="all")
 def update_step(opt_state, net, images, labels, rng):
@@ -83,12 +97,13 @@ def update_step(opt_state, net, images, labels, rng):
         loss = jnp.mean(optax.softmax_cross_entropy(logits=logits, labels=one_hot))
         return loss
 
-    loss, grads = eqx.filter_value_and_grad(loss_fn)(net)
+    _loss, grads = eqx.filter_value_and_grad(loss_fn)(net)
 
     updates, new_opt_state = optimizer.update(grads, opt_state, net)
     new_net = eqx.apply_updates(net, updates)
 
     return new_opt_state, new_net
+
 
 @partial(eqx.filter_jit, donate="all")
 def test_step(net, images, labels):
@@ -97,15 +112,16 @@ def test_step(net, images, labels):
     return accurate
 
 
-
 print("Starting training")
 for epoch in range(100):
     t0 = time.time()
 
     # Train
-    for i, data in enumerate(trainloader):
+    for _i, data in enumerate(trainloader):
         inputs, labels = data
-        opt_state, train_net = update_step(opt_state, train_net, jnp.asarray(inputs), jnp.asarray(labels), next_rng())
+        opt_state, train_net = update_step(
+            opt_state, train_net, jnp.asarray(inputs), jnp.asarray(labels), next_rng()
+        )
 
     # Test
     correct = 0
@@ -117,4 +133,6 @@ for epoch in range(100):
         total += accurate.shape[0]
         correct += jnp.sum(accurate)
 
-    print(f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} ({time.time() - t0:.2f}sec)")
+    print(
+        f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} ({time.time() - t0:.2f}sec)"
+    )

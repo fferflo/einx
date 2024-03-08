@@ -2,6 +2,7 @@ from functools import partial
 import functools
 from .base import Backend, associative_binary_to_nary
 
+
 def to_tuple(x):
     if isinstance(x, tuple):
         return x
@@ -11,6 +12,7 @@ def to_tuple(x):
         return tuple(x.tolist())
     else:
         raise ValueError(f"Cannot convert {type(x)} to tuple")
+
 
 def make_mlx_backend():
     import mlx.core as mx
@@ -34,12 +36,16 @@ def make_mlx_backend():
 
         def cast(tensor, dtype):
             return tensor.astype(to_dtype(dtype))
+
         reshape = mx.reshape
         transpose = mx.transpose
         broadcast_to = mx.broadcast_to
+
         def einsum(einsum_str, *arrays):
             raise NotImplementedError("mlx does not support einsum yet")
+
         swapaxes = mx.swapaxes
+
         def arange(start, stop=None, step=None, dtype="int32"):
             args = [start]
             if stop is not None:
@@ -53,6 +59,7 @@ def make_mlx_backend():
 
         def zeros(shape, dtype="float32"):
             return mx.zeros(to_tuple(shape), dtype=to_dtype(dtype))
+
         def ones(shape, dtype="float32"):
             return mx.ones(to_tuple(shape), dtype=to_dtype(dtype))
 
@@ -77,8 +84,10 @@ def make_mlx_backend():
         sum = mx.sum
         mean = mx.mean
         var = mx.var
+
         def std(tensor, axis=None, ddof=0, keepdims=False):
             return mx.sqrt(mx.var(tensor, axis=axis, ddof=ddof, keepdims=keepdims))
+
         prod = mx.prod
         count_nonzero = mx.sum
         any = mx.any
@@ -89,12 +98,15 @@ def make_mlx_backend():
 
         def get_at(tensor, coordinates):
             return tensor[coordinates]
+
         def set_at(tensor, coordinates, updates):
             tensor[coordinates] = updates
             return tensor
+
         def add_at(tensor, coordinates, updates):
             tensor[coordinates] += updates
             return tensor
+
         def subtract_at(tensor, coordinates, updates):
             tensor[coordinates] -= updates
             return tensor
@@ -106,6 +118,7 @@ def make_mlx_backend():
                 c = (slice(None),) * axis + (slice(None, None, -1),)
                 tensor = tensor[c]
             return tensor
+
         def roll(tensor, shift, axis):
             if isinstance(axis, int):
                 axis = (axis,)
@@ -121,6 +134,7 @@ def make_mlx_backend():
             return tensor
 
         softmax = mx.softmax
+
         def log_softmax(x, axis=None):
             x_max = mx.max(x, axis=axis, keepdims=True)
             x = x - mx.stop_gradient(x_max)

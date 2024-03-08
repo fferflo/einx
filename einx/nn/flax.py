@@ -5,7 +5,14 @@ from functools import partial
 import jax.numpy as jnp
 from typing import Callable, Union, Optional, Any
 
-def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, init: Optional[str] = None, dtype: Optional[nn.dtypes.Dtype] = None, col: Optional[str] = None):
+
+def param(
+    bound_method: Union[Callable, nn.Module],
+    name: Optional[str] = None,
+    init: Optional[str] = None,
+    dtype: Optional[nn.dtypes.Dtype] = None,
+    col: Optional[str] = None,
+):
     """Create a tensor factory for Flax parameters.
 
     Args:
@@ -23,14 +30,19 @@ def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, 
         bound_method = bound_method.param
 
     name0 = name
+
     def flax_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
         if name0 is not None:
             name = name0
         if name is None:
-            raise ValueError("Must specify name for tensor factory flax.linen.Module.{param|variable}")
+            raise ValueError(
+                "Must specify name for tensor factory flax.linen.Module.{param|variable}"
+            )
 
         if init is None:
-            raise ValueError("Must specify init for tensor factory flax.linen.Module.{param|variable}")
+            raise ValueError(
+                "Must specify init for tensor factory flax.linen.Module.{param|variable}"
+            )
         elif isinstance(init, str):
             if init == "get_at" or init == "rearrange":
                 init = nn.initializers.normal(stddev=0.02)
@@ -39,7 +51,9 @@ def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, 
             elif init == "multiply":
                 init = nn.initializers.ones_init()
             elif init == "dot":
-                init = nn.initializers.lecun_normal(kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"])
+                init = nn.initializers.lecun_normal(
+                    kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"]
+                )
             else:
                 raise ValueError(f"Don't know which initializer to use for operation '{init}'")
         elif isinstance(init, (int, float)):
@@ -62,8 +76,12 @@ def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, 
             # Assume that variable initialization does not need an rng key by passing None:
             return bound_method(col, name, init, None, shape, dtype).value
         else:
-            raise ValueError(f"Unknown tensor factory flax.linen.Module.{bound_method.__func__.__name__}")
+            raise ValueError(
+                f"Unknown tensor factory flax.linen.Module.{bound_method.__func__.__name__}"
+            )
+
     return flax_param_factory
+
 
 def to_tensor_factory(x):
     if isinstance(x, nn.Module) or (hasattr(x, "__func__") and x.__func__ == nn.Module.param):
@@ -72,8 +90,8 @@ def to_tensor_factory(x):
         return None
 
 
-
 # Using _ prefix on classes and a separater constructor, since dataclass/nn.Module does not support **kwargs parameter.
+
 
 class _Norm(nn.Module):
     stats: str
@@ -98,8 +116,12 @@ class _Norm(nn.Module):
             x,
             self.stats,
             self.params,
-            mean=param(self.variable, col="stats", name="mean", dtype=self.dtype) if use_ema and self.mean else self.mean,
-            var=param(self.variable, col="stats", name="var", dtype=self.dtype) if use_ema and self.var else self.var,
+            mean=param(self.variable, col="stats", name="mean", dtype=self.dtype)
+            if use_ema and self.mean
+            else self.mean,
+            var=param(self.variable, col="stats", name="var", dtype=self.dtype)
+            if use_ema and self.var
+            else self.var,
             scale=param(self.param, name="scale", dtype=self.dtype) if self.scale else None,
             bias=param(self.param, name="bias", dtype=self.dtype) if self.bias else None,
             epsilon=self.epsilon,
@@ -118,7 +140,21 @@ class _Norm(nn.Module):
 
         return x
 
-def Norm(stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, decay_rate: Optional[float] = None, epsilon: float = 1e-5, fastvar: bool = True, dtype: nn.dtypes.Dtype = "float32", name: Optional[str] = None, **kwargs: Any):
+
+def Norm(
+    stats: str,
+    params: str = "b... [c]",
+    mean: bool = True,
+    var: bool = True,
+    scale: bool = True,
+    bias: bool = True,
+    decay_rate: Optional[float] = None,
+    epsilon: float = 1e-5,
+    fastvar: bool = True,
+    dtype: nn.dtypes.Dtype = "float32",
+    name: Optional[str] = None,
+    **kwargs: Any,
+):
     """Normalization layer.
 
     Args:
@@ -136,7 +172,21 @@ def Norm(stats: str, params: str = "b... [c]", mean: bool = True, var: bool = Tr
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    return _Norm(stats, params=params, mean=mean, var=var, scale=scale, bias=bias, decay_rate=decay_rate, epsilon=epsilon, fastvar=fastvar, dtype=dtype, name=name, kwargs=kwargs)
+    return _Norm(
+        stats,
+        params=params,
+        mean=mean,
+        var=var,
+        scale=scale,
+        bias=bias,
+        decay_rate=decay_rate,
+        epsilon=epsilon,
+        fastvar=fastvar,
+        dtype=dtype,
+        name=name,
+        kwargs=kwargs,
+    )
+
 
 class _Linear(nn.Module):
     expr: str
@@ -154,7 +204,14 @@ class _Linear(nn.Module):
             **(self.kwargs if self.kwargs is not None else {}),
         )
 
-def Linear(expr: str, bias: bool = True, dtype: nn.dtypes.Dtype = "float32", name: Optional[str] = None, **kwargs: Any):
+
+def Linear(
+    expr: str,
+    bias: bool = True,
+    dtype: nn.dtypes.Dtype = "float32",
+    name: Optional[str] = None,
+    **kwargs: Any,
+):
     """Linear layer.
 
     Args:
@@ -166,6 +223,7 @@ def Linear(expr: str, bias: bool = True, dtype: nn.dtypes.Dtype = "float32", nam
     """
 
     return _Linear(expr, bias=bias, dtype=dtype, name=name, kwargs=kwargs)
+
 
 class _Dropout(nn.Module):
     expr: str
@@ -186,7 +244,14 @@ class _Dropout(nn.Module):
         else:
             return x
 
-def Dropout(expr: str, drop_rate: float, rng_collection: str = "dropout", name: Optional[str] = None, **kwargs: Any):
+
+def Dropout(
+    expr: str,
+    drop_rate: float,
+    rng_collection: str = "dropout",
+    name: Optional[str] = None,
+    **kwargs: Any,
+):
     """Dropout layer.
 
     Args:

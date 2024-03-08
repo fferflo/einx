@@ -4,8 +4,12 @@ import operator
 import einx
 from .base import Backend
 
+
 def is_leaf(key, x):
-    return (isinstance(x, (tuple, list, np.ndarray)) and all(isinstance(y, (int, np.integer)) for y in x))
+    return isinstance(x, (tuple, list, np.ndarray)) and all(
+        isinstance(y, (int, np.integer)) for y in x
+    )
+
 
 def to_shape(shape):
     if isinstance(shape, np.ndarray):
@@ -14,6 +18,7 @@ def to_shape(shape):
         return tuple(shape)
     else:
         return shape
+
 
 class Tensor:
     def __init__(self, shape):
@@ -94,6 +99,7 @@ class Tensor:
     def __ne__(self, other):
         return elementwise(self, other, op="not_equal")
 
+
 class Input(Tensor):
     def __init__(self, shape, index, original_type=None):
         super().__init__(shape)
@@ -107,7 +113,12 @@ class Input(Tensor):
         return 712873 + hash(self.shape) + hash(self.original_type)
 
     def __eq__(self, other):
-        return isinstance(other, Input) and self.shape == other.shape and self.original_type == other.original_type
+        return (
+            isinstance(other, Input)
+            and self.shape == other.shape
+            and self.original_type == other.original_type
+        )
+
 
 class Op:
     def __init__(self, op, tracable):
@@ -137,17 +148,29 @@ class Op:
             op = self.op
         return op(*args, **kwargs)
 
+
 class OpApplication:
-    def __init__(self, op, args=[], kwargs={}, output_shapes=None):
+    def __init__(self, op, args=None, kwargs=None, output_shapes=None):
+        if kwargs is None:
+            kwargs = {}
+        if args is None:
+            args = []
         if not isinstance(op, (Op, VmappedOp)):
             op = Op(op, tracable=isinstance(op, str))
-        assert not isinstance(op, Op) or (not op.tracable or isinstance(op.op, str)), f"{op} {op.op}"
+        assert not isinstance(op, Op) or (
+            not op.tracable or isinstance(op.op, str)
+        ), f"{op} {op.op}"
         self.op = op
         self.args = args
         self.kwargs = kwargs
-        self.output_shapes = einx.tree_util.tree_map_with_key(lambda shape, key: tuple(int(i) for i in shape), output_shapes, is_leaf=is_leaf)
-        self.output_tracers = einx.tree_util.tree_map_with_key(lambda shape, key: OpOutput(self, shape, key), self.output_shapes, is_leaf=is_leaf)
+        self.output_shapes = einx.tree_util.tree_map_with_key(
+            lambda shape, key: tuple(int(i) for i in shape), output_shapes, is_leaf=is_leaf
+        )
+        self.output_tracers = einx.tree_util.tree_map_with_key(
+            lambda shape, key: OpOutput(self, shape, key), self.output_shapes, is_leaf=is_leaf
+        )
         assert "backend" not in self.kwargs
+
 
 class OpOutput(Tensor):
     def __init__(self, application, shape, key):
@@ -155,11 +178,13 @@ class OpOutput(Tensor):
         self.application = application
         self.key = key
 
+
 def drop_axis(shape, axis):
     if axis is None:
         return shape
     else:
-        return shape[:axis] + shape[axis + 1:]
+        return shape[:axis] + shape[axis + 1 :]
+
 
 class VmappedOp:
     def __init__(self, op, in_axes, out_axes, input_shapes, output_shapes):
@@ -195,7 +220,10 @@ class VmappedOp:
         return [drop_axis(shape, axis) for shape, axis in zip(self.output_shapes, self.out_axes)]
 
     def __call__(self, *args, **kwargs):
-        return OpApplication(self, args=args, kwargs=kwargs, output_shapes=self.output_shapes).output_tracers
+        return OpApplication(
+            self, args=args, kwargs=kwargs, output_shapes=self.output_shapes
+        ).output_tracers
+
 
 class Scope:
     def __init__(self, backend, parent_scope=None):
@@ -248,7 +276,10 @@ class Scope:
 
     def declare_local_name_for(self, x, prefix="x"):
         if x is None:
-            x = lambda: 1 # Unique new object
+
+            def x():
+                return 1  # Unique new object
+
         i = 0
         while self.name_exists(name := f"{prefix}{i}"):
             i += 1
@@ -262,7 +293,10 @@ class Scope:
 
         lines = []
         output = function_scope.eval(graph.output)
-        lines.insert(0, f"def {name}({', '.join([function_scope.eval(x) for x in graph.input_tracers] + [op + '=' + op for op in function_scope.used_functions])}):")
+        lines.insert(
+            0,
+            f"def {name}({', '.join([function_scope.eval(x) for x in graph.input_tracers] + [op + '=' + op for op in function_scope.used_functions])}):",
+        )
         for line in function_scope.lines:
             lines.append(f"    {line}")
         lines.append(f"    return {output}")
@@ -321,6 +355,7 @@ class Scope:
                         return x
                     else:
                         return self.eval(s)
+
                 slices = ", ".join(slice_to_str(s) for s in slices)
 
                 name = self.declare_local_name_for(x)
@@ -339,10 +374,14 @@ class Scope:
                     args = self.eval(args)
                     kwargs = self.eval(kwargs)
 
-                    self.lines.append(f"{name} = backend.apply({op}, args={args}, kwargs={kwargs}, output_shapes={self.eval(x.output_shapes)})")
+                    self.lines.append(
+                        f"{name} = backend.apply({op}, args={args}, kwargs={kwargs}, output_shapes={self.eval(x.output_shapes)})"
+                    )
                 else:
                     op = self.eval(x.op)
-                    args = [self.eval(a) for a in args] + [f"{k}={self.eval(v)}" for k, v in kwargs.items()]
+                    args = [self.eval(a) for a in args] + [
+                        f"{k}={self.eval(v)}" for k, v in kwargs.items()
+                    ]
                     if op == "einx.param.instantiate":
                         args += ["backend=backend"]
                     args = ", ".join(args)
@@ -351,8 +390,10 @@ class Scope:
 
                 # Shape assertion
                 if self.backend != einx.backend.tracer and x.op.requires_dynamic_shape_check:
+
                     def assertion(tracer, shape):
                         self.lines.append(f"assert {self.eval(tracer)}.shape == {self.eval(shape)}")
+
                     einx.tree_util.tree_map(assertion, x.output_tracers, x.output_shapes)
         elif isinstance(x, OpOutput):
             name = self.eval(x.application)
@@ -362,17 +403,21 @@ class Scope:
             old_name = self.eval(x.op)
             name = self.declare_local_name_for(None, prefix="op")
             if self.backend == einx.backend.tracer:
-                self.lines.append(f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)}, input_shapes={self.eval(x.input_shapes)}, output_shapes={self.eval(x.output_shapes)})")
+                self.lines.append(
+                    f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)}, input_shapes={self.eval(x.input_shapes)}, output_shapes={self.eval(x.output_shapes)})"
+                )
             else:
-                self.lines.append(f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)})")
+                self.lines.append(
+                    f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)})"
+                )
         elif isinstance(x, str):
-            name = f"\"{x}\""
+            name = f'"{x}"'
         elif isinstance(x, tuple):
             name = "(" + ", ".join(self.eval(a) for a in x) + ("," if len(x) == 1 else "") + ")"
         elif isinstance(x, list):
             name = "[" + ", ".join(self.eval(a) for a in x) + "]"
         elif isinstance(x, dict):
-            name = "{" + ", ".join(f"\"{k}\": {self.eval(v)}" for k, v in x.items()) + "}"
+            name = "{" + ", ".join(f'"{k}": {self.eval(v)}' for k, v in x.items()) + "}"
         elif isinstance(x, (int, float, np.integer, np.floating)):
             name = str(x)
         elif isinstance(x, slice):
@@ -389,11 +434,12 @@ class Scope:
             name = self.declare_local_name_for(x, prefix="const")
             self.root_scope.constants.append((name, x))
             self.root_scope.locals[id(x)] = name
-            return name # Don't add to locals
+            return name  # Don't add to locals
 
         assert name is not None
         self.locals[id(x)] = name
         return name
+
 
 def optimize(output, backend):
     new_nodes = {}
@@ -403,32 +449,63 @@ def optimize(output, backend):
             return new_nodes[id(node)]
 
         if isinstance(node, OpApplication):
-            if node.op.op == "reshape" and isinstance(node.args[0], OpOutput) and node.args[0].application.op.op == "reshape":
+            if (
+                node.op.op == "reshape"
+                and isinstance(node.args[0], OpOutput)
+                and node.args[0].application.op.op == "reshape"
+            ):
                 # Merge consecutive reshape ops
-                new_node = OpApplication("reshape", args=[node.args[0].application.args[0], node.output_shapes], output_shapes=node.output_shapes)
-            elif node.op.op == "to_tensor" and isinstance(node.args[0], OpOutput) and node.args[0].application.op.op == "to_tensor":
+                new_node = OpApplication(
+                    "reshape",
+                    args=[node.args[0].application.args[0], node.output_shapes],
+                    output_shapes=node.output_shapes,
+                )
+            elif (
+                node.op.op == "to_tensor"
+                and isinstance(node.args[0], OpOutput)
+                and node.args[0].application.op.op == "to_tensor"
+            ):
                 # Merge consecutive to_tensor ops
                 new_node = _optimize(node.args[0].application)
             else:
-                new_node = OpApplication(node.op, args=[_optimize(a) for a in node.args], kwargs={k: _optimize(v) for k, v in node.kwargs.items()}, output_shapes=node.output_shapes)
+                new_node = OpApplication(
+                    node.op,
+                    args=[_optimize(a) for a in node.args],
+                    kwargs={k: _optimize(v) for k, v in node.kwargs.items()},
+                    output_shapes=node.output_shapes,
+                )
         elif isinstance(node, OpOutput):
-            if node.application.op.op == "to_tensor" and backend != einx.backend.tracer and isinstance(node.application.args[0], Input) and node.application.args[0].original_type is not None and issubclass(node.application.args[0].original_type, backend.tensor):
+            if (
+                node.application.op.op == "to_tensor"
+                and backend != einx.backend.tracer
+                and isinstance(node.application.args[0], Input)
+                and node.application.args[0].original_type is not None
+                and issubclass(node.application.args[0].original_type, backend.tensor)
+            ):
                 # Skip to_tensor op if tensor already has right type
                 new_node = _optimize(node.application.args[0])
-            elif node.application.op.op == "reshape" and node.application.args[0].shape == node.shape:
+            elif (
+                node.application.op.op == "reshape" and node.application.args[0].shape == node.shape
+            ):
                 # Skip reshape op if tensor already has right shape
                 new_node = _optimize(node.application.args[0])
             else:
                 new_node = OpOutput(_optimize(node.application), node.shape, node.key)
             # TODO: skip transpose ops etc. Remove checks in all functions
         elif isinstance(node, VmappedOp):
-            new_node = VmappedOp(_optimize(node.op), node.in_axes, node.out_axes, node.input_shapes, node.output_shapes)
+            new_node = VmappedOp(
+                _optimize(node.op),
+                node.in_axes,
+                node.out_axes,
+                node.input_shapes,
+                node.output_shapes,
+            )
         elif isinstance(node, Op):
             new_node = Op(_optimize(node.op), tracable=node.tracable)
         elif isinstance(node, Input):
             new_node = node
         elif isinstance(node, Graph):
-            assert False, "TODO"
+            raise AssertionError("TODO")
         elif isinstance(node, list):
             new_node = [_optimize(x) for x in node]
         elif isinstance(node, tuple):
@@ -445,10 +522,11 @@ def optimize(output, backend):
     return new_output
 
 
-
 class Graph:
     def __init__(self, output, args, kwargs, backend):
-        assert any(isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)), "No output value is traced"
+        assert any(
+            isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)
+        ), "No output value is traced"
         self.output = optimize(output, backend)
         self.args = args
         self.kwargs = kwargs
@@ -457,6 +535,7 @@ class Graph:
         # Get input tracers
         self.input_tracers = []
         index = 0
+
         def map(x):
             nonlocal index
             if isinstance(x, Input):
@@ -464,6 +543,7 @@ class Graph:
                 assert x.index == index
                 index += 1
             return x
+
         einx.tree_util.tree_map(map, args)
         einx.tree_util.tree_map(map, kwargs)
 
@@ -481,9 +561,6 @@ class Graph:
         return str(self.scope)
 
 
-
-
-
 def elementwise(*args, op):
     shape = None
     for a in args:
@@ -498,6 +575,7 @@ def elementwise(*args, op):
                     shape2 = (1,) + shape2
                 shape = np.maximum(shape, shape2)
     return OpApplication(op, args=args, output_shapes=shape).output_tracers
+
 
 def reduce(tensor, axis=None, *, op=None, **kwargs):
     keepdims = kwargs.get("keepdims", False)
@@ -515,8 +593,12 @@ def reduce(tensor, axis=None, *, op=None, **kwargs):
         kwargs = {**kwargs, **{"axis": axis}}
     return OpApplication(op, args=[tensor], kwargs=kwargs, output_shapes=shape).output_tracers
 
+
 def map(tensor, axis, op, *args, **kwargs):
-    return OpApplication(op, args=[tensor], kwargs={**kwargs, **{"axis": axis}}, output_shapes=tensor.shape).output_tracers
+    return OpApplication(
+        op, args=[tensor], kwargs={**kwargs, **{"axis": axis}}, output_shapes=tensor.shape
+    ).output_tracers
+
 
 def index(tensor, coordinates, update=None, op=None):
     if update is None:
@@ -557,6 +639,7 @@ def index(tensor, coordinates, update=None, op=None):
                 if len(dims) > 2 or len(dims) == 2 and np.amin(dims) > 1:
                     raise ValueError("Cannot broadcast coordinates")
                 return np.amax(dims)
+
             shapes = [c.shape for c in coordinates2 if not isinstance(c, slice)]
             if len({len(s) for s in shapes}) != 1:
                 raise ValueError("Expected all coordinates to have same number of dimensions")
@@ -564,7 +647,11 @@ def index(tensor, coordinates, update=None, op=None):
             shape = [broadcast(shapes[:, i]) for i in range(shapes.shape[1])]
 
             # Prepend and append slices
-            shape = tuple([tensor.shape[i] for i in front_slices] + shape + [tensor.shape[i] for i in back_slices])
+            shape = tuple(
+                [tensor.shape[i] for i in front_slices]
+                + shape
+                + [tensor.shape[i] for i in back_slices]
+            )
         else:
             output_shape = []
             input_shape = tensor.shape
@@ -585,7 +672,10 @@ def index(tensor, coordinates, update=None, op=None):
 
         return OpApplication(op, args=[tensor, coordinates], output_shapes=shape).output_tracers
     else:
-        return OpApplication(op, args=[tensor, coordinates, update], output_shapes=tensor.shape).output_tracers
+        return OpApplication(
+            op, args=[tensor, coordinates, update], output_shapes=tensor.shape
+        ).output_tracers
+
 
 class tracer(Backend):
     Input = Input
@@ -594,9 +684,13 @@ class tracer(Backend):
     @staticmethod
     def to_tensor(tensor):
         if isinstance(tensor, Tensor):
-            return OpApplication("to_tensor", args=[tensor], output_shapes=tensor.shape).output_tracers
+            return OpApplication(
+                "to_tensor", args=[tensor], output_shapes=tensor.shape
+            ).output_tracers
         else:
-            return OpApplication("to_tensor", args=[tensor], output_shapes=einx.param.get_shape(tensor)).output_tracers
+            return OpApplication(
+                "to_tensor", args=[tensor], output_shapes=einx.param.get_shape(tensor)
+            ).output_tracers
 
     tensor = Tensor
     name = "tracer"
@@ -616,15 +710,22 @@ class tracer(Backend):
         op = backend.op(op)
         if op.tracable:
             x = op(*args, **kwargs)
+
             def assertion(tensor, shape):
                 assert tuple(tensor.shape) == tuple(shape)
+
             einx.tree_util.tree_map(assertion, x, output_shapes)
             return x
         else:
-            return OpApplication(op, args=args, kwargs=kwargs, output_shapes=output_shapes).output_tracers
+            return OpApplication(
+                op, args=args, kwargs=kwargs, output_shapes=output_shapes
+            ).output_tracers
 
     def cast(tensor, dtype):
-        return OpApplication("cast", args=[tensor], kwargs={"dtype": dtype}, output_shapes=tensor.shape).output_tracers
+        return OpApplication(
+            "cast", args=[tensor], kwargs={"dtype": dtype}, output_shapes=tensor.shape
+        ).output_tracers
+
     def reshape(tensor, shape):
         return OpApplication("reshape", args=[tensor, shape], output_shapes=shape).output_tracers
 
@@ -633,7 +734,9 @@ class tracer(Backend):
         return OpApplication("transpose", args=[tensor, perm], output_shapes=shape).output_tracers
 
     def broadcast_to(tensor, shape):
-        return OpApplication("broadcast_to", args=[tensor, shape], output_shapes=shape).output_tracers
+        return OpApplication(
+            "broadcast_to", args=[tensor, shape], output_shapes=shape
+        ).output_tracers
 
     def einsum(eq, *tensors):
         exprs = eq.split("->")[0].split(",")
@@ -643,11 +746,15 @@ class tracer(Backend):
         for i, (expr, tensor) in enumerate(zip(exprs, tensors)):
             expr = expr.strip().replace(" ", "")
             if len(expr) != len(tensor.shape):
-                raise ValueError(f"Expected {len(expr)} axes, got {len(tensor.shape)} for {i}-th (zero-based) input tensor")
+                raise ValueError(
+                    f"Expected {len(expr)} axes, got {len(tensor.shape)} for {i}-th (zero-based) input tensor"
+                )
             for axis, value in zip(expr, tensor.shape):
                 if axis in values:
                     if values[axis] != value:
-                        raise ValueError(f"Got conflicting values for axis {axis}: {values[axis]} and {value}")
+                        raise ValueError(
+                            f"Got conflicting values for axis {axis}: {values[axis]} and {value}"
+                        )
                 else:
                     values[axis] = value
         expr_out = eq.split("->")[-1].strip().replace(" ", "")
@@ -660,7 +767,9 @@ class tracer(Backend):
         return OpApplication("swapaxes", args=[a, axis1, axis2], output_shapes=shape).output_tracers
 
     def arange(n, dtype="int32"):
-        return OpApplication("arange", args=[n], kwargs={"dtype": dtype}, output_shapes=(n,)).output_tracers
+        return OpApplication(
+            "arange", args=[n], kwargs={"dtype": dtype}, output_shapes=(n,)
+        ).output_tracers
 
     def stack(tensors, axis):
         shape = list(tensors[0].shape)
@@ -670,13 +779,15 @@ class tracer(Backend):
     def concatenate(tensors, axis):
         shape = list(tensors[0].shape)
         shape[axis] = sum(tensor.shape[axis] for tensor in tensors)
-        return OpApplication("concatenate", args=[tensors, axis], output_shapes=shape).output_tracers
+        return OpApplication(
+            "concatenate", args=[tensors, axis], output_shapes=shape
+        ).output_tracers
 
     def zeros(shape, dtype="float32"):
         return OpApplication("zeros", args=[shape, dtype], output_shapes=shape).output_tracers
+
     def ones(shape, dtype="float32"):
         return OpApplication("ones", args=[shape, dtype], output_shapes=shape).output_tracers
-
 
     add = partial(elementwise, op="add")
     subtract = partial(elementwise, op="subtract")
@@ -720,8 +831,10 @@ class tracer(Backend):
 
     def sqrt(tensor):
         return OpApplication("sqrt", args=[tensor], output_shapes=tensor.shape).output_tracers
+
     def rsqrt(tensor):
         return OpApplication("rsqrt", args=[tensor], output_shapes=tensor.shape).output_tracers
+
     def square(tensor):
         return OpApplication("square", args=[tensor], output_shapes=tensor.shape).output_tracers
 
@@ -733,4 +846,6 @@ class tracer(Backend):
 
     class random:
         def bernoulli(rng, p, shape):
-            return OpApplication("random.bernoulli", args=[rng, p, shape], output_shapes=shape).output_tracers
+            return OpApplication(
+                "random.bernoulli", args=[rng, p, shape], output_shapes=shape
+            ).output_tracers

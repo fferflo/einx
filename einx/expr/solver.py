@@ -1,6 +1,7 @@
 import sympy
 import math
 
+
 class Expression:
     def __init__(self):
         pass
@@ -16,6 +17,7 @@ class Expression:
 
     def __rmul__(self, other):
         return Product([other, self])
+
 
 class Variable(Expression):
     def __init__(self, id, name):
@@ -38,6 +40,7 @@ class Variable(Expression):
     def sympy(self):
         return sympy.Symbol(self.id)
 
+
 class Constant(Expression):
     def __init__(self, value):
         Expression.__init__(self)
@@ -57,6 +60,7 @@ class Constant(Expression):
 
     def sympy(self):
         return self.value
+
 
 class Sum(Expression):
     @staticmethod
@@ -91,6 +95,7 @@ class Sum(Expression):
     def sympy(self):
         return sum([c.sympy() for c in self.children])
 
+
 class Product(Expression):
     @staticmethod
     def maybe(children):
@@ -124,6 +129,7 @@ class Product(Expression):
     def sympy(self):
         return math.prod([c.sympy() for c in self.children])
 
+
 def to_term(x):
     if isinstance(x, int):
         return Constant(x)
@@ -132,34 +138,44 @@ def to_term(x):
             raise TypeError(f"Expected Expression, got {type(x)}")
         return x
 
+
 class SolveException(Exception):
     def __init__(self, message):
         self.message = message
+
 
 def solve(equations):
     equations = [(to_term(t1), to_term(t2)) for t1, t2 in equations]
     equations = [(t1, t2) for t1, t2 in equations if t1 != t2]
     equations = list(set(equations))
-    variables = {v.id: v for terms in equations for term in terms for v in term if isinstance(v, Variable)}
+    variables = {
+        v.id: v for terms in equations for term in terms for v in term if isinstance(v, Variable)
+    }
 
-    ##### Find equivalence classes of variables to speed up sympy solver #####
+    # Find equivalence classes of variables to speed up sympy solver #####
     # Find constant definitions
-    constants = {} # id: constant value
+    constants = {}  # id: constant value
     for t1, t2 in equations:
         if isinstance(t1, Variable) and isinstance(t2, Constant):
             if constants.get(t1.id, t2.value) != t2.value:
-                raise SolveException(f"Found contradictory values { {constants[t1.id], t2.value} } for expression '{t1.name}'")
+                raise SolveException(
+                    f"Found contradictory values { {constants[t1.id], t2.value} } for expression '{t1.name}'"
+                )
             constants[t1.id] = t2.value
         elif isinstance(t1, Constant) and isinstance(t2, Variable):
             if constants.get(t2.id, t1.value) != t1.value:
-                raise SolveException(f"Found contradictory values { {constants[t2.id], t1.value} } for expression '{t2.name}'")
+                raise SolveException(
+                    f"Found contradictory values { {constants[t2.id], t1.value} } for expression '{t2.name}'"
+                )
             constants[t2.id] = t1.value
         elif isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
-                raise SolveException(f"Found contradictory values {t1.value} != {t2.value} in input equation")
+                raise SolveException(
+                    f"Found contradictory values {t1.value} != {t2.value} in input equation"
+                )
 
     # Find equivalence classes of variables
-    classes = {v: {v} for v in variables} # id: set of equivalent ids
+    classes = {v: {v} for v in variables}  # id: set of equivalent ids
     for t1, t2 in equations:
         if isinstance(t1, Variable) and isinstance(t2, Variable):
             assert t1.id in classes and t2.id in classes
@@ -170,7 +186,7 @@ def solve(equations):
                 set1.add(t_id)
 
     # For every class: Use constant if it exists, or create single class variable
-    origvar_to_solvevar = {} # id: Variable or Constant
+    origvar_to_solvevar = {}  # id: Variable or Constant
     for eclass in {id(s): s for s in classes.values()}.values():
         if any(n in constants for n in eclass):
             # Use constant
@@ -178,13 +194,20 @@ def solve(equations):
             if len(class_constants) != 1:
                 names = {variables[a].name for a in eclass}
                 if len(names) == 1:
-                    raise SolveException(f"Found contradictory values {class_constants} for expression '{next(iter(names))}'")
+                    raise SolveException(
+                        f"Found contradictory values {class_constants} for expression '{next(iter(names))}'"
+                    )
                 else:
-                    raise SolveException(f"Found contradictory values {class_constants} for equivalent expressions {names}")
+                    raise SolveException(
+                        f"Found contradictory values {class_constants} for equivalent expressions {names}"
+                    )
             v = Constant(next(iter(class_constants)))
         else:
             # Create new variable for class
-            v = Variable(f"Class-{id(eclass)}", f"Equivalent expressions { {variables[a].name for a in eclass} }")
+            v = Variable(
+                f"Class-{id(eclass)}",
+                f"Equivalent expressions { {variables[a].name for a in eclass} }",
+            )
         for n in eclass:
             assert n not in origvar_to_solvevar
             origvar_to_solvevar[n] = v
@@ -200,19 +223,22 @@ def solve(equations):
         elif isinstance(t, Product):
             return Product.maybe([replace(c) for c in t.children])
         else:
-            assert False
+            raise AssertionError()
+
     equations2 = []
     for t1o, t2o in equations:
         t1 = replace(t1o)
         t2 = replace(t2o)
         if isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
-                raise SolveException(f"Found contradictory values {t1.value} != {t2.value} for same equivalence class")
+                raise SolveException(
+                    f"Found contradictory values {t1.value} != {t2.value} for same equivalence class"
+                )
         elif t1 != t2:
             equations2.append((t1, t2))
     equations = equations2
 
-    ##### Solve remaining equations using sympy #####
+    # Solve remaining equations using sympy #####
     solutions = {}
     if len(equations) > 0:
         sympy_equations = [sympy.Eq(t1.sympy(), t2.sympy()) for t1, t2 in equations]
@@ -231,7 +257,9 @@ def solve(equations):
                     raise SolveException("Sympy returned multiple possible solutions")
                 else:
                     solutions = next(iter(solutions))
-                    solutions = {str(k): int(v) for k, v in zip(variables, solutions) if v.is_number}
+                    solutions = {
+                        str(k): int(v) for k, v in zip(variables, solutions) if v.is_number
+                    }
             else:
                 raise SolveException("Sympy returned unexpected result")
 
@@ -244,6 +272,6 @@ def solve(equations):
             if v.id in solutions:
                 orig_solutions[k] = solutions[v.id]
         else:
-            assert False
+            raise AssertionError()
 
     return orig_solutions

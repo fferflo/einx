@@ -5,6 +5,7 @@ from functools import partial
 import jax.numpy as jnp
 from typing import Optional, Callable, Any
 
+
 def param(module, name=None, init=None, dtype=None, rng=None):
     """Create a tensor factory for Equinox parameters.
 
@@ -38,7 +39,9 @@ def param(module, name=None, init=None, dtype=None, rng=None):
             elif init == "multiply":
                 init = jax.nn.initializers.constant(1.0, dtype=dtype)
             elif init == "dot":
-                init = jax.nn.initializers.lecun_normal(kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"])
+                init = jax.nn.initializers.lecun_normal(
+                    kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"]
+                )
             else:
                 raise ValueError(f"Don't know which initializer to use for operation '{init}'")
         elif isinstance(init, (int, float)):
@@ -49,12 +52,12 @@ def param(module, name=None, init=None, dtype=None, rng=None):
         else:
             tensor = vars(module)[name] = init(rng, shape, dtype)
         return tensor
+
     return equinox_param_factory
+
 
 def to_tensor_factory(x):
     return None
-
-
 
 
 class Norm(eqx.Module):
@@ -88,7 +91,20 @@ class Norm(eqx.Module):
     dtype: str
     kwargs: dict
 
-    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, decay_rate: Optional[float] = None, epsilon: float = 1e-5, fastvar: bool = True, dtype: Any = "float32", **kwargs: Any):
+    def __init__(
+        self,
+        stats: str,
+        params: str = "b... [c]",
+        mean: bool = True,
+        var: bool = True,
+        scale: bool = True,
+        bias: bool = True,
+        decay_rate: Optional[float] = None,
+        epsilon: float = 1e-5,
+        fastvar: bool = True,
+        dtype: Any = "float32",
+        **kwargs: Any,
+    ):
         if decay_rate is not None:
             raise ValueError("Stateful layers are currently not supported in Equinox")
         self.stats = stats
@@ -106,7 +122,7 @@ class Norm(eqx.Module):
         self.kwargs = kwargs
 
     def __call__(self, x, rng=None):
-        x, mean, var = einx.nn.norm(
+        x, _mean, _var = einx.nn.norm(
             x,
             self.stats,
             self.params,
@@ -119,6 +135,7 @@ class Norm(eqx.Module):
             **self.kwargs,
         )
         return x
+
 
 class Linear(eqx.Module):
     """Linear layer.
@@ -151,6 +168,7 @@ class Linear(eqx.Module):
             weight=param(self, name="weight", rng=rng),
             **self.kwargs,
         )
+
 
 class Dropout(eqx.Module):
     """Dropout layer.

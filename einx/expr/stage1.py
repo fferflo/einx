@@ -2,6 +2,7 @@ from collections import defaultdict
 import re
 import uuid
 
+
 class Expression:
     def __init__(self, begin_pos, end_pos):
         self.begin_pos = begin_pos
@@ -16,6 +17,7 @@ class Expression:
             return 1 + self.parent.depth
         else:
             return self.parent.depth
+
 
 class Composition(Expression):
     def __init__(self, inner, begin_pos=-1, end_pos=-1):
@@ -40,6 +42,7 @@ class Composition(Expression):
     def direct_children(self):
         yield self.inner
 
+
 class Marker(Expression):
     def __init__(self, inner, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
@@ -63,6 +66,7 @@ class Marker(Expression):
     def direct_children(self):
         yield self.inner
 
+
 class NamedAxis(Expression):
     def __init__(self, name, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
@@ -84,6 +88,7 @@ class NamedAxis(Expression):
     def direct_children(self):
         yield from ()
 
+
 class UnnamedAxis(Expression):
     def __init__(self, value, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
@@ -104,6 +109,7 @@ class UnnamedAxis(Expression):
     @property
     def direct_children(self):
         yield from ()
+
 
 class Ellipsis(Expression):
     anonymous_variable_name = "_anonymous_ellipsis_axis"
@@ -137,6 +143,7 @@ class Ellipsis(Expression):
     def direct_children(self):
         yield self.inner
 
+
 class Concatenation(Expression):
     def maybe(l, *args, **kwargs):
         if len(l) == 1:
@@ -159,7 +166,9 @@ class Concatenation(Expression):
         return " + ".join([str(c) for c in self.children])
 
     def __deepcopy__(self):
-        return Concatenation([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
+        return Concatenation(
+            [c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos
+        )
 
     def expansion(self):
         return 1
@@ -167,6 +176,7 @@ class Concatenation(Expression):
     @property
     def direct_children(self):
         yield from self.children
+
 
 class List(Expression):
     @staticmethod
@@ -204,6 +214,7 @@ class List(Expression):
     def direct_children(self):
         yield from self.children
 
+
 class Choice(Expression):
     def __init__(self, children, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
@@ -234,7 +245,6 @@ class Choice(Expression):
         yield from self.children
 
 
-
 class Token:
     def __init__(self, pos, text):
         self.begin_pos = pos
@@ -245,7 +255,8 @@ class Token:
         return self.text
 
     def __repr__(self):
-        return f"Token(\"{self.text}\")"
+        return f'Token("{self.text}")'
+
 
 class ParseError(Exception):
     def __init__(self, expression, pos, message):
@@ -256,6 +267,7 @@ class ParseError(Exception):
 
     def __str__(self):
         return self.message + "\nHere: " + self.expression + "\n" + " " * (self.pos + 6) + "^"
+
 
 _parentheses = {
     "(": ")",
@@ -269,6 +281,7 @@ _ellipsis = "..."
 _axis_name = r"[a-zA-Z_][a-zA-Z0-9_]*"
 _literals = _nary_ops + list(_parentheses_front) + list(_parentheses_back) + [_ellipsis]
 
+
 def parse(text):
     text = text.strip()
     for x in _nary_ops:
@@ -277,11 +290,10 @@ def parse(text):
         while f"{x} " in text:
             text = text.replace(f"{x} ", x)
 
-
-
     # Lexer
     tokens = []
     start_pos = 0
+
     def next_token(end_pos):
         nonlocal start_pos
         if start_pos != end_pos:
@@ -311,14 +323,22 @@ def parse(text):
 
         # Parentheses
         if isinstance(in_tokens[0], Token) and in_tokens[0].text in _parentheses_front:
-            assert len(in_tokens) >= 2 and isinstance(in_tokens[-1], Token) and in_tokens[-1].text in _parentheses_back
+            assert (
+                len(in_tokens) >= 2
+                and isinstance(in_tokens[-1], Token)
+                and in_tokens[-1].text in _parentheses_back
+            )
             if in_tokens[0].text == "(":
                 op = Composition
             elif in_tokens[0].text == "[":
                 op = Marker
             else:
-                assert False
-            return op(parse(in_tokens[1:-1], in_tokens[1].begin_pos), in_tokens[0].begin_pos, in_tokens[-1].end_pos)
+                raise AssertionError()
+            return op(
+                parse(in_tokens[1:-1], in_tokens[1].begin_pos),
+                in_tokens[0].begin_pos,
+                in_tokens[-1].end_pos,
+            )
 
         # N-ary operators
         for nary_op in _nary_ops:
@@ -329,12 +349,26 @@ def parse(text):
                 for token in in_tokens:
                     if isinstance(token, Token) and token.text == nary_op:
                         if allow_empty_operands or len(current_tokens) > 0:
-                            out_tokens.append(parse(current_tokens, current_tokens[0].begin_pos if len(current_tokens) > 0 else token.begin_pos))
+                            out_tokens.append(
+                                parse(
+                                    current_tokens,
+                                    current_tokens[0].begin_pos
+                                    if len(current_tokens) > 0
+                                    else token.begin_pos,
+                                )
+                            )
                         current_tokens = []
                     else:
                         current_tokens.append(token)
                 if allow_empty_operands or len(current_tokens) > 0:
-                    out_tokens.append(parse(current_tokens, current_tokens[0].begin_pos if len(current_tokens) > 0 else token.begin_pos))
+                    out_tokens.append(
+                        parse(
+                            current_tokens,
+                            current_tokens[0].begin_pos
+                            if len(current_tokens) > 0
+                            else token.begin_pos,
+                        )
+                    )
 
                 if nary_op == " ":
                     op = List
@@ -343,16 +377,28 @@ def parse(text):
                 elif nary_op == "+":
                     op = Concatenation
                 else:
-                    assert False
+                    raise AssertionError()
                 return op(out_tokens, in_tokens[0].begin_pos, in_tokens[-1].end_pos)
 
         # Ellipsis
         if isinstance(in_tokens[-1], Token) and in_tokens[-1].text == _ellipsis:
             if len(in_tokens) == 1:
-                return Ellipsis(NamedAxis(Ellipsis.anonymous_variable_name, in_tokens[0].begin_pos, in_tokens[0].begin_pos), in_tokens[0].begin_pos, in_tokens[0].end_pos)
+                return Ellipsis(
+                    NamedAxis(
+                        Ellipsis.anonymous_variable_name,
+                        in_tokens[0].begin_pos,
+                        in_tokens[0].begin_pos,
+                    ),
+                    in_tokens[0].begin_pos,
+                    in_tokens[0].end_pos,
+                )
             else:
                 assert len(in_tokens) == 2
-                return Ellipsis(parse(in_tokens[:-1], in_tokens[0].begin_pos), in_tokens[0].begin_pos, in_tokens[1].end_pos)
+                return Ellipsis(
+                    parse(in_tokens[:-1], in_tokens[0].begin_pos),
+                    in_tokens[0].begin_pos,
+                    in_tokens[1].end_pos,
+                )
 
         # Axis
         if len(in_tokens) == 1 and isinstance(in_tokens[0], Token):
@@ -361,13 +407,15 @@ def parse(text):
                 return UnnamedAxis(int(value), in_tokens[0].begin_pos, in_tokens[0].end_pos)
             else:
                 if not re.fullmatch(_axis_name, in_tokens[0].text):
-                    raise ParseError(text, in_tokens[0].begin_pos, f"Invalid axis name '{in_tokens[0].text}'")
+                    raise ParseError(
+                        text, in_tokens[0].begin_pos, f"Invalid axis name '{in_tokens[0].text}'"
+                    )
                 return NamedAxis(value, in_tokens[0].begin_pos, in_tokens[0].end_pos)
 
         if len(in_tokens) == 1:
             return in_tokens[0]
 
-        assert False
+        raise AssertionError()
 
     stack = [[]]
     for token in tokens:
@@ -376,20 +424,28 @@ def parse(text):
             stack[-1].append(token)
         elif token.text in _parentheses_back:
             if len(stack) == 1 or _parentheses[stack[-1][0].text] != token.text:
-                raise ParseError(text, token.begin_pos, f"Unexpected closing parenthesis '{token.text}'")
+                raise ParseError(
+                    text, token.begin_pos, f"Unexpected closing parenthesis '{token.text}'"
+                )
             stack[-1].append(token)
             group = stack.pop()
             stack[-1].append(parse(group, group[0].begin_pos))
         else:
             stack[-1].append(token)
     if len(stack) > 1:
-        raise ParseError(text, stack[-1][0].begin_pos, f"Unclosed parenthesis '{stack[-1][0].text}'")
+        raise ParseError(
+            text, stack[-1][0].begin_pos, f"Unclosed parenthesis '{stack[-1][0].text}'"
+        )
     expression = parse(stack[0], 0)
 
     # Semantic check: Choice must be inside marker
     for expr in expression.all():
-        if isinstance(expr, Choice) and (expr.parent is None or not isinstance(expr.parent, Marker)):
-            raise ParseError(text, expr.begin_pos, "Choice with | can only appear inside a [] marker")
+        if isinstance(expr, Choice) and (
+            expr.parent is None or not isinstance(expr.parent, Marker)
+        ):
+            raise ParseError(
+                text, expr.begin_pos, "Choice with | can only appear inside a [] marker"
+            )
 
     # Semantic check: Choices must have same number of options
     num = None
@@ -399,7 +455,9 @@ def parse(text):
             if num is None:
                 num = n
             elif num != n:
-                raise ParseError(text, expr.begin_pos, "Choices must have the same number of options")
+                raise ParseError(
+                    text, expr.begin_pos, "Choices must have the same number of options"
+                )
 
     # Semantic check: Axis names can only be used once per expression
     def traverse(expr, key, axes_by_key):
@@ -418,7 +476,7 @@ def parse(text):
             for i, c in enumerate(expr.children):
                 traverse(c, key + ((id(expr), i),), axes_by_key)
         elif isinstance(expr, Choice):
-            assert False
+            raise AssertionError()
         elif isinstance(expr, Marker):
             traverse(expr.inner, key, axes_by_key)
         elif isinstance(expr, Ellipsis):
@@ -434,7 +492,12 @@ def parse(text):
             for i in range(len(key) + 1):
                 exprs.extend(axes_by_key[key[:i]])
             if len(exprs) > 1:
-                raise ParseError(text, exprs[1].begin_pos, f"Axis name '{exprs[0].name}' is used more than once in expression '{root}'")
+                raise ParseError(
+                    text,
+                    exprs[1].begin_pos,
+                    f"Axis name '{exprs[0].name}' is used more than once in expression '{root}'",
+                )
+
     if num is None:
         check(expression)
     else:
@@ -442,10 +505,6 @@ def parse(text):
             check(choose(expression, i, num))
 
     return expression
-
-
-
-
 
 
 def expr_map(f):
@@ -465,13 +524,17 @@ def expr_map(f):
                 return [expr], signal
             else:
                 raise TypeError(f"Invalid return type {type(expr)}")
+
         return List.maybe(_expr_map(expr, f2))
+
     return outer
+
 
 expr_map.CONTINUE = 1
 expr_map.COPY_AND_STOP = 2
 expr_map.REPLACE_AND_STOP = 3
 expr_map.REPLACE_AND_CONTINUE = 4
+
 
 def _expr_map(expr, f):
     exprs, signal = f(expr)
@@ -508,7 +571,6 @@ def _expr_map(expr, f):
         raise TypeError(f"Invalid expression type {type(expr)}")
 
 
-
 @expr_map
 def _choose(expr, index, num):
     if isinstance(expr, Choice):
@@ -516,15 +578,18 @@ def _choose(expr, index, num):
             raise ValueError(f"Expected choice with {num} choices, got {len(expr.children)}")
         return [expr.children[index]], expr_map.REPLACE_AND_CONTINUE
 
+
 def choose(expr, index, num):
     if not any(isinstance(expr, Choice) for expr in expr.all()):
         raise ValueError("Expression does not contain any choices")
     return _choose(expr, index, num)
 
+
 @expr_map
 def demark(expr):
     if isinstance(expr, Marker):
         return expr.inner, expr_map.REPLACE_AND_CONTINUE
+
 
 def any_parent_is(expr, pred, include_self=True):
     if not include_self:
@@ -537,8 +602,10 @@ def any_parent_is(expr, pred, include_self=True):
         expr = expr.parent
     return False
 
+
 def is_marked(expr):
     return any_parent_is(expr, lambda expr: isinstance(expr, Marker))
+
 
 def _get_marked(expr):
     if isinstance(expr, NamedAxis):
@@ -564,17 +631,21 @@ def _get_marked(expr):
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
 
+
 def get_marked(expr):
     return List.maybe(_get_marked(expr))
 
+
 def get_unmarked(expr):
     return remove(expr, lambda expr: is_marked(expr))
+
 
 @expr_map
 def replace(expr, f):
     expr = f(expr)
     if expr is not None:
         return expr, expr_map.REPLACE_AND_STOP
+
 
 @expr_map
 def remove(expr, pred):

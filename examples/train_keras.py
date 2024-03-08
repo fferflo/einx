@@ -1,5 +1,8 @@
 import ssl
-ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
+
+ssl._create_default_https_context = (
+    ssl._create_unverified_context
+)  # Fixed problem with downloading CIFAR10 dataset
 
 import torch
 import keras
@@ -20,16 +23,25 @@ transform = transforms.Compose([
 batch_size = 256
 
 cifar10_path = os.path.join(os.path.dirname(__file__), "cifar10")
-trainset = torchvision.datasets.CIFAR10(root=cifar10_path, train=True, download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+trainset = torchvision.datasets.CIFAR10(
+    root=cifar10_path, train=True, download=True, transform=transform
+)
+trainloader = torch.utils.data.DataLoader(
+    trainset, batch_size=batch_size, shuffle=True, num_workers=2
+)
 
-testset = torchvision.datasets.CIFAR10(root=cifar10_path, train=False, download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
-
+testset = torchvision.datasets.CIFAR10(
+    root=cifar10_path, train=False, download=True, transform=transform
+)
+testloader = torch.utils.data.DataLoader(
+    testset, batch_size=batch_size, shuffle=False, num_workers=2
+)
 
 
 # Option 1: Functional
-inputs = x = keras.Input(shape=(3, 32, 32), batch_size=1) # Requires specifying batch_size with some dummy value, since dynamic shapes are not allowed
+inputs = x = keras.Input(
+    shape=(3, 32, 32), batch_size=1
+)  # Requires specifying batch_size with some dummy value, since dynamic shapes are not allowed
 for c in [1024, 512, 256]:
     x = einn.Linear("b [...|c]", c=c)(x)
     x = einn.Norm("[b] c", decay_rate=0.99)(x)
@@ -49,9 +61,9 @@ model = keras.Model(inputs=inputs, outputs=x)
 # model = keras.Sequential(blocks)
 
 
-
 optimizer = keras.optimizers.Adam(learning_rate=1e-3)
 loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+
 
 @tf.function
 def train_step(inputs, labels):
@@ -62,11 +74,13 @@ def train_step(inputs, labels):
     grads = tape.gradient(loss_value, model.trainable_weights)
     optimizer.apply(grads, model.trainable_weights)
 
+
 @tf.function
 def test_step(inputs, labels):
     outputs = model(inputs, training=False)
     predicted = tf.math.argmax(outputs, axis=1)
     return predicted == labels
+
 
 print("Starting training")
 for epoch in range(100):
@@ -92,4 +106,6 @@ for epoch in range(100):
         total += accurate.shape[0]
         correct += tf.math.count_nonzero(accurate)
 
-    print(f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)")
+    print(
+        f"Test accuracy after {epoch + 1:5d} epochs {float(correct) / total} ({time.time() - t0:.2f}sec)"
+    )

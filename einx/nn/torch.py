@@ -9,14 +9,22 @@ _version = tuple(int(i) for i in torch.__version__.split(".")[:2])
 if _version < (2, 0):
     raise ImportError(f"einx.nn.torch requires PyTorch version >= 2, but found {torch.__version__}")
 
+
 def _allow_in_graph(func):
     if "compiler" in dir(torch):
         return torch.compiler.allow_in_graph(func)
     else:
         import torch._dynamo as _dynamo
+
         return _dynamo.allow_in_graph(func)
 
-def param(uninitialized: Union[torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer], init: Optional[Callable] = None):
+
+def param(
+    uninitialized: Union[
+        torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer
+    ],
+    init: Optional[Callable] = None,
+):
     """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
     When the tensor factory is invoked, it calls the ``materialize`` method of ``uninitialized`` with the given shape and returns ``uninitialized``.
@@ -31,7 +39,9 @@ def param(uninitialized: Union[torch.nn.parameter.UninitializedParameter, torch.
 
     def torch_param_factory(shape, init=init, **kwargs):
         if init is None:
-            raise ValueError("Must specify init for tensor factory torch.nn.parameter.Uninitialized*")
+            raise ValueError(
+                "Must specify init for tensor factory torch.nn.parameter.Uninitialized*"
+            )
         elif isinstance(init, str):
             if init == "get_at" or init == "rearrange":
                 init = partial(torch.nn.init.normal_, std=0.02)
@@ -41,7 +51,7 @@ def param(uninitialized: Union[torch.nn.parameter.UninitializedParameter, torch.
                 init = torch.nn.init.ones_
             elif init == "dot":
                 fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
-                std = np.sqrt(1.0 / fan_in) / .87962566103423978
+                std = np.sqrt(1.0 / fan_in) / 0.87962566103423978
                 init = partial(torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-2.0, b=2.0)
             else:
                 raise ValueError(f"Don't know which initializer to use for operation '{init}'")
@@ -53,13 +63,18 @@ def param(uninitialized: Union[torch.nn.parameter.UninitializedParameter, torch.
             init(uninitialized)
 
         return uninitialized
+
     return torch_param_factory
 
+
 def to_tensor_factory(x):
-    if isinstance(x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)) and not isinstance(x, torch._subclasses.FakeTensor):
+    if isinstance(
+        x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)
+    ) and not isinstance(x, torch._subclasses.FakeTensor):
         return param(x)
     else:
         return None
+
 
 class Norm(torch.nn.Module):
     """Normalization layer.
@@ -78,7 +93,20 @@ class Norm(torch.nn.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, epsilon: float = 1e-5, fastvar: bool = True, dtype: Union[torch.dtype, str] = "float32", decay_rate: Optional[float] = None, **kwargs: Any):
+    def __init__(
+        self,
+        stats: str,
+        params: str = "b... [c]",
+        mean: bool = True,
+        var: bool = True,
+        scale: bool = True,
+        bias: bool = True,
+        epsilon: float = 1e-5,
+        fastvar: bool = True,
+        dtype: Union[torch.dtype, str] = "float32",
+        decay_rate: Optional[float] = None,
+        **kwargs: Any,
+    ):
         super().__init__()
         self.stats = stats
         self.params = params
@@ -90,15 +118,23 @@ class Norm(torch.nn.Module):
         self.kwargs = kwargs
 
         if mean and decay_rate is not None:
-            self.register_buffer("mean", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
+            self.register_buffer(
+                "mean", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype])
+            )
         else:
             self.mean = None
         if var and decay_rate is not None:
-            self.register_buffer("var", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
+            self.register_buffer(
+                "var", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype])
+            )
         else:
             self.var = None
-        self.scale = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if scale else None
-        self.bias = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if bias else None
+        self.scale = (
+            torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if scale else None
+        )
+        self.bias = (
+            torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype]) if bias else None
+        )
 
         self.initialized = False
 
@@ -127,6 +163,7 @@ class Norm(torch.nn.Module):
             self.initialized = True
         return x
 
+
 @_allow_in_graph
 def _norm(x, stats, params, mean, var, scale, bias, epsilon, fastvar, kwargs):
     with x.device:
@@ -144,6 +181,7 @@ def _norm(x, stats, params, mean, var, scale, bias, epsilon, fastvar, kwargs):
             **kwargs,
         )
 
+
 class Linear(torch.nn.Module):
     """Linear layer.
 
@@ -154,7 +192,13 @@ class Linear(torch.nn.Module):
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
-    def __init__(self, expr: str, bias: bool = True, dtype: Union[torch.dtype, str] = "float32", **kwargs: Any):
+    def __init__(
+        self,
+        expr: str,
+        bias: bool = True,
+        dtype: Union[torch.dtype, str] = "float32",
+        **kwargs: Any,
+    ):
         super().__init__()
 
         self.weight = torch.nn.parameter.UninitializedParameter(dtype=vars(torch)[dtype])
@@ -169,6 +213,7 @@ class Linear(torch.nn.Module):
     def forward(self, x):
         return _linear(x, self.expr, self.weight, self.bias, self.kwargs)
 
+
 @_allow_in_graph
 def _linear(x, expr, weight, bias, kwargs):
     with x.device:
@@ -180,6 +225,7 @@ def _linear(x, expr, weight, bias, kwargs):
             backend="torch",
             **kwargs,
         )
+
 
 class Dropout(torch.nn.Module):
     """Dropout layer.
@@ -202,6 +248,7 @@ class Dropout(torch.nn.Module):
             return _dropout(x, self.expr, self.drop_rate, self.kwargs)
         else:
             return x
+
 
 @_allow_in_graph
 def _dropout(x, expr, drop_rate, kwargs):

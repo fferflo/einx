@@ -8,7 +8,14 @@ _version = tuple(int(i) for i in keras.__version__.split(".")[:2])
 if _version < (3, 0):
     raise ImportError(f"einx.nn.keras requires Keras version >= 3, but found {keras.__version__}")
 
-def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[Callable] = None, dtype: Optional[Any] = None, trainable: bool = True):
+
+def param(
+    layer: keras.layers.Layer,
+    name: Optional[str] = None,
+    init: Optional[Callable] = None,
+    dtype: Optional[Any] = None,
+    trainable: bool = True,
+):
     """Create a tensor factory for Keras parameters.
 
     Args:
@@ -23,6 +30,7 @@ def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[
     """
 
     name0 = name
+
     def keras_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
         if name0 is not None:
             name = name0
@@ -46,7 +54,7 @@ def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[
                 init = keras.initializers.Constant(1.0)
             elif init == "dot":
                 fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
-                std = np.sqrt(1.0 / fan_in) / .87962566103423978
+                std = np.sqrt(1.0 / fan_in) / 0.87962566103423978
                 init = keras.initializers.TruncatedNormal(mean=0.0, stddev=std)
             else:
                 raise ValueError(f"Don't know which initializer to use for operation '{init}'")
@@ -64,18 +72,21 @@ def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[
                 trainable=trainable,
             )
         return tensor
+
     return keras_param_factory
+
 
 def to_tensor_factory(x):
     return None
 
 
-
 def einx_backend_for_keras():
     return einx.backend.get(keras.config.backend())
 
+
 def is_leaf(x):
     return isinstance(x, tuple) and all(isinstance(y, int) for y in x)
+
 
 class Layer(keras.layers.Layer):
     def __init__(self, *args, **kwargs):
@@ -83,12 +94,15 @@ class Layer(keras.layers.Layer):
 
     def build(self, inputs_shape):
         backend = einx_backend_for_keras()
-        tracers = einx.tree_util.tree_map(lambda shape: backend.zeros(shape=shape, dtype="float32"), inputs_shape, is_leaf=is_leaf)
+        tracers = einx.tree_util.tree_map(
+            lambda shape: backend.zeros(shape=shape, dtype="float32"), inputs_shape, is_leaf=is_leaf
+        )
 
         if "is_initializing" in inspect.signature(self.call).parameters:
             self.call(tracers, is_initializing=True)
         else:
             self.call(tracers)
+
 
 class Norm(Layer):
     """Normalization layer.
@@ -106,7 +120,21 @@ class Norm(Layer):
         decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
-    def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, epsilon: float = 1e-5, fastvar: bool = True, dtype: Any = "float32", decay_rate: Optional[float] = None, **kwargs: Any):
+
+    def __init__(
+        self,
+        stats: str,
+        params: str = "b... [c]",
+        mean: bool = True,
+        var: bool = True,
+        scale: bool = True,
+        bias: bool = True,
+        epsilon: float = 1e-5,
+        fastvar: bool = True,
+        dtype: Any = "float32",
+        decay_rate: Optional[float] = None,
+        **kwargs: Any,
+    ):
         super().__init__(dtype=dtype)
         self.stats = stats
         self.params = params
@@ -125,8 +153,12 @@ class Norm(Layer):
             x,
             self.stats,
             self.params,
-            mean=param(self, name="mean", trainable=False) if use_ema and self.use_mean else self.use_mean,
-            var=param(self, name="var", trainable=False) if use_ema and self.use_var else self.use_var,
+            mean=param(self, name="mean", trainable=False)
+            if use_ema and self.use_mean
+            else self.use_mean,
+            var=param(self, name="var", trainable=False)
+            if use_ema and self.use_var
+            else self.use_var,
             scale=param(self, name="scale", trainable=True) if self.use_scale else None,
             bias=param(self, name="bias", trainable=True) if self.use_bias else None,
             epsilon=self.epsilon,
@@ -153,6 +185,7 @@ class Norm(Layer):
 
         return x
 
+
 class Linear(Layer):
     """Linear layer.
 
@@ -178,6 +211,7 @@ class Linear(Layer):
             weight=param(self, name="weight"),
             **self.kwargs,
         )
+
 
 class Dropout(Layer):
     """Dropout layer.

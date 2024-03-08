@@ -2,6 +2,7 @@ import einx
 from .base import Backend, ErrorBackend, associative_binary_to_nary
 import numpy as np
 
+
 def to_tuple(x):
     if isinstance(x, tuple):
         return x
@@ -11,6 +12,7 @@ def to_tuple(x):
         return tuple(x.tolist())
     else:
         raise ValueError(f"Cannot convert {type(x)} to tuple")
+
 
 def make_torch_backend():
     import torch as torch_
@@ -40,13 +42,18 @@ def make_torch_backend():
 
         def cast(tensor, dtype):
             return tensor.type(to_dtype(dtype))
+
         def reshape(tensor, shape):
             return torch_.reshape(tensor, to_tuple(shape))
+
         transpose = torch_.permute
+
         def broadcast_to(tensor, shape):
             return torch_.broadcast_to(tensor, to_tuple(shape))
+
         einsum = torch_.einsum
         swapaxes = torch_.swapaxes
+
         def arange(n, dtype):
             return torch_.arange(n, dtype=vars(torch_)[dtype])
 
@@ -54,9 +61,14 @@ def make_torch_backend():
         concatenate = torch_.cat
 
         def zeros(shape, dtype="float32"):
-            return torch_.zeros(to_tuple(shape), dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
+            return torch_.zeros(
+                to_tuple(shape), dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype
+            )
+
         def ones(shape, dtype="float32"):
-            return torch_.ones(to_tuple(shape), dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
+            return torch_.ones(
+                to_tuple(shape), dtype=vars(torch_)[dtype] if isinstance(dtype, str) else dtype
+            )
 
         add = associative_binary_to_nary(torch_.add)
         subtract = torch_.subtract
@@ -73,9 +85,13 @@ def make_torch_backend():
         greater_equal = torch_.greater_equal
         equal = torch_.equal
         not_equal = torch_.not_equal
+
         @associative_binary_to_nary
         def maximum(a, b):
-            return torch_.maximum(torch.to_tensor(a), torch.to_tensor(b)) # TODO: add support for python scalars everywhere
+            return torch_.maximum(
+                torch.to_tensor(a), torch.to_tensor(b)
+            )  # TODO: add support for python scalars everywhere
+
         @associative_binary_to_nary
         def minimum(a, b):
             return torch_.minimum(torch.to_tensor(a), torch.to_tensor(b))
@@ -112,9 +128,11 @@ def make_torch_backend():
         def set_at(tensor, coordinates, updates):
             tensor[coordinates] = updates
             return tensor
+
         def add_at(tensor, coordinates, updates):
             tensor[coordinates] += updates
             return tensor
+
         def subtract_at(tensor, coordinates, updates):
             tensor[coordinates] -= updates
             return tensor
@@ -123,20 +141,27 @@ def make_torch_backend():
             if isinstance(axis, int):
                 axis = [axis]
             return torch_.flip(tensor, axis)
+
         def roll(tensor, shift, axis):
             if isinstance(axis, int):
                 axis = [axis]
             return torch_.roll(tensor, shift, axis)
+
         def softmax(tensor, axis):
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
-                    raise ValueError(f"PyTorch only supports softmax along a single axis, got {len(axis)} axes")
+                    raise ValueError(
+                        f"PyTorch only supports softmax along a single axis, got {len(axis)} axes"
+                    )
                 axis = axis[0]
             return torch_.softmax(tensor, axis)
+
         def log_softmax(tensor, axis):
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
-                    raise ValueError(f"PyTorch only supports log_softmax along a single axis, got {len(axis)} axes")
+                    raise ValueError(
+                        f"PyTorch only supports log_softmax along a single axis, got {len(axis)} axes"
+                    )
                 axis = axis[0]
             return torch_.nn.functional.log_softmax(tensor, axis)
 
@@ -163,12 +188,14 @@ def make_torch_backend():
                 return torch_.compiler.disable(f)
             else:
                 import torch._dynamo as _dynamo
+
                 return _dynamo.disable(f)
 
     if "compiler" in dir(torch_):
         einx.lru_cache.decorate_traced_functions(torch_.compiler.allow_in_graph)
     else:
         import torch._dynamo as _dynamo
+
         einx.lru_cache.decorate_traced_functions(_dynamo.allow_in_graph)
 
     return torch

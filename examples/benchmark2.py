@@ -21,9 +21,36 @@ n = args.n // k
 rows = []
 
 envs = [
-    ("torch-eager", einx.backend.get("torch"), lambda x: x, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
-    ("torch-compile", einx.backend.get("torch"), torch.compile, lambda x: x.cuda(), lambda x: torch.cuda.synchronize(), lambda x: np.asarray(x.cpu()), torch.rsqrt, True),
-    ("jax-jit", einx.backend.get("jax"), jax.jit, lambda x: x, lambda x: x.block_until_ready(), lambda x: np.asarray(x), jax.lax.rsqrt, False),
+    (
+        "torch-eager",
+        einx.backend.get("torch"),
+        lambda x: x,
+        lambda x: x.cuda(),
+        lambda x: torch.cuda.synchronize(),
+        lambda x: np.asarray(x.cpu()),
+        torch.rsqrt,
+        True,
+    ),
+    (
+        "torch-compile",
+        einx.backend.get("torch"),
+        torch.compile,
+        lambda x: x.cuda(),
+        lambda x: torch.cuda.synchronize(),
+        lambda x: np.asarray(x.cpu()),
+        torch.rsqrt,
+        True,
+    ),
+    (
+        "jax-jit",
+        einx.backend.get("jax"),
+        jax.jit,
+        lambda x: x,
+        lambda x: x.block_until_ready(),
+        lambda x: np.asarray(x),
+        jax.lax.rsqrt,
+        False,
+    ),
 ]
 
 k = int(math.sqrt(args.n))
@@ -53,9 +80,11 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     key = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
     value = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
 
-
     def benchmark_einx(x, bias, scale):
-        return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[0]
+        return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[
+            0
+        ]
+
     def benchmark_idx(x, bias, scale):
         mean = xnp.mean(x, axis=-1, keepdims=True)
         var = xnp.var(x, axis=-1, keepdims=True)
@@ -64,15 +93,25 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x = inv * (x - mean) + bias
 
         return x
+
     if "torch" in env_name:
+
         def benchmark_native(x, bias, scale):
-            return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
+            return torch.nn.functional.layer_norm(
+                x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon
+            )
     else:
         benchmark_native = None
-    experiments.append(("layernorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+    experiments.append((
+        "layernorm",
+        (benchmark_einx, benchmark_native, benchmark_idx),
+        lambda m: (x, z1, z2),
+        3.0,
+    ))
 
     def benchmark_einx(x, bias, scale):
         return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)[0]
+
     def benchmark_idx(x, bias, scale):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
         mean = xnp.mean(x, axis=-1, keepdims=True)
@@ -83,15 +122,27 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x = inv * (x - mean) + bias
 
         return x
+
     if "torch" in env_name:
+
         def benchmark_native(x, bias, scale):
-            return torch.nn.functional.layer_norm(x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon)
+            return torch.nn.functional.layer_norm(
+                x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon
+            )
     else:
         benchmark_native = None
-    experiments.append(("layernorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, z1, z2), 3.0))
+    experiments.append((
+        "layernorm_fastvar",
+        (benchmark_einx, benchmark_native, benchmark_idx),
+        lambda m: (x, z1, z2),
+        3.0,
+    ))
 
     def benchmark_einx(x, bias, scale):
-        return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[0]
+        return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[
+            0
+        ]
+
     def benchmark_idx(x, bias, scale):
         mean = xnp.mean(x, axis=(1, 2), keepdims=True)
         var = xnp.var(x, axis=(1, 2), keepdims=True)
@@ -100,15 +151,25 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x = inv * (x - mean) + bias
 
         return x
+
     if "torch" in env_name:
+
         def benchmark_native(x, bias, scale):
-            return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
+            return torch.nn.functional.batch_norm(
+                x, None, None, weight=scale, bias=bias, eps=epsilon, training=True
+            )
     else:
         benchmark_native = None
-    experiments.append(("batchnorm", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
+    experiments.append((
+        "batchnorm",
+        (benchmark_einx, benchmark_native, benchmark_idx),
+        lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2),
+        3.0,
+    ))
 
     def benchmark_einx(x, bias, scale):
         return einx.nn.norm(x, "[b...] c", bias=bias, scale=scale, epsilon=epsilon, fastvar=True)[0]
+
     def benchmark_idx(x, bias, scale):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
         mean = xnp.mean(x, axis=(1, 2), keepdims=True)
@@ -119,26 +180,43 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x = inv * (x - mean) + bias
 
         return x
+
     if "torch" in env_name:
+
         def benchmark_native(x, bias, scale):
-            return torch.nn.functional.batch_norm(x, None, None, weight=scale, bias=bias, eps=epsilon, training=True)
+            return torch.nn.functional.batch_norm(
+                x, None, None, weight=scale, bias=bias, eps=epsilon, training=True
+            )
     else:
         benchmark_native = None
-    experiments.append(("batchnorm_fastvar", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2), 3.0))
+    experiments.append((
+        "batchnorm_fastvar",
+        (benchmark_einx, benchmark_native, benchmark_idx),
+        lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2),
+        3.0,
+    ))
 
     def benchmark_einx(x, bias, weight):
         return einx.nn.linear(x, "b... [c1|c2]", bias=bias, weight=weight)
+
     def benchmark_idx(x, bias, weight):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
         x = xnp.dot(x, weight)
         x = x + bias
         return x
+
     if "torch" in env_name:
+
         def benchmark_native(x, bias, weight):
             return torch.nn.functional.linear(x, weight=weight, bias=bias)
     else:
         benchmark_native = None
-    experiments.append(("channel_linear", (benchmark_einx, benchmark_native, benchmark_idx), lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w), 1.0))
+    experiments.append((
+        "channel_linear",
+        (benchmark_einx, benchmark_native, benchmark_idx),
+        lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w),
+        1.0,
+    ))
 
     def benchmark_einx(x, w1, b1, w2, b2):
         x0 = x
@@ -147,6 +225,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x = einx.nn.linear(x, "b [s2|s...] c", weight=w2, bias=b2)
         x = x + x0
         return x
+
     def benchmark_idx(x, w1, b1, w2, b2):
         # https://github.com/lucidrains/mlp-mixer-pytorch/blob/main/mlp_mixer_pytorch/mlp_mixer_pytorch.py
         # https://github.com/google-research/vision_transformer/blob/main/vit_jax/models_mixer.py
@@ -163,29 +242,38 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x = x.reshape(shape)
         x = x + x0
         return x
-    experiments.append(("spatial_mlp", (benchmark_einx, None, benchmark_idx), lambda m: (x, w1, b128, w2, y), 1.0))
 
-
+    experiments.append((
+        "spatial_mlp",
+        (benchmark_einx, None, benchmark_idx),
+        lambda m: (x, w1, b128, w2, y),
+        1.0,
+    ))
 
     heads = 8
+
     def benchmark_einx(q, k, v, heads=heads):
         attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=heads)
         attn = einx.softmax("b q [k] h", attn)
         x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
         return x
+
     def benchmark_idx(q, k, v, heads=heads):
-        q = einops.rearrange(q, 'b l (h k) -> b h l k', h=heads)
-        k = einops.rearrange(k, 'b t (h k) -> b h t k', h=heads)
-        v = einops.rearrange(v, 'b t (h v) -> b h t v', h=heads)
-        attn = xnp.einsum('bhlk,bhtk->bhlt', q, k)
+        q = einops.rearrange(q, "b l (h k) -> b h l k", h=heads)
+        k = einops.rearrange(k, "b t (h k) -> b h t k", h=heads)
+        v = einops.rearrange(v, "b t (h v) -> b h t v", h=heads)
+        attn = xnp.einsum("bhlk,bhtk->bhlt", q, k)
         attn = xnp.softmax(attn, axis=3)
-        x = xnp.einsum('bhlt,bhtv->bhlv', attn, v)
-        x = einops.rearrange(x, 'b h l v -> b l (h v)')
+        x = xnp.einsum("bhlt,bhtv->bhlv", attn, v)
+        x = einops.rearrange(x, "b h l v -> b l (h v)")
         return x
-    experiments.append(("multihead-attention", (benchmark_einx, None, benchmark_idx), lambda m: (query, key, value), 1.0))
 
-
-
+    experiments.append((
+        "multihead-attention",
+        (benchmark_einx, None, benchmark_idx),
+        lambda m: (query, key, value),
+        1.0,
+    ))
 
     for name, methods, inputs, mul in experiments:
         name = env_name + " " + name
@@ -221,15 +309,25 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
                 for method in methods2:
                     if method is not None:
                         inputs2 = inputs(method)
-                        times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs2)), repeat=1, number=k)[0] / k)
+                        times[method.__name__].append(
+                            timeit.repeat(
+                                lambda: block_until_ready(method(*inputs2)), repeat=1, number=k
+                            )[0]
+                            / k
+                        )
         elif order == "sequential":
             for method in methods:
                 if method is not None:
                     inputs2 = inputs(method)
                     for _ in range(max(1, int(n * mul))):
-                        times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs2)), repeat=1, number=k)[0] / k)
+                        times[method.__name__].append(
+                            timeit.repeat(
+                                lambda: block_until_ready(method(*inputs2)), repeat=1, number=k
+                            )[0]
+                            / k
+                        )
         else:
-            assert False
+            raise AssertionError()
 
         for key2 in list(times.keys()):
             p = int(len(times[key2]) * 0.2)
@@ -240,7 +338,9 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
         for method in methods:
             if method is not None:
-                print(f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}")
+                print(
+                    f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}"
+                )
         rows.append((name, times))
         print()
 
@@ -248,20 +348,37 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     gc.collect()
 
 import tabulate
+
 table = []
+
+
 def tostr(times):
     if len(times) == 0 or times is None:
         return ""
     m = f"{np.mean(times):0.3f}"
     s = f"{np.std(times):0.3f}"
     return f"{m:>7} +- {s:>7}"
+
+
 for name, times in rows:
     times = {k: np.asarray(v) for k, v in times.items()}
     table.append([
         name,
-        1000000.0 * (np.mean(times['benchmark_einx']) - np.mean(times['benchmark_native'] if 'benchmark_native' in times else times['benchmark_idx'])),
-        tostr(1000.0 * times['benchmark_einx']),
-        tostr(1000.0 * times['benchmark_native']) if 'benchmark_native' in times else "",
-        tostr(1000.0 * times['benchmark_idx']),
+        1000000.0
+        * (
+            np.mean(times["benchmark_einx"])
+            - np.mean(
+                times["benchmark_native"] if "benchmark_native" in times else times["benchmark_idx"]
+            )
+        ),
+        tostr(1000.0 * times["benchmark_einx"]),
+        tostr(1000.0 * times["benchmark_native"]) if "benchmark_native" in times else "",
+        tostr(1000.0 * times["benchmark_idx"]),
     ])
-print(tabulate.tabulate(table, headers=["Method", "einx overhead (us)", "einx (ms)", "native (ms)", "index-based (ms)"], tablefmt="github"))
+print(
+    tabulate.tabulate(
+        table,
+        headers=["Method", "einx overhead (us)", "einx (ms)", "native (ms)", "index-based (ms)"],
+        tablefmt="github",
+    )
+)

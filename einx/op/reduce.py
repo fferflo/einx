@@ -5,20 +5,30 @@ from functools import partial
 from typing import Callable, Union
 import numpy.typing as npt
 
-_any = any # Is overwritten below
+_any = any  # Is overwritten below
 
-@einx.lru_cache(trace=lambda t, c: lambda expr_in, tensor_in, expr_out, op, backend=None: c(expr_in, t(tensor_in), expr_out, op=op))
+
+@einx.lru_cache(
+    trace=lambda t, c: lambda expr_in, tensor_in, expr_out, op, backend=None: c(
+        expr_in, t(tensor_in), expr_out, op=op
+    )
+)
 def reduce_stage3(expr_in, tensor_in, expr_out, op, backend=None):
     for root in [expr_in, expr_out]:
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
-    tensors_out, exprs_out = einx.vmap_with_axis_stage3([expr_in], [tensor_in], [expr_out], op, backend=backend)
+    tensors_out, exprs_out = einx.vmap_with_axis_stage3(
+        [expr_in], [tensor_in], [expr_out], op, backend=backend
+    )
     return tensors_out[0], exprs_out[0]
+
 
 @einx.lru_cache
 def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
-    description, parameters = einx.op.util._clean_description_and_parameters(description, parameters)
+    description, parameters = einx.op.util._clean_description_and_parameters(
+        description, parameters
+    )
 
     if "," in description:
         raise ValueError("Only a single input and output expression is allowed")
@@ -33,24 +43,36 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
         expr_in, expr_out = description
 
         expr_in, expr_out = einx.expr.solve(
-                [einx.expr.Equation(expr_in, tensor_shape)] \
-              + [einx.expr.Equation(expr_out)] \
-              + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
+            [einx.expr.Equation(expr_in, tensor_shape)]
+            + [einx.expr.Equation(expr_out)]
+            + [
+                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+                for k, v in parameters.items()
+            ],
             cse=cse,
             cse_in_markers=True,
         )[:2]
 
         # If no axes are marked for reduction in expr_in, mark all axes that don't appear in expr_out
         if not _any(einx.expr.stage3.is_marked(expr) for expr in expr_in.all()):
-            axes_names_out = {axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)}
-            expr_in = einx.expr.stage3.mark(expr_in, lambda expr: isinstance(expr, einx.expr.stage3.Axis) and expr.name not in axes_names_out)
+            axes_names_out = {
+                axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)
+            }
+            expr_in = einx.expr.stage3.mark(
+                expr_in,
+                lambda expr: isinstance(expr, einx.expr.stage3.Axis)
+                and expr.name not in axes_names_out,
+            )
 
     else:
         expr_in = description
 
         expr_in = einx.expr.solve(
-                [einx.expr.Equation(expr_in, tensor_shape)] \
-              + [einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None) for k, v in parameters.items()],
+            [einx.expr.Equation(expr_in, tensor_shape)]
+            + [
+                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+                for k, v in parameters.items()
+            ],
             cse=cse,
             cse_in_markers=True,
         )[0]
@@ -65,13 +87,27 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
                     return [einx.expr.stage3.Axis(None, 1)]
                 else:
                     return []
+
         expr_out = einx.expr.stage3.replace(expr_in, replace)
 
     return expr_in, expr_out
 
+
 @einx.traceback_util.filter
-@einx.lru_cache(trace=lambda t, c: lambda description, tensor, backend=None, **kwargs: c(description, t(tensor), **kwargs))
-def reduce(description: str, tensor: einx.Tensor, op: Union[Callable, str], keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+@einx.lru_cache(
+    trace=lambda t, c: lambda description, tensor, backend=None, **kwargs: c(
+        description, t(tensor), **kwargs
+    )
+)
+def reduce(
+    description: str,
+    tensor: einx.Tensor,
+    op: Union[Callable, str],
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Applies a reduction operation on the given tensors.
 
     The function flattens all input tensors, applies the given reduction operation and rearranges
@@ -131,97 +167,219 @@ def reduce(description: str, tensor: einx.Tensor, op: Union[Callable, str], keep
         >>> einx.var("[...] c", x).shape
         (3,)
     """
-    expr_in, expr_out = parse(description, einx.param.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters)
+    expr_in, expr_out = parse(
+        description, einx.param.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters
+    )
     tensor, expr_out = reduce_stage3(expr_in, tensor, expr_out, op=op, backend=backend)
     return tensor
+
+
 reduce.parse = parse
 
 
-
 @einx.traceback_util.filter
-def sum(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def sum(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="sum"``"""
-    return reduce(description, tensor, op="sum", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="sum", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def sum_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="sum", **kwargs)
 
+
 @einx.traceback_util.filter
-def mean(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def mean(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="mean"``"""
-    return reduce(description, tensor, op="mean", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="mean", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def mean_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="mean", **kwargs)
 
+
 @einx.traceback_util.filter
-def var(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def var(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="var"``"""
-    return reduce(description, tensor, op="var", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="var", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def var_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="var", **kwargs)
 
+
 @einx.traceback_util.filter
-def std(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def std(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="std"``"""
-    return reduce(description, tensor, op="std", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="std", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def std_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="std", **kwargs)
 
+
 @einx.traceback_util.filter
-def prod(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def prod(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="prod"``"""
-    return reduce(description, tensor, op="prod", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="prod", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def prod_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="prod", **kwargs)
 
+
 @einx.traceback_util.filter
-def count_nonzero(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def count_nonzero(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="count_nonzero"``"""
-    return reduce(description, tensor, op="count_nonzero", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description,
+        tensor,
+        op="count_nonzero",
+        keepdims=keepdims,
+        backend=backend,
+        cse=cse,
+        **parameters,
+    )
+
 
 def count_nonzero_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="count_nonzero", **kwargs)
 
+
 @einx.traceback_util.filter
-def any(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def any(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="any"``"""
-    return reduce(description, tensor, op="any", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="any", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def any_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="any", **kwargs)
 
+
 @einx.traceback_util.filter
-def all(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, cse: bool = True, **parameters: npt.ArrayLike) -> einx.Tensor:
+def all(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    cse: bool = True,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="all"``"""
-    return reduce(description, tensor, op="all", keepdims=keepdims, backend=backend, cse=cse, **parameters)
+    return reduce(
+        description, tensor, op="all", keepdims=keepdims, backend=backend, cse=cse, **parameters
+    )
+
 
 def all_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="all", **kwargs)
 
+
 @einx.traceback_util.filter
-def max(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, **parameters: npt.ArrayLike) -> einx.Tensor:
+def max(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="max"``"""
     return reduce(description, tensor, op="max", keepdims=keepdims, backend=backend, **parameters)
+
 
 def max_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="max", **kwargs)
 
+
 @einx.traceback_util.filter
-def min(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, **parameters: npt.ArrayLike) -> einx.Tensor:
+def min(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="min"``"""
     return reduce(description, tensor, op="min", keepdims=keepdims, backend=backend, **parameters)
+
 
 def min_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="min", **kwargs)
 
+
 @einx.traceback_util.filter
-def logsumexp(description: str, tensor: einx.Tensor, keepdims: Union[bool, None] = None, backend: Union[einx.Backend, str, None] = None, **parameters: npt.ArrayLike) -> einx.Tensor:
+def logsumexp(
+    description: str,
+    tensor: einx.Tensor,
+    keepdims: Union[bool, None] = None,
+    backend: Union[einx.Backend, str, None] = None,
+    **parameters: npt.ArrayLike,
+) -> einx.Tensor:
     """Specialization of :func:`einx.reduce` with ``op="logsumexp"``"""
-    return reduce(description, tensor, op="logsumexp", keepdims=keepdims, backend=backend, **parameters)
+    return reduce(
+        description, tensor, op="logsumexp", keepdims=keepdims, backend=backend, **parameters
+    )
+
 
 def logsumexp_stage3(*args, **kwargs):
     return reduce_stage3(*args, op="logsumexp", **kwargs)
