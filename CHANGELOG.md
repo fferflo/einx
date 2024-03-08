@@ -9,10 +9,13 @@
 ### Changed
 
 - Allow `einx.{set_at|add_at|...}` to be called with zero-sized updates or coordinates (in which case the input tensor is returned as-is).
+- Remove `backend.dot` which was not used anywhere but in the unit tests.
+- Improve error reporting when passing invalid shape constraints to einx functions.
 
 ### Fixed
 
 - Fix compatibility of `einx.nn.torch.Norm` with PyTorch 2.2.
+- Fix `name` parameter in `einn.param` being ignored.
 
 
 
