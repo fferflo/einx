@@ -1,7 +1,7 @@
 # Avoid a hard jax dependency
 
 def tree_map_with_key(func, *trees, key=(), is_leaf=None):
-    if not is_leaf is None and is_leaf(key, *trees):
+    if is_leaf is not None and is_leaf(key, *trees):
         return func(*trees, key=key)
     elif all(isinstance(tree, list) for tree in trees) and all(len(trees[0]) == len(tree) for tree in trees[1:]):
         return [tree_map_with_key(func, *elements, key=key + (i,), is_leaf=is_leaf) for i, elements in enumerate(zip(*trees))]
@@ -13,7 +13,7 @@ def tree_map_with_key(func, *trees, key=(), is_leaf=None):
         return func(*trees, key=key)
 
 def tree_map(func, *trees, is_leaf=None):
-    if not is_leaf is None and is_leaf(*trees):
+    if is_leaf is not None and is_leaf(*trees):
         return func(*trees)
     elif all(isinstance(tree, list) for tree in trees) and all(len(trees[0]) == len(tree) for tree in trees[1:]):
         return [tree_map(func, *elements, is_leaf=is_leaf) for i, elements in enumerate(zip(*trees))]
@@ -25,7 +25,7 @@ def tree_map(func, *trees, is_leaf=None):
         return func(*trees)
 
 def tree_flatten(x, is_leaf=None):
-    if not is_leaf is None and is_leaf(x):
+    if is_leaf is not None and is_leaf(x):
         yield x
     elif isinstance(x, (list, tuple)):
         for x in x:

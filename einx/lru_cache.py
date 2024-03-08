@@ -1,4 +1,10 @@
-import collections,, functools, os, einx, threading, frozendict, inspect
+import collections
+import functools
+import os
+import einx
+import threading
+import frozendict
+import inspect
 from functools import partial
 import numpy as np
 from collections import defaultdict
@@ -51,7 +57,7 @@ def _with_retrace_warning(func):
                     trace = ""
                     for frame in reversed(stack):
                         trace += f"File \"{frame.filename}\", line {frame.lineno}, in {frame.function}\n"
-                        if not frame.code_context is None:
+                        if frame.code_context is not None:
                             trace += f"  {frame.code_context[0].strip()}\n"
                     cache_failures[trace] += 1
                     if thread_local.warn and cache_failures[trace] == warn_on_retrace_num:

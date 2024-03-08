@@ -15,7 +15,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     for root in list(exprs_in) + [expr_out]:
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Marker):
-                raise ValueError(f"Marker is not allowed")
+                raise ValueError("Marker is not allowed")
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
 
@@ -58,7 +58,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     def to_einsum(axes):
         return "".join(get_einsum_variable(a.name) for a in axes)
 
-    input_axis_names = set(a.name for expr in exprs_in for a in einx.expr.stage3.get_axes(expr))
+    input_axis_names = {a.name for expr in exprs_in for a in einx.expr.stage3.get_axes(expr)}
 
     einsum_str = ",".join(to_einsum(einx.expr.stage3.get_axes(expr)) for expr in exprs_in) \
                + "->" + to_einsum([a for a in einx.expr.stage3.get_axes(expr_out_flat) if a.name in input_axis_names])
@@ -70,7 +70,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     tensor = util.transpose_broadcast(expr, tensor, expr_out_flat, backend=backend)[0]
 
     # Unflatten output expression
-    assert not tensor.shape is None
+    assert tensor.shape is not None
     if tensor.shape != expr_out.shape:
         tensor = backend.reshape(tensor, expr_out.shape)
 
@@ -119,7 +119,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
                     name = expr.name
                     for _ in range(expr.depth):
                         name = name + einx.expr.stage1._ellipsis
-                    if not name in names:
+                    if name not in names:
                         names.append(name)
         expr_in2 = " ".join(names)
 
@@ -153,11 +153,11 @@ def dot(description: str, *tensors: einx.Tensor, backend: Union[einx.Backend, st
 
     1. ``input1, input2, ... -> output``
         All input and output expressions are specified explicitly. Similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_ notation.
-        
+
     2. ``input1 -> output``
         The function accepts two input tensors. ``[]``-brackets mark all axes in ``input1`` and ``output`` that should also appear in the second input.
         The second input is then determined as an ordered list of all marked axes (without duplicates).
-        
+
         Example: ``[b c1] -> [b c2]`` resolves to ``b c1, b c1 c2 -> b c2``
 
     3. ``... [input1|output] ...``

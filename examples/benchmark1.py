@@ -1,4 +1,11 @@
-import torch, jax, einx, timeit, einops, random, argparse, math
+import torch
+import jax
+import einx
+import timeit
+import einops
+import random
+import argparse
+import math
 import jax.numpy as jnp
 import numpy as np
 from functools import partial
@@ -82,7 +89,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         # Assert correctness
         results = []
         for method in methods:
-            if not method is None:
+            if method is not None:
                 results.append(method(*inputs))
         results = [to_numpy(r) for r in results]
         for r2 in results[1:]:
@@ -91,12 +98,12 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         # Initialization
         for _ in range(5):
             for method in methods:
-                if not method is None:
+                if method is not None:
                     block_until_ready(method(*inputs))
-        methods = [jit(m) if not m is None else None for m in methods]
+        methods = [jit(m) if m is not None else None for m in methods]
         for _ in range(5):
             for method in methods:
-                if not method is None:
+                if method is not None:
                     block_until_ready(method(*inputs))
 
         # Benchmark
@@ -107,11 +114,11 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
             for _ in range(max(1, int(n * mul))):
                 random.shuffle(methods2)
                 for method in methods2:
-                    if not method is None:
+                    if method is not None:
                         times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs)), repeat=1, number=k)[0] / k)
         elif order == "sequential":
             for method in methods:
-                if not method is None:
+                if method is not None:
                     for _ in range(max(1, int(n * mul))):
                         times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs)), repeat=1, number=k)[0] / k)
         else:
@@ -122,7 +129,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
             p = int(len(times[key]) * 0.2)
             times[key] = sorted(times[key])[p:-p]
         for method in methods:
-            if not method is None:
+            if method is not None:
                 print(f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}")
         rows.append((name, times))
         print()

@@ -1,5 +1,6 @@
 import flax.linen as nn
-import einx, flax
+import einx
+import flax
 from functools import partial
 import jax.numpy as jnp
 from typing import Callable, Union, Optional, Any
@@ -23,7 +24,7 @@ def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, 
 
     name0 = name
     def flax_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if not name0 is None:
+        if name0 is not None:
             name = name0
         if name is None:
             raise ValueError("Must specify name for tensor factory flax.linen.Module.{param|variable}")
@@ -52,7 +53,7 @@ def param(bound_method: Union[Callable, nn.Module], name: Optional[str] = None, 
                 dtype = "float32"
 
         if bound_method.__func__ == nn.Module.param:
-            if not col is None:
+            if col is not None:
                 raise ValueError("col is not accepted for flax.linen.Module.param")
             return bound_method(name, init, shape, dtype)
         elif bound_method.__func__ == nn.Module.variable:
@@ -89,10 +90,10 @@ class _Norm(nn.Module):
 
     @nn.compact
     def __call__(self, x, training=None):
-        if not self.decay_rate is None and training is None:
+        if self.decay_rate is not None and training is None:
             raise ValueError("training must be specified when decay_rate is used")
 
-        use_ema = not self.decay_rate is None and (not training or self.is_initializing())
+        use_ema = self.decay_rate is not None and (not training or self.is_initializing())
         x, mean, var = einx.nn.norm(
             x,
             self.stats,
@@ -103,10 +104,10 @@ class _Norm(nn.Module):
             bias=param(self.param, name="bias", dtype=self.dtype) if self.bias else None,
             epsilon=self.epsilon,
             fastvar=self.fastvar,
-            **(self.kwargs if not self.kwargs is None else {}),
+            **(self.kwargs if self.kwargs is not None else {}),
         )
 
-        update_ema = not self.decay_rate is None and training and not self.is_initializing()
+        update_ema = self.decay_rate is not None and training and not self.is_initializing()
         if update_ema:
             if self.mean:
                 mean_ema = self.variable("stats", "mean", None)
@@ -150,7 +151,7 @@ class _Linear(nn.Module):
             self.expr,
             bias=param(self.param, name="bias", dtype=self.dtype) if self.bias else None,
             weight=param(self.param, name="weight", dtype=self.dtype),
-            **(self.kwargs if not self.kwargs is None else {}),
+            **(self.kwargs if self.kwargs is not None else {}),
         )
 
 def Linear(expr: str, bias: bool = True, dtype: nn.dtypes.Dtype = "float32", name: Optional[str] = None, **kwargs: Any):
@@ -180,7 +181,7 @@ class _Dropout(nn.Module):
                 self.expr,
                 drop_rate=self.drop_rate,
                 rng=self.make_rng(self.rng_collection),
-                **(self.kwargs if not self.kwargs is None else {}),
+                **(self.kwargs if self.kwargs is not None else {}),
             )
         else:
             return x

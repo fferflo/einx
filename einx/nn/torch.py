@@ -1,4 +1,6 @@
-import torch, einx, math
+import torch
+import einx
+import math
 from functools import partial
 import numpy as np
 from typing import Callable, Union, Optional, Any
@@ -87,11 +89,11 @@ class Norm(torch.nn.Module):
         self.decay_rate = decay_rate
         self.kwargs = kwargs
 
-        if mean and not decay_rate is None:
+        if mean and decay_rate is not None:
             self.register_buffer("mean", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
         else:
             self.mean = None
-        if var and not decay_rate is None:
+        if var and decay_rate is not None:
             self.register_buffer("var", torch.nn.parameter.UninitializedBuffer(dtype=vars(torch)[dtype]))
         else:
             self.var = None
@@ -101,25 +103,25 @@ class Norm(torch.nn.Module):
         self.initialized = False
 
     def forward(self, x):
-        use_ema = not self.decay_rate is None and (not self.training or not self.initialized)
+        use_ema = self.decay_rate is not None and (not self.training or not self.initialized)
         x, mean, var = _norm(
             x,
             self.stats,
             self.params,
             mean=self.mean if use_ema and self.use_mean else self.use_mean,
             var=self.var if use_ema and self.use_var else self.use_var,
-            scale=self.scale if not self.scale is None else None,
-            bias=self.bias if not self.bias is None else None,
+            scale=self.scale if self.scale is not None else None,
+            bias=self.bias if self.bias is not None else None,
             epsilon=self.epsilon,
             fastvar=self.fastvar,
             kwargs=self.kwargs,
         )
-        update_ema = not self.decay_rate is None and self.training
+        update_ema = self.decay_rate is not None and self.training
         if update_ema:
             with torch.no_grad():
-                if not mean is None:
+                if mean is not None:
                     self.mean.copy_(self.decay_rate * self.mean + (1 - self.decay_rate) * mean)
-                if not var is None:
+                if var is not None:
                     self.var.copy_(self.decay_rate * self.var + (1 - self.decay_rate) * var)
         if not self.initialized:
             self.initialized = True

@@ -1,7 +1,13 @@
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
 
-import torch, einx, os, torchvision, time, jax, optax
+import torch
+import einx
+import os
+import torchvision
+import time
+import jax
+import optax
 import torchvision.transforms as transforms
 import einx.nn.equinox as einn
 import equinox as eqx
@@ -110,5 +116,5 @@ for epoch in range(100):
         accurate = test_step(infer_net, jnp.asarray(images), jnp.asarray(labels))
         total += accurate.shape[0]
         correct += jnp.sum(accurate)
-    
+
     print(f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} ({time.time() - t0:.2f}sec)")

@@ -1,4 +1,6 @@
-import einx, inspect, functools
+import einx
+import inspect
+import functools
 from . import util
 import numpy as np
 from typing import Callable, Union, Mapping
@@ -98,8 +100,9 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
     op = backend.op(op, tracable=True)
 
     axes_names_in = [[a.name for a in root] for root in exprs_in_flat]
-    axes_names_in_set = set(a.name for root in exprs_in_flat for a in root)
-    is_broadcast_axis = lambda expr: isinstance(expr, einx.expr.stage3.Axis) and not expr.name in axes_names_in_set and not einx.expr.stage3.is_marked(expr)
+    axes_names_in_set = {a.name for root in exprs_in_flat for a in root}
+    def is_broadcast_axis(expr):
+        return isinstance(expr, einx.expr.stage3.Axis) and expr.name not in axes_names_in_set and not einx.expr.stage3.is_marked(expr)
 
     # Get ordered list of vmapped axes
     def is_vmapped(expr):
@@ -107,7 +110,7 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
     vmapped_axes = []
     for root in list(exprs_in_flat):
         for v in root:
-            if is_vmapped(v) and not v.name in vmapped_axes:
+            if is_vmapped(v) and v.name not in vmapped_axes:
                 vmapped_axes.append(v.name)
     if verbose:
         print(f"Vmapping the following axes: {vmapped_axes}")
@@ -119,8 +122,6 @@ def vmap_stage3(exprs_in, tensors_in, exprs_out, *, flat=False, backend=None, op
     # Apply vmap to op
     exprs_out_flat_without_broadcast = [einx.expr.stage3.remove(expr, is_broadcast_axis) for expr in exprs_out_flat]
     axes_names_out_without_broadcast = [[a.name for a in root] for root in exprs_out_flat_without_broadcast]
-
-    axisname_to_value = {a.name: a.value for root in exprs_out_flat_without_broadcast for a in root}
 
     if verbose:
         print("Flat output expressions without broadcast:", [str(e) for e in exprs_out_flat_without_broadcast])

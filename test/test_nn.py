@@ -1,11 +1,14 @@
-import einx, importlib, pytest
+import einx
+import importlib
+import pytest
 import numpy as np
 from functools import partial
 
 norms = [("[b...] c", {}), ("b [s...] (g [c])", {"g": 2}), ("b [s...] c", {}), ("b... [c]", {}), ("b [s...] ([g] c)", {"g": 2})]
 
 if importlib.util.find_spec("torch"):
-    import torch, einx.nn.torch
+    import torch
+    import einx.nn.torch
 
     # Tests are run with many different sets of parameters which cause torch.compile to recompile the used function and hit the cache limit.
     # We increase the cache limit to avoid this issue.
@@ -61,7 +64,8 @@ if importlib.util.find_spec("torch"):
 if importlib.util.find_spec("haiku"):
     import haiku as hk
     import jax.numpy as jnp
-    import jax, einx.nn.haiku
+    import jax
+    import einx.nn.haiku
 
     def test_haiku_linear():
         x = jnp.zeros((4, 128, 128, 3))
@@ -114,7 +118,9 @@ if importlib.util.find_spec("haiku"):
 if importlib.util.find_spec("flax"):
     import flax.linen as nn
     import jax.numpy as jnp
-    import jax, flax, einx.nn.flax
+    import jax
+    import flax
+    import einx.nn.flax
 
     def test_flax_linear():
         x = jnp.zeros((4, 128, 128, 3))
@@ -162,7 +168,8 @@ if importlib.util.find_spec("flax"):
 if importlib.util.find_spec("equinox"):
     import equinox as eqx
     import jax.numpy as jnp
-    import einx.nn.equinox, jax
+    import einx.nn.equinox
+    import jax
 
     def test_equinox_linear():
         x = jnp.zeros((4, 128, 128, 3))

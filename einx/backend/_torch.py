@@ -21,6 +21,12 @@ def make_torch_backend():
         print(f"WARNING: {message}")
         return ErrorBackend(message)
 
+    def to_dtype(x):
+        if isinstance(x, str):
+            return vars(torch_)[x]
+        else:
+            return x
+
     class torch(Backend):
         @staticmethod
         def to_tensor(tensor):
@@ -32,10 +38,13 @@ def make_torch_backend():
         tensor = torch_.Tensor
         name = "torch"
 
-        cast = lambda tensor, dtype: tensor.type(vars(torch_)[dtype] if isinstance(dtype, str) else dtype)
-        reshape = lambda tensor, shape: torch_.reshape(tensor, to_tuple(shape))
+        def cast(tensor, dtype):
+            return tensor.type(to_dtype(dtype))
+        def reshape(tensor, shape):
+            return torch_.reshape(tensor, to_tuple(shape))
         transpose = torch_.permute
-        broadcast_to = lambda tensor, shape: torch_.broadcast_to(tensor, to_tuple(shape))
+        def broadcast_to(tensor, shape):
+            return torch_.broadcast_to(tensor, to_tuple(shape))
         einsum = torch_.einsum
         swapaxes = torch_.swapaxes
         def arange(n, dtype):

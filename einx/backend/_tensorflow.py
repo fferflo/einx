@@ -45,8 +45,10 @@ def make_tensorflow_backend():
         stack = tnp.stack
         concatenate = tnp.concatenate
 
-        zeros = lambda shape, dtype="float32": tf.zeros(shape, dtype=dtype)
-        ones = lambda shape, dtype="float32": tf.ones(shape, dtype=dtype)
+        def zeros(shape, dtype="float32"):
+            return tf.zeros(shape, dtype=dtype)
+        def ones(shape, dtype="float32"):
+            return tf.ones(shape, dtype=dtype)
 
         add = associative_binary_to_nary(tnp.add)
         subtract = tnp.subtract
@@ -124,7 +126,7 @@ def make_tensorflow_backend():
                 # TODO: suboptimal (?) implementation of vmap in tensorflow that transposes the vmapped axis to the front and calls tf.vectorized_map
                 if len(args) != len(in_axes):
                     raise ValueError(f"Expected {len(in_axes)} arguments, got {len(args)}")
-                value = set(arg.shape[axis] for arg, axis in zip(args, in_axes) if not axis is None)
+                value = {arg.shape[axis] for arg, axis in zip(args, in_axes) if axis is not None}
                 if len(value) != 1:
                     raise ValueError(f"Expected all arguments to have same size along vmap axis, got {value}")
                 value = value.pop()
@@ -132,7 +134,7 @@ def make_tensorflow_backend():
                 # Move vmapped axes to front
                 xs = []
                 for arg, axis in zip(args, in_axes):
-                    if not axis is None:
+                    if axis is not None:
                         if axis != 0:
                             perm = [axis] + [a for a in range(len(arg.shape)) if a != axis]
                             arg = tf.transpose(arg, perm=perm)

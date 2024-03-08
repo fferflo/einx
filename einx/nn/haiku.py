@@ -19,7 +19,7 @@ def param(func: Literal[hk.get_parameter, hk.get_state] = hk.get_parameter, name
 
     name0 = name
     def haiku_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if not name0 is None:
+        if name0 is not None:
             name = name0
         if name is None:
             raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
@@ -89,10 +89,10 @@ class Norm(hk.Module):
         self.kwargs = kwargs
 
     def __call__(self, x, training=None):
-        if not self.decay_rate is None and training is None:
+        if self.decay_rate is not None and training is None:
             raise ValueError("training must be specified when decay_rate is used")
 
-        use_ema = not self.decay_rate is None and (not training or hk.running_init())
+        use_ema = self.decay_rate is not None and (not training or hk.running_init())
         x, mean, var = einx.nn.norm(
             x,
             self.stats,
@@ -106,7 +106,7 @@ class Norm(hk.Module):
             **self.kwargs,
         )
 
-        update_ema = not self.decay_rate is None and training and not hk.running_init()
+        update_ema = self.decay_rate is not None and training and not hk.running_init()
         if update_ema:
             if self.mean:
                 hk.set_state("mean", hk.get_state("mean") * self.decay_rate + mean * (1 - self.decay_rate))

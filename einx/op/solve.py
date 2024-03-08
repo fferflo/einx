@@ -27,7 +27,7 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
             if isinstance(expr, einx.expr.stage3.Axis):
                 tokens = expr.name.split(".")
                 values[tokens[0]].append((tuple(int(t) for t in tokens[1:]), expr.value))
-    
+
     values2 = {}
     for name, xs in values.items():
         shape = np.amax([coord for coord, value in xs], axis=0) + 1
@@ -77,7 +77,7 @@ def matches(description: str, *tensors: einx.Tensor, cse: bool = True, **paramet
     Returns:
         True if the expressions and tensors match, False otherwise.
     """
-    return not solve(description, *tensors, cse=cse, **parameters) is None
+    return solve(description, *tensors, cse=cse, **parameters) is not None
 
 @einx.traceback_util.filter
 def check(description: str, *tensors: einx.Tensor, cse: bool = True, **parameters: npt.ArrayLike) -> None:

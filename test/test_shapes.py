@@ -12,7 +12,8 @@ if importlib.util.find_spec("tensorflow"):
 if importlib.util.find_spec("mlx"):
     import mlx
 
-import einx, pytest
+import einx
+import pytest
 from functools import partial
 import numpy as np
 
@@ -284,7 +285,7 @@ def test_shape_vmap(backend):
     assert einx.vmap("[a] b [e], b [a] c [d] -> [a] b ([g] c)", x, y, op=f, g=15).shape == (4, 13, 15 * 5)
     with pytest.raises(Exception):
         einx.vmap("[a] b [e], b [a] c [d] -> [g] b [a] c", x, y, op=f, g=15)
-    
+
     with pytest.raises(Exception):
         def f(x, y):
             assert x.shape == (4, 2)
@@ -447,7 +448,7 @@ def test_shape_index(backend):
     for x in xs:
         shape = einx.add(f"{x.replace('[', '').replace(']', '')}, ", backend.zeros, 0, **consts).shape
         for z in zs:
-            z_axes = set(a for a in z if a.isalpha())
+            z_axes = {a for a in z if a.isalpha()}
             for y in ys:
                 if all(a in (x + y) for a in z_axes):
                     assert einx.set_at(f"{x}, {y}, {z} -> {x}", backend.ones, make_coords, backend.zeros, **consts, backend=backend).shape == shape

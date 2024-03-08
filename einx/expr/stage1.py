@@ -1,5 +1,6 @@
 from collections import defaultdict
-import re, uuid
+import re
+import uuid
 
 class Expression:
     def __init__(self, begin_pos, end_pos):
@@ -155,7 +156,7 @@ class Concatenation(Expression):
             yield from child.all()
 
     def __str__(self):
-        return f" + ".join([str(c) for c in self.children])
+        return " + ".join([str(c) for c in self.children])
 
     def __deepcopy__(self):
         return Concatenation([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
@@ -187,7 +188,7 @@ class List(Expression):
             yield from child.all()
 
     def __str__(self):
-        return f" ".join([str(c) for c in self.children])
+        return " ".join([str(c) for c in self.children])
 
     def __deepcopy__(self):
         return List([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
@@ -216,13 +217,13 @@ class Choice(Expression):
             yield from child.all()
 
     def __str__(self):
-        return f" | ".join([str(c) for c in self.children])
+        return " | ".join([str(c) for c in self.children])
 
     def __deepcopy__(self):
         return Choice([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
 
     def expansion(self):
-        child_expansions = set(c.expansion() for c in self.children)
+        child_expansions = {c.expansion() for c in self.children}
         if len(child_expansions) == 1:
             return child_expansions.pop()
         else:
@@ -237,7 +238,7 @@ class Choice(Expression):
 class Token:
     def __init__(self, pos, text):
         self.begin_pos = pos
-        self.end_pos = pos + len(text) 
+        self.end_pos = pos + len(text)
         self.text = text
 
     def __str__(self):
@@ -275,7 +276,7 @@ def parse(text):
             text = text.replace(f" {x}", x)
         while f"{x} " in text:
             text = text.replace(f"{x} ", x)
-    
+
 
 
     # Lexer
@@ -530,7 +531,7 @@ def any_parent_is(expr, pred, include_self=True):
         if expr.parent is None:
             return False
         expr = expr.parent
-    while not expr is None:
+    while expr is not None:
         if pred(expr):
             return True
         expr = expr.parent
@@ -572,7 +573,7 @@ def get_unmarked(expr):
 @expr_map
 def replace(expr, f):
     expr = f(expr)
-    if not expr is None:
+    if expr is not None:
         return expr, expr_map.REPLACE_AND_STOP
 
 @expr_map

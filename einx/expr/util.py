@@ -71,8 +71,8 @@ def solve(equations, cse=True, cse_concat=True, cse_in_markers=False, after_stag
     exprs1 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs1]
     exprs2 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs2]
 
-    expansions1 = [expansion if not expansion is None else _get_expansion(expr) for expansion, expr in zip(expansions1, exprs1)]
-    expansions2 = [expansion if not expansion is None else _get_expansion(expr) for expansion, expr in zip(expansions2, exprs2)]
+    expansions1 = [expansion if expansion is not None else _get_expansion(expr) for expansion, expr in zip(expansions1, exprs1)]
+    expansions2 = [expansion if expansion is not None else _get_expansion(expr) for expansion, expr in zip(expansions2, exprs2)]
 
     if verbose:
         print("Stage1:")
@@ -95,7 +95,7 @@ def solve(equations, cse=True, cse_concat=True, cse_in_markers=False, after_stag
             for expr1, expr2 in zip(exprs1, exprs2):
                 print(f"    {_to_str(expr1)} = {_to_str(expr2)}")
 
-    if not after_stage2 is None:
+    if after_stage2 is not None:
         return solve(
             equations + after_stage2(exprs1, exprs2),
             cse=cse,
@@ -111,7 +111,7 @@ def solve(equations, cse=True, cse_concat=True, cse_in_markers=False, after_stag
         print("Stage3:")
         for expr1, expr2 in zip(exprs1, exprs2):
             assert expr1 is None or expr2 is None or expr1.shape == expr2.shape
-            shape = expr1.shape if not expr1 is None else expr2.shape
+            shape = expr1.shape if expr1 is not None else expr2.shape
             shape = " ".join(str(i) for i in shape)
             print(f"    {_to_str(expr1)} = {_to_str(expr2)} = {shape}")
 

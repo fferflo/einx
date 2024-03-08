@@ -1,4 +1,12 @@
-import torch, jax, einx, timeit, einops, random, argparse, math, gc
+import torch
+import jax
+import einx
+import timeit
+import einops
+import random
+import argparse
+import math
+import gc
 import jax.numpy as jnp
 import numpy as np
 from functools import partial
@@ -185,7 +193,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
         results = []
         for method in methods:
-            if not method is None:
+            if method is not None:
                 r = method(*inputs(method))
                 if "batchnorm" in name and "torch" in env_name and "native" in method.__name__:
                     r = einx.rearrange("b c s... -> b s... c", r)
@@ -196,12 +204,12 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
         for _ in range(5):
             for method in methods:
-                if not method is None:
+                if method is not None:
                     block_until_ready(method(*inputs(method)))
-        methods = [jit(m) if not m is None else None for m in methods]
+        methods = [jit(m) if m is not None else None for m in methods]
         for _ in range(5):
             for method in methods:
-                if not method is None:
+                if method is not None:
                     block_until_ready(method(*inputs(method)))
 
         times = defaultdict(list)
@@ -211,12 +219,12 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
             for _ in range(max(1, int(n * mul))):
                 random.shuffle(methods2)
                 for method in methods2:
-                    if not method is None:
+                    if method is not None:
                         inputs2 = inputs(method)
                         times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs2)), repeat=1, number=k)[0] / k)
         elif order == "sequential":
             for method in methods:
-                if not method is None:
+                if method is not None:
                     inputs2 = inputs(method)
                     for _ in range(max(1, int(n * mul))):
                         times[method.__name__].append(timeit.repeat(lambda: block_until_ready(method(*inputs2)), repeat=1, number=k)[0] / k)
@@ -231,11 +239,11 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         #     times["benchmark_native"] = times["benchmark_idx"]
 
         for method in methods:
-            if not method is None:
+            if method is not None:
                 print(f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}")
         rows.append((name, times))
         print()
-    
+
     del x, y, z1, z2, w, w1, w2, b128, query, key, value
     gc.collect()
 

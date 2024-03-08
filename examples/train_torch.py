@@ -1,7 +1,11 @@
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
 
-import torch, einx, os, torchvision, time
+import torch
+import einx
+import os
+import torchvision
+import time
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim

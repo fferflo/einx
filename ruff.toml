@@ -1,0 +1,12 @@
+line-length = 120
+target-version = "py38"
+
+[lint]
+select = ["B9", "C", "F", "W", "YTT", "ASYNC"]
+ignore = ["F401", "F403", "E722", "F821", "E402", "E741"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

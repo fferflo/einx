@@ -1,4 +1,6 @@
-import keras, einx, inspect
+import keras
+import einx
+import inspect
 import numpy as np
 from typing import Any, Callable, Optional
 
@@ -22,7 +24,7 @@ def param(layer: keras.layers.Layer, name: Optional[str] = None, init: Optional[
 
     name0 = name
     def keras_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if not name0 is None:
+        if name0 is not None:
             name = name0
         if name is None:
             raise ValueError("Must specify name for tensor factory keras.layers.Layer")
@@ -73,7 +75,7 @@ def einx_backend_for_keras():
     return einx.backend.get(keras.config.backend())
 
 def is_leaf(x):
-    return isinstance(x, tuple) and all([isinstance(y, int) for y in x])
+    return isinstance(x, tuple) and all(isinstance(y, int) for y in x)
 
 class Layer(keras.layers.Layer):
     def __init__(self, *args, **kwargs):
@@ -118,7 +120,7 @@ class Norm(Layer):
         self.kwargs = kwargs
 
     def call(self, x, training=None, is_initializing=False):
-        use_ema = not self.decay_rate is None and (not training or is_initializing)
+        use_ema = self.decay_rate is not None and (not training or is_initializing)
         x, mean, var = einx.nn.norm(
             x,
             self.stats,
@@ -129,10 +131,10 @@ class Norm(Layer):
             bias=param(self, name="bias", trainable=True) if self.use_bias else None,
             epsilon=self.epsilon,
             fastvar=self.fastvar,
-            **(self.kwargs if not self.kwargs is None else {}),
+            **(self.kwargs if self.kwargs is not None else {}),
         )
 
-        update_ema = not self.decay_rate is None and training and not is_initializing
+        update_ema = self.decay_rate is not None and training and not is_initializing
         if update_ema:
             if self.use_mean:
                 self.mean.assign(

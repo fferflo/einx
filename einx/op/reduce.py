@@ -24,7 +24,7 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
         raise ValueError("Only a single input and output expression is allowed")
 
     if "->" in description:
-        if not keepdims is None:
+        if keepdims is not None:
             raise ValueError("keepdims cannot be given when using '->'")
         description = description.split("->")
         if len(description) != 2:
@@ -42,7 +42,7 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
 
         # If no axes are marked for reduction in expr_in, mark all axes that don't appear in expr_out
         if not _any(einx.expr.stage3.is_marked(expr) for expr in expr_in.all()):
-            axes_names_out = set(axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis))
+            axes_names_out = {axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)}
             expr_in = einx.expr.stage3.mark(expr_in, lambda expr: isinstance(expr, einx.expr.stage3.Axis) and expr.name not in axes_names_out)
 
     else:

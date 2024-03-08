@@ -12,7 +12,8 @@ def make_jax_backend():
         tensor = jnp.ndarray
         name = "jax"
 
-        cast = lambda tensor, dtype: tensor.astype(dtype)
+        def cast(tensor, dtype):
+            return tensor.astype(dtype)
         reshape = jnp.reshape
         transpose = jnp.transpose
         broadcast_to = jnp.broadcast_to

@@ -32,7 +32,8 @@ def make_mlx_backend():
         tensor = mx.array
         name = "mlx"
 
-        cast = lambda tensor, dtype: tensor.astype(to_dtype(dtype))
+        def cast(tensor, dtype):
+            return tensor.astype(to_dtype(dtype))
         reshape = mx.reshape
         transpose = mx.transpose
         broadcast_to = mx.broadcast_to

@@ -1,4 +1,5 @@
-import einx, jax
+import einx
+import jax
 import equinox as eqx
 from functools import partial
 import jax.numpy as jnp
@@ -43,7 +44,7 @@ def param(module, name=None, init=None, dtype=None, rng=None):
         elif isinstance(init, (int, float)):
             init = jax.nn.initializers.constant(init, dtype=dtype)
 
-        if not vars(module)[name] is None:
+        if vars(module)[name] is not None:
             tensor = vars(module)[name]
         else:
             tensor = vars(module)[name] = init(rng, shape, dtype)
@@ -88,7 +89,7 @@ class Norm(eqx.Module):
     kwargs: dict
 
     def __init__(self, stats: str, params: str = "b... [c]", mean: bool = True, var: bool = True, scale: bool = True, bias: bool = True, decay_rate: Optional[float] = None, epsilon: float = 1e-5, fastvar: bool = True, dtype: Any = "float32", **kwargs: Any):
-        if not decay_rate is None:
+        if decay_rate is not None:
             raise ValueError("Stateful layers are currently not supported in Equinox")
         self.stats = stats
         self.params = params
@@ -146,7 +147,7 @@ class Linear(eqx.Module):
         return einx.nn.linear(
             x,
             self.expr,
-            bias=param(self, name="bias", rng=rng) if not self.use_bias is None else None,
+            bias=param(self, name="bias", rng=rng) if self.use_bias is not None else None,
             weight=param(self, name="weight", rng=rng),
             **self.kwargs,
         )

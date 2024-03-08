@@ -1,4 +1,5 @@
-import einx, functools
+import einx
+import functools
 import numpy as np
 
 def associative_binary_to_nary(binary_op):

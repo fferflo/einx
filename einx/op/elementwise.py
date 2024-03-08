@@ -77,7 +77,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         )[:len(exprs_in)]
 
         # Implicitly determine output expression: Check if one input expression contains the axis names of all others, and this choice is unique
-        in_axis_names = [set(expr.name for expr in root.all() if isinstance(expr, einx.expr.stage3.Axis) and not expr.is_unnamed) for root in exprs_in]
+        in_axis_names = [{expr.name for expr in root.all() if isinstance(expr, einx.expr.stage3.Axis) and not expr.is_unnamed} for root in exprs_in]
 
         valid_parents = set()
         for i, parent in enumerate(in_axis_names):
@@ -110,13 +110,13 @@ def elementwise(description: str, *tensors: einx.Tensor, op: Callable, backend: 
     2. ``input1, input2, ...``
         All input expressions are specified explicitly. If one of the input expressions is a parent of or equal to all other input expressions,
         it is used as the output expression. Otherwise, an exception is raised.
-        
+
         Example: ``a b, a`` resolves to ``a b, a -> a b``.
 
     3. ``input1`` with ``[]``-brackets
         The function accepts two input tensors. `[]`-brackets mark all subexpressions in the
         first input that should also appear in the second input.
-        
+
         Example: ``a [b]`` resolves to ``a b, b``
 
     Args:

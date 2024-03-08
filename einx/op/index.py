@@ -8,7 +8,7 @@ import numpy.typing as npt
 
 
 def _index(*tensors, update, layout, expr_update_inner, expr_common, op=None, backend=None):
-    assert not backend is None
+    assert backend is not None
     if update:
         tensor_in = tensors[0]
         tensor_coordinates = tensors[1:-1]
@@ -66,9 +66,9 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
             if einx.expr.stage3.is_marked(expr):
                 raise ValueError("Brackets in the output expression are not allowed")
     if update:
-        axis_names = set(axis.name for root in exprs_in[:-1] for axis in root.all() if isinstance(axis, einx.expr.stage3.Axis))
+        axis_names = {axis.name for root in exprs_in[:-1] for axis in root.all() if isinstance(axis, einx.expr.stage3.Axis)}
         for axis in exprs_in[-1].all():
-            if isinstance(axis, einx.expr.stage3.Axis) and not axis.name in axis_names:
+            if isinstance(axis, einx.expr.stage3.Axis) and axis.name not in axis_names:
                 raise ValueError(f"Update expression cannot contain axes that are not in the coordinate or tensor expressions: {axis.name}")
 
     # Call tensor factories
@@ -95,20 +95,20 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         layout.append((coordinate_axis_name, ndim))
         total_ndim += ndim
 
-    marked_tensor_axis_names = set(expr.name for expr in expr_tensor.all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr))
+    marked_tensor_axis_names = {expr.name for expr in expr_tensor.all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)}
     if len(marked_tensor_axis_names) != total_ndim:
         raise ValueError(f"Expected {total_ndim} marked axes in tensor, got {len(marked_tensor_axis_names)}")
 
     if update:
-        marked_update_axis_names = set(expr.name for expr in expr_update.all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr))
+        marked_update_axis_names = {expr.name for expr in expr_update.all() if isinstance(expr, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(expr)}
         if len(marked_update_axis_names) != 0:
-            raise ValueError(f"Update expression cannot contain marked axes")
+            raise ValueError("Update expression cannot contain marked axes")
 
     # Add markers around axes in coordinates and update that are not in tensor
-    tensor_axis_names = set(expr.name for expr in expr_tensor.all() if isinstance(expr, einx.expr.stage3.Axis))
+    tensor_axis_names = {expr.name for expr in expr_tensor.all() if isinstance(expr, einx.expr.stage3.Axis)}
     new_marked_axis_names = set()
     def replace(expr):
-        if isinstance(expr, einx.expr.stage3.Axis) and not expr.name in tensor_axis_names and not einx.expr.stage3.is_marked(expr):
+        if isinstance(expr, einx.expr.stage3.Axis) and expr.name not in tensor_axis_names and not einx.expr.stage3.is_marked(expr):
             new_marked_axis_names.add(expr.name)
             return einx.expr.stage3.Marker(expr.__deepcopy__())
     exprs_coordinates = [einx.expr.stage3.replace(expr, replace) for expr in exprs_coordinates]
@@ -141,10 +141,10 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         layout2 = layout + [(None, expr_update_inner, None)]
         longest = sorted(layout2, key=lambda x: len(x[1].shape))[-1]
         all_axes = [axis for axis in longest[1].all() if isinstance(axis, einx.expr.stage3.Axis) and not axis.name == longest[0]]
-        axes_names = set(axis.name for axis in all_axes)
+        axes_names = {axis.name for axis in all_axes}
         for coordinate_axis_name, expr_coord, ndim in layout2:
             for axis in expr_coord.all():
-                if isinstance(axis, einx.expr.stage3.Axis) and axis.name != coordinate_axis_name and not axis.name in axes_names:
+                if isinstance(axis, einx.expr.stage3.Axis) and axis.name != coordinate_axis_name and axis.name not in axes_names:
                     axes_names.add(axis.name)
                     all_axes.append(axis)
         expr_common = einx.expr.stage3.List.maybe(all_axes)

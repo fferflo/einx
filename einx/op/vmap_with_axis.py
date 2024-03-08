@@ -40,14 +40,14 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
     # Ensure that axis markings are consistent
     def is_vmapped(expr):
         return not einx.expr.stage3.is_marked(expr)
-    vmapped_axis_names = set(v.name for root in list(exprs_in) + list(exprs_out_flat) for v in root if is_vmapped(v))
+    vmapped_axis_names = {v.name for root in list(exprs_in) + list(exprs_out_flat) for v in root if is_vmapped(v)}
     for root in list(exprs_in) + list(exprs_out_flat):
         for v in root:
             if (v.name in vmapped_axis_names) != is_vmapped(v):
                 raise ValueError(f"Axis {v.name} appears both as vmapped and non-vmapped")
 
-    marked_input_axes = set(axis.name for expr_in in exprs_in for axis in expr_in.all() if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis))
-    marked_output_axes = set(axis.name for expr_out in exprs_out_flat for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis))
+    marked_input_axes = {axis.name for expr_in in exprs_in for axis in expr_in.all() if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis)}
+    marked_output_axes = {axis.name for expr_out in exprs_out_flat for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis)}
 
     if transpose_first:
         # Transpose and insert trivial axes
@@ -56,8 +56,8 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
         x = [util.transpose_broadcast(expr_in, tensor_in, exprs_out_flat[0], broadcast=False, backend=backend) for expr_in, tensor_in in zip(exprs_in, tensors_in)]
         tensors_in = [x[0] for x in x]
         exprs_in = [x[1] for x in x]
-        assert len(set(len(expr) for expr in exprs_in)) == 1
-        marked_input_axes = set(axis.name for expr_in in exprs_in for axis in expr_in.all() if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis))
+        assert len({len(expr) for expr in exprs_in}) == 1
+        marked_input_axes = {axis.name for expr_in in exprs_in for axis in expr_in.all() if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis)}
 
     # Add axis argument
     if transpose_first:
@@ -69,7 +69,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs={}, backen
         kwargs["axis"] = axis_indices if len(axis_indices) > 1 else axis_indices[0]
 
     # Apply operation
-    in_axis_names = set(axis.name for expr in exprs_in for axis in expr)
+    in_axis_names = {axis.name for expr in exprs_in for axis in expr}
     output_shape = np.asarray([(axis.value if axis.name in in_axis_names else 1) for axis in exprs_out_flat[0]])
     output_shapes = (output_shape,) * len(exprs_out_flat) if len(exprs_out_flat) > 1 else output_shape
     tensors_out = backend.apply(op, args=tensors_in, kwargs=kwargs, output_shapes=output_shapes)
@@ -172,7 +172,7 @@ def vmap_with_axis(description: str, *tensors: einx.Tensor, op: Callable, backen
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name. 
+        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
         kwargs: Additional keyword arguments that are passed to ``op``.
         backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.

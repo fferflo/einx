@@ -1,14 +1,17 @@
 import numpy as np
-import einx, sys, inspect, importlib
+import einx
+import sys
+import inspect
+import importlib
 
 def get_shape(x):
     if isinstance(x, (tuple, list)):
-        subshapes = set(get_shape(y) for y in x)
+        subshapes = {get_shape(y) for y in x}
         if len(subshapes) != 1:
-            raise ValueError(f"Failed to determine shape in input tensor")
+            raise ValueError("Failed to determine shape in input tensor")
         subshape = subshapes.pop()
         if subshape is None:
-            raise ValueError(f"Failed to determine shape in input tensor")
+            raise ValueError("Failed to determine shape in input tensor")
         return (len(x),) + subshape
     elif isinstance(x, (float, int, np.floating, np.integer)):
         # Scalar
@@ -35,7 +38,7 @@ def instantiate(x, shape, backend, **kwargs):
 
         for einn in einx.nn.get_frameworks():
             x2 = einn.to_tensor_factory(x)
-            if not x2 is None:
+            if x2 is not None:
                 x = x2
                 break
 

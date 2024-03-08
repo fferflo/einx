@@ -1,6 +1,7 @@
 import importlib
 if importlib.util.find_spec("einops"):
-    import einops, einx
+    import einops
+    import einx
     import numpy as np
 
     def assert_equal(a, b):

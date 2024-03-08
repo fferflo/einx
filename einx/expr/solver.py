@@ -1,4 +1,5 @@
-import sympy, math
+import sympy
+import math
 
 class Expression:
     def __init__(self):
@@ -147,18 +148,18 @@ def solve(equations):
     for t1, t2 in equations:
         if isinstance(t1, Variable) and isinstance(t2, Constant):
             if constants.get(t1.id, t2.value) != t2.value:
-                raise SolveException(f"Found contradictory values {set([constants[t1.id], t2.value])} for expression '{t1.name}'")
+                raise SolveException(f"Found contradictory values { {constants[t1.id], t2.value} } for expression '{t1.name}'")
             constants[t1.id] = t2.value
         elif isinstance(t1, Constant) and isinstance(t2, Variable):
             if constants.get(t2.id, t1.value) != t1.value:
-                raise SolveException(f"Found contradictory values {set([constants[t2.id], t1.value])} for expression '{t2.name}'")
+                raise SolveException(f"Found contradictory values { {constants[t2.id], t1.value} } for expression '{t2.name}'")
             constants[t2.id] = t1.value
         elif isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
                 raise SolveException(f"Found contradictory values {t1.value} != {t2.value} in input equation")
 
     # Find equivalence classes of variables
-    classes = {v: set([v]) for v in variables} # id: set of equivalent ids
+    classes = {v: {v} for v in variables} # id: set of equivalent ids
     for t1, t2 in equations:
         if isinstance(t1, Variable) and isinstance(t2, Variable):
             assert t1.id in classes and t2.id in classes
@@ -173,9 +174,9 @@ def solve(equations):
     for eclass in {id(s): s for s in classes.values()}.values():
         if any(n in constants for n in eclass):
             # Use constant
-            class_constants = set(constants[n] for n in eclass if n in constants)
+            class_constants = {constants[n] for n in eclass if n in constants}
             if len(class_constants) != 1:
-                names = set(variables[a].name for a in eclass)
+                names = {variables[a].name for a in eclass}
                 if len(names) == 1:
                     raise SolveException(f"Found contradictory values {class_constants} for expression '{next(iter(names))}'")
                 else:
@@ -183,9 +184,9 @@ def solve(equations):
             v = Constant(next(iter(class_constants)))
         else:
             # Create new variable for class
-            v = Variable(f"Class-{id(eclass)}", f"Equivalent expressions {set(variables[a].name for a in eclass)}")
+            v = Variable(f"Class-{id(eclass)}", f"Equivalent expressions { {variables[a].name for a in eclass} }")
         for n in eclass:
-            assert not n in origvar_to_solvevar
+            assert n not in origvar_to_solvevar
             origvar_to_solvevar[n] = v
 
     # Apply to equations

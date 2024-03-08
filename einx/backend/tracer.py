@@ -1,10 +1,11 @@
 from functools import partial
 import numpy as np
-import operator, einx
+import operator
+import einx
 from .base import Backend
 
 def is_leaf(key, x):
-    return (isinstance(x, (tuple, list, np.ndarray)) and all([isinstance(y, (int, np.integer)) for y in x]))
+    return (isinstance(x, (tuple, list, np.ndarray)) and all(isinstance(y, (int, np.integer)) for y in x))
 
 def to_shape(shape):
     if isinstance(shape, np.ndarray):
@@ -146,7 +147,7 @@ class OpApplication:
         self.kwargs = kwargs
         self.output_shapes = einx.tree_util.tree_map_with_key(lambda shape, key: tuple(int(i) for i in shape), output_shapes, is_leaf=is_leaf)
         self.output_tracers = einx.tree_util.tree_map_with_key(lambda shape, key: OpOutput(self, shape, key), self.output_shapes, is_leaf=is_leaf)
-        assert not "backend" in self.kwargs
+        assert "backend" not in self.kwargs
 
 class OpOutput(Tensor):
     def __init__(self, application, shape, key):
@@ -208,7 +209,7 @@ class Scope:
     @property
     def root_scope(self):
         scope = self
-        while not scope.parent_scope is None:
+        while scope.parent_scope is not None:
             scope = scope.parent_scope
         return scope
 
@@ -221,7 +222,7 @@ class Scope:
         return string
 
     def exec(self, names):
-        scope_globals = {const_name: value for const_name, value in self.constants}
+        scope_globals = dict(self.constants)
         scope_globals["einx"] = einx
         scope_globals["partial"] = partial
         scope_globals["backend"] = self.backend
@@ -232,7 +233,7 @@ class Scope:
     def get_name_for(self, x):
         if id(x) in self.locals:
             return self.locals[id(x)]
-        elif not self.parent_scope is None:
+        elif self.parent_scope is not None:
             return self.parent_scope.get_name_for(x)
         else:
             return None
@@ -240,7 +241,7 @@ class Scope:
     def name_exists(self, name):
         if name in self.locals.values():
             return True
-        elif not self.parent_scope is None:
+        elif self.parent_scope is not None:
             return self.parent_scope.name_exists(name)
         else:
             return False
@@ -310,12 +311,12 @@ class Scope:
                 def slice_to_str(s):
                     if isinstance(s, slice):
                         x = ""
-                        if not s.start is None:
+                        if s.start is not None:
                             x += str(s.start)
                         x += ":"
-                        if not s.stop is None:
+                        if s.stop is not None:
                             x += str(s.stop)
-                        if not s.step is None:
+                        if s.step is not None:
                             x += ":" + str(s.step)
                         return x
                     else:
@@ -343,7 +344,7 @@ class Scope:
                     op = self.eval(x.op)
                     args = [self.eval(a) for a in args] + [f"{k}={self.eval(v)}" for k, v in kwargs.items()]
                     if op == "einx.param.instantiate":
-                        args += [f"backend=backend"]
+                        args += ["backend=backend"]
                     args = ", ".join(args)
 
                     self.lines.append(f"{name} = {op}(" + args + ")")
@@ -375,9 +376,9 @@ class Scope:
         elif isinstance(x, (int, float, np.integer, np.floating)):
             name = str(x)
         elif isinstance(x, slice):
-            if not x.step is None:
+            if x.step is not None:
                 return f"slice({self.eval(x.start)}, {self.eval(x.stop)}, {self.eval(x.step)})"
-            elif not x.stop is None:
+            elif x.stop is not None:
                 return f"slice({self.eval(x.start)}, {self.eval(x.stop)})"
             else:
                 return f"slice({self.eval(x.start)})"
@@ -390,7 +391,7 @@ class Scope:
             self.root_scope.locals[id(x)] = name
             return name # Don't add to locals
 
-        assert not name is None
+        assert name is not None
         self.locals[id(x)] = name
         return name
 
@@ -411,7 +412,7 @@ def optimize(output, backend):
             else:
                 new_node = OpApplication(node.op, args=[_optimize(a) for a in node.args], kwargs={k: _optimize(v) for k, v in node.kwargs.items()}, output_shapes=node.output_shapes)
         elif isinstance(node, OpOutput):
-            if node.application.op.op == "to_tensor" and backend != einx.backend.tracer and isinstance(node.application.args[0], Input) and not node.application.args[0].original_type is None and issubclass(node.application.args[0].original_type, backend.tensor):
+            if node.application.op.op == "to_tensor" and backend != einx.backend.tracer and isinstance(node.application.args[0], Input) and node.application.args[0].original_type is not None and issubclass(node.application.args[0].original_type, backend.tensor):
                 # Skip to_tensor op if tensor already has right type
                 new_node = _optimize(node.application.args[0])
             elif node.application.op.op == "reshape" and node.application.args[0].shape == node.shape:
@@ -447,7 +448,7 @@ def optimize(output, backend):
 
 class Graph:
     def __init__(self, output, args, kwargs, backend):
-        assert any(isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)), f"No output value is traced"
+        assert any(isinstance(x, Tensor) for x in einx.tree_util.tree_flatten(output)), "No output value is traced"
         self.output = optimize(output, backend)
         self.args = args
         self.kwargs = kwargs
@@ -509,7 +510,7 @@ def reduce(tensor, axis=None, *, op=None, **kwargs):
             for a in axes:
                 shape[a] = 1
         else:
-            for a in reversed(sorted(axes)):
+            for a in sorted(axes, reverse=True):
                 del shape[a]
         kwargs = {**kwargs, **{"axis": axis}}
     return OpApplication(op, args=[tensor], kwargs=kwargs, output_shapes=shape).output_tracers
@@ -522,7 +523,7 @@ def index(tensor, coordinates, update=None, op=None):
         coordinates2 = (coordinates,) if not isinstance(coordinates, tuple) else coordinates
         if len(coordinates2) > len(tensor.shape):
             raise ValueError(f"Too many indices for tensor of dimension {len(tensor.shape)}")
- 
+
         def is_multidim(c):
             if isinstance(c, (slice, int, np.integer)):
                 return False
@@ -551,14 +552,14 @@ def index(tensor, coordinates, update=None, op=None):
 
             # Broadcast coordinates expressions
             def broadcast(dims):
-                dims = np.asarray(list(set(int(i) for i in dims)))
+                dims = np.asarray(list({int(i) for i in dims}))
                 assert np.all(dims > 0)
                 if len(dims) > 2 or len(dims) == 2 and np.amin(dims) > 1:
-                    raise ValueError(f"Cannot broadcast coordinates")
+                    raise ValueError("Cannot broadcast coordinates")
                 return np.amax(dims)
             shapes = [c.shape for c in coordinates2 if not isinstance(c, slice)]
-            if len(set(len(s) for s in shapes)) != 1:
-                raise ValueError(f"Expected all coordinates to have same number of dimensions")
+            if len({len(s) for s in shapes}) != 1:
+                raise ValueError("Expected all coordinates to have same number of dimensions")
             shapes = np.asarray(shapes)
             shape = [broadcast(shapes[:, i]) for i in range(shapes.shape[1])]
 

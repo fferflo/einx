@@ -1,4 +1,5 @@
-import einx, sys
+import einx
+import sys
 import numpy as np
 
 def flatten(exprs, tensors=None, backend=None):
@@ -35,7 +36,7 @@ def flatten(exprs, tensors=None, backend=None):
 
         return exprs_out
     else:
-        assert not backend is None
+        assert backend is not None
         if len(exprs) != len(tensors):
             raise ValueError("Got different number of expressions and tensors")
         exprs_out = []
@@ -43,7 +44,7 @@ def flatten(exprs, tensors=None, backend=None):
         for expr, tensor in zip(exprs, tensors):
             expr = einx.expr.stage3.decompose(expr)
             expr = einx.expr.stage3.remove_unnamed_trivial_axes(expr)
-            assert not tensor.shape is None
+            assert tensor.shape is not None
             if tensor.shape != expr.shape:
                 tensor = backend.reshape(tensor, expr.shape)
 
@@ -84,8 +85,8 @@ def assignment(exprs_in, exprs_out):
     """
     if len(exprs_in) != len(exprs_out):
         raise ValueError("Got different number of input and output expressions")
-    axes_in = [set([a.name for a in einx.expr.stage3.get_named_axes(expr_in)]) for expr_in in exprs_in]
-    axes_out = [set([a.name for a in einx.expr.stage3.get_named_axes(expr_out)]) for expr_out in exprs_out]
+    axes_in = [{a.name for a in einx.expr.stage3.get_named_axes(expr_in)} for expr_in in exprs_in]
+    axes_out = [{a.name for a in einx.expr.stage3.get_named_axes(expr_out)} for expr_out in exprs_out]
 
     cost_matrix = np.ones((len(exprs_out), len(exprs_in)), dtype=int)
     for i, a_out in enumerate(axes_out):
@@ -104,7 +105,7 @@ def assignment(exprs_in, exprs_out):
                 cost_matrix2[r, :] = 1
                 cost_matrix2[:, c] = 1
                 rows, cols = assignment_solver(cost_matrix2, r + 1)
-                if not rows is None:
+                if rows is not None:
                     return [r] + rows, [c] + cols
         return None, None
 
@@ -133,7 +134,7 @@ def transpose_broadcast(expr_in, tensor, expr_out, *, backend, broadcast=True):
     # Expand and broadcast missing output dimensions if necessary
     if len(out_axes_broadcast) > 0:
         pre_broadcast_shape = tuple(1 if a.name in out_axes_broadcast else a.value for a in einx.expr.stage3.get_axes(expr_out))
-        assert not tensor.shape is None
+        assert tensor.shape is not None
         if tensor.shape != pre_broadcast_shape:
             tensor = backend.reshape(tensor, pre_broadcast_shape)
         if broadcast and tensor.shape != expr_out.shape:
@@ -167,7 +168,7 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
     else:
         tensor_out = next(tensors_in)
 
-    assert not tensor_out.shape is None
+    assert tensor_out.shape is not None
     if tensor_out.shape != expr_out.shape:
         tensor_out = backend.reshape(tensor_out, expr_out.shape)
     return tensor_out

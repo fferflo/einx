@@ -101,7 +101,7 @@ class List(Expression):
 class Axis(Expression):
     def __init__(self, name, value):
         Expression.__init__(self, value)
-        self.name = name if not name is None else f"unnamed.{id(self)}"
+        self.name = name if name is not None else f"unnamed.{id(self)}"
 
     def __repr__(self):
         return f"Axis({self.name}, {self.value})"
@@ -227,7 +227,7 @@ class SolveValueException(Exception):
 def solve(exprs1, exprs2):
     exprs1 = list(exprs1)
     exprs2 = list(exprs2)
-    if any(not expr is None and not isinstance(expr, stage2.Expression) for expr in exprs1 + exprs2):
+    if any(expr is not None and not isinstance(expr, stage2.Expression) for expr in exprs1 + exprs2):
         raise ValueError("Can only expand stage2.Expression")
     if len(exprs1) != len(exprs2):
         raise ValueError("Number of expressions must be equal")
@@ -236,13 +236,13 @@ def solve(exprs1, exprs2):
 
     symbolic_expr_values = {}
     for root in exprs1 + exprs2:
-        if not root is None:
+        if root is not None:
             for expr in root.all():
                 symbolic_expr_values[id(expr)] = solver.Variable(f"symbolic_expr_values[{id(expr)}]", str(expr))
 
     # Add equations: Relations between expressions and their children
     for root in exprs1 + exprs2:
-        if not root is None:
+        if root is not None:
             for expr in root.all():
                 if isinstance(expr, stage2.List):
                     equations.append((
@@ -262,7 +262,7 @@ def solve(exprs1, exprs2):
 
     # Add equations: Same root values
     for root1, root2 in zip(exprs1, exprs2):
-        if not root1 is None and not root2 is None:
+        if root1 is not None and root2 is not None:
             assert len(root1) == len(root2)
             for expr1, expr2 in zip(root1, root2):
                 equations.append((
@@ -272,7 +272,7 @@ def solve(exprs1, exprs2):
 
     # Add equations: Unnamed axes
     for root in exprs1 + exprs2:
-        if not root is None:
+        if root is not None:
             for expr in root.all():
                 if isinstance(expr, stage2.UnnamedAxis):
                     equations.append((
@@ -283,10 +283,10 @@ def solve(exprs1, exprs2):
     # Add equations: Multiple occurrences of the same named axis must have the same value
     sympy_axis_values = {}
     for root in exprs1 + exprs2:
-        if not root is None:
+        if root is not None:
             for axis in root.all():
                 if isinstance(axis, stage2.NamedAxis):
-                    if not axis.name in sympy_axis_values:
+                    if axis.name not in sympy_axis_values:
                         sympy_axis_values[axis.name] = solver.Variable(f"sympy_axis_values[{axis.name}]", axis.name)
                     equations.append((
                         symbolic_expr_values[id(axis)],
@@ -305,10 +305,10 @@ def solve(exprs1, exprs2):
 
     failed_axes = set()
     for root in exprs1 + exprs2:
-        if not root is None:
+        if root is not None:
             for expr in root.all():
                 if isinstance(expr, stage2.NamedAxis):
-                    if not id(expr) in axis_values:
+                    if id(expr) not in axis_values:
                         failed_axes.add(str(expr))
     if len(failed_axes) > 0:
         raise SolveValueException(exprs1, exprs2, f"Found no unique solutions for {failed_axes}")
@@ -335,8 +335,8 @@ def solve(exprs1, exprs2):
             return Composition.maybe(map(expr.inner))
         else:
             assert False, type(expr)
-    exprs1 = [map(root) if not root is None else None for root in exprs1]
-    exprs2 = [map(root) if not root is None else None for root in exprs2]
+    exprs1 = [map(root) if root is not None else None for root in exprs1]
+    exprs2 = [map(root) if root is not None else None for root in exprs2]
 
     return exprs1, exprs2
 
@@ -416,7 +416,7 @@ def demark(expr):
 @expr_map
 def replace(expr, f):
     expr = f(expr)
-    if not expr is None:
+    if expr is not None:
         return expr, expr_map.REPLACE_AND_STOP
 
 @expr_map
@@ -426,7 +426,7 @@ def remove(expr, pred):
 
 def remove_unnamed_trivial_axes(expr):
     def is_concat_child(expr): # Do not remove direct children of concatenations
-        return not expr.parent is None and (isinstance(expr.parent, Concatenation) or (isinstance(expr.parent, Marker) and is_concat_child(expr.parent)))
+        return expr.parent is not None and (isinstance(expr.parent, Concatenation) or (isinstance(expr.parent, Marker) and is_concat_child(expr.parent)))
     return remove(expr, lambda expr: isinstance(expr, Axis) and expr.is_unnamed and expr.value == 1 and not is_concat_child(expr))
 
 @expr_map
@@ -439,7 +439,7 @@ def any_parent_is(expr, pred, include_self=True):
         if expr.parent is None:
             return False
         expr = expr.parent
-    while not expr is None:
+    while expr is not None:
         if pred(expr):
             return True
         expr = expr.parent

@@ -1,4 +1,8 @@
-import threading, os, traceback, types, functools
+import threading
+import os
+import traceback
+import types
+import functools
 
 path = os.path.abspath(os.path.join(__file__, ".."))
 def include_frame(fname):

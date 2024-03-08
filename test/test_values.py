@@ -12,7 +12,8 @@ if importlib.util.find_spec("tensorflow"):
 if importlib.util.find_spec("mlx"):
     import mlx
 
-import einx, pytest
+import einx
+import pytest
 import numpy as np
 
 backends = [b for b in einx.backend.backends if b != einx.backend.tracer]

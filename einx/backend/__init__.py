@@ -1,4 +1,6 @@
-import sys, einx, threading
+import sys
+import einx
+import threading
 
 from .base import Backend
 
@@ -70,10 +72,10 @@ def get(arg):
                 return _get1(tensors[0])
             backend = None
             for tensor in tensors:
-                if not tensor is None:
+                if tensor is not None:
                     backend2 = _get1(tensor)
                     if backend2 != numpy:
-                        if not backend is None and backend != backend2:
+                        if backend is not None and backend != backend2:
                             raise ValueError(f"Got tensors with conflicting backends: {backend.__name__} and {backend2.__name__}")
                         backend = backend2
             if backend is None:

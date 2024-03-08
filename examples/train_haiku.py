@@ -2,7 +2,12 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context # Fixed problem with downloading CIFAR10 dataset
 
 import haiku as hk
-import torch, einx, os, jax, optax, time
+import torch
+import einx
+import os
+import jax
+import optax
+import time
 import torchvision
 import torchvision.transforms as transforms
 import jax.numpy as jnp
@@ -88,5 +93,5 @@ for epoch in range(100):
         accurate = test_step(params, state, jnp.asarray(images), jnp.asarray(labels))
         total += accurate.shape[0]
         correct += jnp.sum(accurate)
-    
+
     print(f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} ({time.time() - t0:.2f}sec)")

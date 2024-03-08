@@ -10,7 +10,8 @@ class numpy(Backend):
     tensor = np.ndarray
     name = "numpy"
 
-    cast = lambda tensor, dtype: tensor.astype(dtype)
+    def cast(tensor, dtype):
+        return tensor.astype(dtype)
     reshape = np.reshape
     transpose = np.transpose
     broadcast_to = np.broadcast_to
@@ -85,7 +86,8 @@ class numpy(Backend):
         return x - np.log(np.sum(np.exp(x), axis=axis, keepdims=True))
 
     sqrt = np.sqrt
-    rsqrt = lambda x: 1.0 / np.sqrt(x)
+    def rsqrt(x):
+        return 1.0 / np.sqrt(x)
     square = np.square
 
     allclose = np.allclose
@@ -96,13 +98,13 @@ class numpy(Backend):
         def inner(*args):
             if len(args) != len(in_axes):
                 raise ValueError(f"Expected {len(in_axes)} arguments, got {len(args)}")
-            value = set(arg.shape[axis] for arg, axis in zip(args, in_axes) if not axis is None)
+            value = {arg.shape[axis] for arg, axis in zip(args, in_axes) if axis is not None}
             if len(value) != 1:
                 raise ValueError(f"Expected all arguments to have same size along vmap axis, got {value}")
             value = value.pop()
             xs_stacks = [[]] * len(out_axes)
             for i in range(value):
-                xs = op(*[arg[(slice(None),) * axis + (i,)] if not axis is None else arg for arg, axis in zip(args, in_axes)])
+                xs = op(*[arg[(slice(None),) * axis + (i,)] if axis is not None else arg for arg, axis in zip(args, in_axes)])
                 if len(xs) != len(out_axes):
                     raise ValueError(f"Expected {len(out_axes)} arguments from vmapped function, got {len(xs)}")
                 for xs_stack, x in zip(xs_stacks, xs):
