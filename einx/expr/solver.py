@@ -128,7 +128,7 @@ def to_term(x):
         return Constant(x)
     else:
         if not isinstance(x, Expression):
-            raise TypeError('Expected Expression, got {}'.format(type(x)))
+            raise TypeError(f"Expected Expression, got {type(x)}")
         return x
 
 class SolveException(Exception):

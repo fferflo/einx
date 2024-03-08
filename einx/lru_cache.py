@@ -101,11 +101,11 @@ def lru_cache(func=None, trace=None):
             return_graph = graph
 
             # Get traced arguments and cache key
-            input_tracer_values = []
+            traced_input_values = []
             index = 0
             def new_input(x):
                 nonlocal index
-                input_tracer_values.append(x)
+                traced_input_values.append(x)
                 x = einx.backend.tracer.Input(shape=einx.param.get_shape(x), index=index, original_type=type(x))
                 index += 1
                 return x
@@ -114,7 +114,7 @@ def lru_cache(func=None, trace=None):
             args, kwargs = trace(new_input, get_args_kwargs)(*args, **kwargs)
 
             if backend is None:
-                backend = einx.backend.get(input_tracer_values)
+                backend = einx.backend.get(traced_input_values)
             elif isinstance(backend, str):
                 backend = einx.backend.get(backend)
 
@@ -123,7 +123,7 @@ def lru_cache(func=None, trace=None):
             if return_graph:
                 return graph
             else:
-                return graph(*input_tracer_values)
+                return graph(*traced_input_values)
 
         with traced_functions_lock:
             traced_functions.append(inner)

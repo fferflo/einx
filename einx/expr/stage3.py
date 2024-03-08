@@ -19,6 +19,11 @@ class Composition(Expression):
     def maybe(inner):
         if len(inner) == 0:
             return Axis(None, 1)
+        elif isinstance(inner, list):
+            if len(inner) == 1:
+                return inner[0]
+            else:
+                return Composition(List.maybe(inner))
         elif isinstance(inner, List) and len(inner) == 1:
             return inner.children[0]
         else:
