@@ -4,3 +4,4 @@ examples/cifar10
 dist/*
 act
 __pycache__
+/*.py

@@ -1,5 +1,6 @@
 import einx
 from .base import Backend, ErrorBackend, associative_binary_to_nary
+import numpy as np
 
 def to_tuple(x):
     if isinstance(x, tuple):

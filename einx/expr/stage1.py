@@ -566,9 +566,6 @@ def _get_marked(expr):
 def get_marked(expr):
     return List.maybe(_get_marked(expr))
 
-def get_marked(expr):
-    return List.maybe(_get_marked(expr))
-
 def get_unmarked(expr):
     return remove(expr, lambda expr: is_marked(expr))
 
