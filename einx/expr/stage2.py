@@ -131,7 +131,8 @@ class Concatenation(Expression):
         for c in children:
             if len(c) != 1:
                 raise ValueError(
-                    f"Concatenation can only be used on expressions of length 1, but got expression '{c}'"
+                    "Concatenation can only be used on expressions of length 1, "
+                    f"but got expression '{c}'"
                 )
         self.children = children
         for c in children:
@@ -204,9 +205,11 @@ class SolveException(Exception):
             exprs1, exprs2, expansions1, expansions2, depths1, depths2
         ):
             self.message += "    "
-            self.message += f"{einx.expr.util._to_str(expr1)} (expansion={einx.expr.util._to_str(expansion1)} at depth={depth1})"
+            self.message += f"{einx.expr.util._to_str(expr1)} (expansion="
+            f"{einx.expr.util._to_str(expansion1)} at depth={depth1})"
             self.message += " = "
-            self.message += f"{einx.expr.util._to_str(expr2)} (expansion={einx.expr.util._to_str(expansion2)} at depth={depth2})"
+            self.message += f"{einx.expr.util._to_str(expr2)} (expansion="
+            f"{einx.expr.util._to_str(expansion2)} at depth={depth2})"
             self.message += "\n"
         super().__init__(self.message)
 
@@ -337,7 +340,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
     except solver.SolveException as e:
         raise SolveDepthException(
             exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e)
-        )
+        ) from e
     expr_depths = {}
     for k, v in solutions.items():
         if k.startswith("symbolic_expr_depths["):
@@ -412,7 +415,8 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                         f"symbolic_expr_expansions[{id(expr)},{depth}]", f"{expr} at depth {depth}"
                     )
 
-    # Add equations: Expansion of an expression at depth d (less than own depth) is equal to the expansion of each child at depth d
+    # Add equations: Expansion of an expression at depth d (less than own depth)
+    # is equal to the expansion of each child at depth d
     for root in exprs1 + exprs2:
         if root is not None:
             for expr in root.all():
@@ -460,7 +464,8 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                     expansions2,
                     depths1,
                     depths2,
-                    f"Expansion '{expansion1}' of expression '{expr1}' does not match expansion '{expansion2}' of expression '{expr2}'",
+                    f"Expansion '{expansion1}' of expression '{expr1}' does not match expansion "
+                    f"'{expansion2}' of expression '{expr2}'",
                 )
 
         if expansion1 is not None and expansion2 is not None:
@@ -532,7 +537,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
     except solver.SolveException as e:
         raise SolveExpansionException(
             exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e)
-        )
+        ) from e
 
     def to_key(k):
         return int(id_expr), int(depth)
@@ -599,7 +604,10 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             value = get_unnamed_value(expr.inner)
             if value != 1:  # TODO: implement this
                 raise NotImplementedError(
-                    f"Found unnamed and unexpanded ellipsis '{expr}'. We currently disallow this case, since it could can take on multiple values ('2...' could have values 2, 4, ...) that should be resolved in the solver and then checked to be consistent with these constraints."
+                    f"Found unnamed and unexpanded ellipsis '{expr}'. We currently disallow this "
+                    "case, since it could can take on multiple values ('2...' could have values "
+                    "2, 4, ...) that should be resolved in the solver and then checked to be "
+                    "consistent with these constraints."
                 )
             return 1
         else:
@@ -779,7 +787,8 @@ def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
         print("CSE: Removed duplicates")
         for v in common_exprs:
             print(
-                f"    {[' '.join([str(y) for y in x]) for x in v]} {[[id(y) for y in x] for x in v]}"
+                f"    {[' '.join([str(y) for y in x]) for x in v]} "
+                f"{[[id(y) for y in x] for x in v]}"
             )
 
     # Remove singletons

@@ -71,8 +71,10 @@ def _with_retrace_warning(func):
                         # Print warning
                         has_warned = True
                         print(
-                            f"WARNING (einx): The following call stack has resulted in {warn_on_retrace_num} retraces of an einx function.\n"
-                            f"A retrace happens when the function is called with different signatures of input arguments.\n"
+                            f"WARNING (einx): The following call stack has resulted in "
+                            f"{warn_on_retrace_num} retraces of an einx function.\n"
+                            f"A retrace happens when the function is called with "
+                            "different signatures of input arguments.\n"
                             f"Call stack (most recent call last):\n"
                             f"{trace}"
                         )
@@ -107,7 +109,8 @@ def lru_cache(func=None, trace=None):
         else:
             inner = freeze(functools.lru_cache(maxsize=max_cache_size)(func))
     else:
-        # Arguments are traced: Create cache for graph, then wrap cache in a function that executes graph
+        # Arguments are traced: Create cache for graph, then wrap
+        # cache in a function that executes graph
         @lru_cache
         def construct_graph(*args, backend, **kwargs):
             output_tracers = func(*args, **kwargs, backend=einx.backend.tracer)

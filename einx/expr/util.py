@@ -27,8 +27,8 @@ def _input_expr(expr):
         else:
             try:
                 expr = np.asarray(expr)
-            except e:
-                raise ValueError(f"Invalid expression '{expr}'")
+            except Exception as e:
+                raise ValueError(f"Invalid expression '{expr}'") from e
         if not np.issubdtype(expr.dtype, np.integer):
             raise ValueError(f"Invalid expression '{expr}', must be integers")
         expr = " ".join([str(i) for i in expr.flatten()])
@@ -45,7 +45,8 @@ class Equation:
         self.depth2 = None if expr2 is None else depth2
 
     def __repr__(self):
-        return f"{self.expr} = {self.value.tolist()} (expansion={self.expansion} at depth={self.depth})"
+        return f"{self.expr} = {self.value.tolist()} (expansion={self.expansion} at "
+        f"depth={self.depth})"
 
 
 def _to_str(l):  # Print numpy arrays in a single line rather than with line breaks
@@ -78,7 +79,8 @@ def solve(
             exprs1, exprs2, expansions1, expansions2, depths1, depths2
         ):
             print(
-                f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = {_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
+                f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = "
+                f"{_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
             )
 
     exprs1 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs1]
@@ -99,7 +101,8 @@ def solve(
             exprs1, exprs2, expansions1, expansions2, depths1, depths2
         ):
             print(
-                f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = {_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
+                f"    {_to_str(expr1)} (expansion={_to_str(expansion1)} at depth={depth1}) = "
+                f"{_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
             )
 
     exprs1, exprs2 = stage2.solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2)

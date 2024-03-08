@@ -293,9 +293,12 @@ class Scope:
 
         lines = []
         output = function_scope.eval(graph.output)
+        params = [function_scope.eval(x) for x in graph.input_tracers] + [
+            op + "=" + op for op in function_scope.used_functions
+        ]
         lines.insert(
             0,
-            f"def {name}({', '.join([function_scope.eval(x) for x in graph.input_tracers] + [op + '=' + op for op in function_scope.used_functions])}):",
+            f"def {name}({', '.join(params)}):",
         )
         for line in function_scope.lines:
             lines.append(f"    {line}")
@@ -375,7 +378,8 @@ class Scope:
                     kwargs = self.eval(kwargs)
 
                     self.lines.append(
-                        f"{name} = backend.apply({op}, args={args}, kwargs={kwargs}, output_shapes={self.eval(x.output_shapes)})"
+                        f"{name} = backend.apply({op}, args={args}, kwargs={kwargs}, "
+                        f"output_shapes={self.eval(x.output_shapes)})"
                     )
                 else:
                     op = self.eval(x.op)
@@ -404,11 +408,14 @@ class Scope:
             name = self.declare_local_name_for(None, prefix="op")
             if self.backend == einx.backend.tracer:
                 self.lines.append(
-                    f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)}, input_shapes={self.eval(x.input_shapes)}, output_shapes={self.eval(x.output_shapes)})"
+                    f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, "
+                    f"out_axes={self.eval(x.out_axes)}, input_shapes={self.eval(x.input_shapes)}, "
+                    f"output_shapes={self.eval(x.output_shapes)})"
                 )
             else:
                 self.lines.append(
-                    f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, out_axes={self.eval(x.out_axes)})"
+                    f"{name} = backend.vmap({old_name}, in_axes={self.eval(x.in_axes)}, "
+                    f"out_axes={self.eval(x.out_axes)})"
                 )
         elif isinstance(x, str):
             name = f'"{x}"'
@@ -747,7 +754,8 @@ class tracer(Backend):
             expr = expr.strip().replace(" ", "")
             if len(expr) != len(tensor.shape):
                 raise ValueError(
-                    f"Expected {len(expr)} axes, got {len(tensor.shape)} for {i}-th (zero-based) input tensor"
+                    f"Expected {len(expr)} axes, got {len(tensor.shape)} for {i}-th "
+                    "(zero-based) input tensor"
                 )
             for axis, value in zip(expr, tensor.shape):
                 if axis in values:

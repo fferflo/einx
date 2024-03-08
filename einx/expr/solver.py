@@ -159,13 +159,15 @@ def solve(equations):
         if isinstance(t1, Variable) and isinstance(t2, Constant):
             if constants.get(t1.id, t2.value) != t2.value:
                 raise SolveException(
-                    f"Found contradictory values { {constants[t1.id], t2.value} } for expression '{t1.name}'"
+                    f"Found contradictory values { {constants[t1.id], t2.value} } for "
+                    f"expression '{t1.name}'"
                 )
             constants[t1.id] = t2.value
         elif isinstance(t1, Constant) and isinstance(t2, Variable):
             if constants.get(t2.id, t1.value) != t1.value:
                 raise SolveException(
-                    f"Found contradictory values { {constants[t2.id], t1.value} } for expression '{t2.name}'"
+                    f"Found contradictory values { {constants[t2.id], t1.value} } for "
+                    f"expression '{t2.name}'"
                 )
             constants[t2.id] = t1.value
         elif isinstance(t1, Constant) and isinstance(t2, Constant):
@@ -195,11 +197,13 @@ def solve(equations):
                 names = {variables[a].name for a in eclass}
                 if len(names) == 1:
                     raise SolveException(
-                        f"Found contradictory values {class_constants} for expression '{next(iter(names))}'"
+                        f"Found contradictory values {class_constants} for expression "
+                        f"'{next(iter(names))}'"
                     )
                 else:
                     raise SolveException(
-                        f"Found contradictory values {class_constants} for equivalent expressions {names}"
+                        f"Found contradictory values {class_constants} for equivalent "
+                        f"expressions {names}"
                     )
             v = Constant(next(iter(class_constants)))
         else:
@@ -232,7 +236,8 @@ def solve(equations):
         if isinstance(t1, Constant) and isinstance(t2, Constant):
             if t1.value != t2.value:
                 raise SolveException(
-                    f"Found contradictory values {t1.value} != {t2.value} for same equivalence class"
+                    f"Found contradictory values {t1.value} != {t2.value} "
+                    "for same equivalence class"
                 )
         elif t1 != t2:
             equations2.append((t1, t2))

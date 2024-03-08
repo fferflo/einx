@@ -46,7 +46,8 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
     transpose_first = len(exprs_in) > 1  # TODO: and inputs dont have matching expressions
     if not transpose_first and len(exprs_in) > 1:
         raise ValueError(
-            "When multiple input expressions are given, they have to be transposed to the same layout before applying the operation (transpose_first has to be set to True)"
+            "When multiple input expressions are given, they have to be transposed to the same "
+            "layout before applying the operation (transpose_first has to be set to True)"
         )
 
     # Ensure that axis markings are consistent
@@ -225,36 +226,47 @@ def vmap_with_axis(
     kwargs: Mapping = {},
     **parameters: npt.ArrayLike,
 ):
-    """Applies a function to the marked axes of the input tensors by passing the ``axis`` argument.
+    """Applies a function to the marked axes of the input tensors by passing the ``axis``
+    argument.
 
     The function flattens all input tensors, applies the given operation and rearranges
-    the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    the result to match the output expressions (see :doc:`How does einx handle input and output
+    tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions, as well as axes along which the operation is applied. It must meet one of the following formats:
+    The `description` argument specifies the input and output expressions, as well as axes along
+    which the operation is applied. It must meet one of the following formats:
 
     1. ``input1, input2, ... -> output1, output2, ...``
-        All input and output expressions are specified explicitly. Axes that the operation is applied along are marked with ``[]``-brackets.
+        All input and output expressions are specified explicitly. Axes that the operation is
+        applied along are marked with ``[]``-brackets.
 
     2. ``... [input|output] ...``
-        The left and right choices correspond to the input and output tensors, respectively. Axes that the operation is applied along are marked with ``[]``-brackets.
+        The left and right choices correspond to the input and output tensors, respectively.
+        Axes that the operation is applied along are marked with ``[]``-brackets.
 
-        Example: ``a [b1|b2]`` resolves to ``a [b1] -> a [b2]``. ``a [b]`` resolves to ``a [b] -> a [b]``.
+        Example: ``a [b1|b2]`` resolves to ``a [b1] -> a [b2]``. ``a [b]`` resolves
+        to ``a [b] -> a [b]``.
 
-    When the function is applied on scalars, the ``axis`` argument is not passed. For multiple input tensors, the function must follow
+    When the function is applied on scalars, the ``axis`` argument is not passed. For multiple
+    input tensors, the function must follow
     `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_.
 
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
+        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string,
+            retrieves the attribute of `backend` with the same name.
         kwargs: Additional keyword arguments that are passed to ``op``.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
+        backend: Backend to use for all operations. If None, determines the backend from the input
+            tensors. Defaults to None.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        graph: Whether to return the graph representation of the operation instead of computing the
+            result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the operation if ``graph=False``, otherwise the graph representation of the operation.
+        The result of the operation if ``graph=False``, otherwise the graph
+        representation of the operation.
 
     Examples:
         Reverse order of elements along an axis:
@@ -266,7 +278,12 @@ def vmap_with_axis(
         Roll elements along two axes:
 
         >>> x = np.random.uniform(size=(16, 20))
-        >>> einx.vmap_with_axis("a ([b c]) -> a ([b c])", x, op=partial(np.roll, shift=(2, 2)), b=2).shape
+        >>> einx.vmap_with_axis(
+        ...     "a ([b c]) -> a ([b c])",
+        ...     x,
+        ...     op=partial(np.roll, shift=(2, 2)),
+        ...     b=2,
+        ... ).shape
         (16, 20)
 
         Compute sum along axis:
@@ -308,7 +325,9 @@ def roll(
     cse: bool = True,
     **parameters: npt.ArrayLike,
 ):
-    """Specialization of :func:`einx.vmap_with_axis` with ``op="roll"`` and ``kwargs={"shift": shift}``."""
+    """Specialization of :func:`einx.vmap_with_axis` with ``op="roll"`` and
+    ``kwargs={"shift": shift}``.
+    """
     return vmap_with_axis(
         description,
         tensor,

@@ -37,7 +37,8 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
     assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
     if len(exprs_in) != len(exprs_out_flat):
         raise ValueError(
-            f"Got different number of input ({len(exprs_in)}) and output expressions ({len(exprs_out_flat)}) (after flattening)"
+            f"Got different number of input ({len(exprs_in)}) and output expressions "
+            f"({len(exprs_out_flat)}) (after flattening)"
         )  # TODO:
 
     # Order inputs to align with output expressions
@@ -107,19 +108,24 @@ def rearrange(
 
     See :doc:`How does einx handle input and output tensors? </faq/flatten>`.
 
-    The `description` argument specifies the input and output expressions. It must meet the following format:
+    The `description` argument specifies the input and output expressions. It must
+    meet the following format:
     ``input1, input2, ... -> output1, output2, ...``
 
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        backend: Backend to use for all operations. If None, determines the backend from
+            the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of
+            computing the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the elementwise operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the elementwise operation if `graph=False`, otherwise the graph
+        representation of the operation.
 
     Examples:
         Transpose the row and column axes of a batch of images:
@@ -136,7 +142,10 @@ def rearrange(
 
         Concatenate two tensors along the first axis:
 
-        >>> a, b = np.random.uniform(size=(10, 10)), np.random.uniform(size=(20, 10))
+        >>> a, b = (
+        ...     np.random.uniform(size=(10, 10)),
+        ...     np.random.uniform(size=(20, 10)),
+        ... )
         >>> einx.rearrange("a b, c b -> (a + c) b", a, b).shape
         (30, 10,)
 

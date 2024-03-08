@@ -20,9 +20,12 @@ def param(
 
     Args:
         layer: The layer to create the parameter in. Must be an instance of ``keras.layers.Layer``.
-        name: Name of the parameter. If ``None``, uses a default name determined from the calling operation. Defaults to ``None``.
-        init: Initializer for the parameter. If ``None``, uses a default init method determined from the calling operation. Defaults to ``None``.
-        dtype: Data type of the parameter. If ``None``, uses the ``dtype`` member of the calling module or ``float32`` if it does not exist. Defaults to ``None``.
+        name: Name of the parameter. If ``None``, uses a default name determined from the
+            calling operation. Defaults to ``None``.
+        init: Initializer for the parameter. If ``None``, uses a default init method determined
+            from the calling operation. Defaults to ``None``.
+        dtype: Data type of the parameter. If ``None``, uses the ``dtype`` member of the calling
+            module or ``float32`` if it does not exist. Defaults to ``None``.
         trainable: Whether the parameter is trainable. Defaults to ``True``.
 
     Returns:
@@ -108,16 +111,20 @@ class Norm(Layer):
     """Normalization layer.
 
     Args:
-        stats: Einstein string determining the axes along which mean and variance are computed. Will be passed to ``einx.reduce``.
-        params: Einstein string determining the axes along which learnable parameters are applied. Will be passed to ``einx.elementwise``. Defaults to ``"b... [c]"``.
+        stats: Einstein string determining the axes along which mean and variance are computed.
+            Will be passed to ``einx.reduce``.
+        params: Einstein string determining the axes along which learnable parameters are applied.
+            Will be passed to ``einx.elementwise``. Defaults to ``"b... [c]"``.
         mean: Whether to apply mean normalization. Defaults to ``True``.
         var: Whether to apply variance normalization. Defaults to ``True``.
         scale: Whether to apply a learnable scale according to ``params``. Defaults to ``True``.
         bias: Whether to apply a learnable bias according to ``params``. Defaults to ``True``.
-        epsilon: A small float added to the variance to avoid division by zero. Defaults to ``1e-5``.
+        epsilon: A small float added to the variance to avoid division by zero. Defaults
+            to ``1e-5``.
         fastvar: Whether to use a fast variance computation. Defaults to ``True``.
         dtype: Data type of the weights. Defaults to ``"float32"``.
-        decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
+        decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``,
+            no moving average is applied. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
@@ -190,7 +197,8 @@ class Linear(Layer):
     """Linear layer.
 
     Args:
-        expr: Einstein string determining the axes along which the weight matrix is multiplied. Will be passed to ``einx.dot``.
+        expr: Einstein string determining the axes along which the weight matrix is multiplied.
+            Will be passed to ``einx.dot``.
         bias: Whether to apply a learnable bias. Defaults to ``True``.
         dtype: Data type of the weights. Defaults to ``"float32"``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
@@ -217,7 +225,8 @@ class Dropout(Layer):
     """Dropout layer.
 
     Args:
-        expr: Einstein string determining the axes along which dropout is applied. Will be passed to ``einx.elementwise``.
+        expr: Einstein string determining the axes along which dropout is applied. Will be
+            passed to ``einx.elementwise``.
         drop_rate: Drop rate.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """

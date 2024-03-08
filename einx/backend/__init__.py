@@ -90,7 +90,8 @@ def get(arg):
                     if backend2 != numpy:
                         if backend is not None and backend != backend2:
                             raise ValueError(
-                                f"Got tensors with conflicting backends: {backend.__name__} and {backend2.__name__}"
+                                "Got tensors with conflicting backends: "
+                                f"{backend.__name__} and {backend2.__name__}"
                             )
                         backend = backend2
             if backend is None:

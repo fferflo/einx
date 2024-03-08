@@ -16,7 +16,8 @@ if importlib.util.find_spec("torch"):
     import torch
     import einx.nn.torch
 
-    # Tests are run with many different sets of parameters which cause torch.compile to recompile the used function and hit the cache limit.
+    # Tests are run with many different sets of parameters which cause torch.compile
+    # to recompile the used function and hit the cache limit.
     # We increase the cache limit to avoid this issue.
     try:
         torch._dynamo.config.accumulated_cache_size_limit = 99999

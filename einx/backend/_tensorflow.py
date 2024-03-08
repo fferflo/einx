@@ -113,7 +113,8 @@ def make_tensorflow_backend():
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
                     raise ValueError(
-                        f"Tensorflow only supports softmax along a single axis, got {len(axis)} axes"
+                        "Tensorflow only supports softmax along a single axis, "
+                        f"got {len(axis)} axes"
                     )
                 axis = axis[0]
             return tf.nn.softmax(x, axis=axis)
@@ -122,7 +123,8 @@ def make_tensorflow_backend():
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
                     raise ValueError(
-                        f"Tensorflow only supports log_softmax along a single axis, got {len(axis)} axes"
+                        "Tensorflow only supports log_softmax along a single axis, "
+                        f"got {len(axis)} axes"
                     )
                 axis = axis[0]
             return tf.nn.log_softmax(x, axis=axis)
@@ -135,7 +137,8 @@ def make_tensorflow_backend():
 
         def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
             def inner(*args):
-                # TODO: suboptimal (?) implementation of vmap in tensorflow that transposes the vmapped axis to the front and calls tf.vectorized_map
+                # TODO: suboptimal (?) implementation of vmap in tensorflow that transposes the
+                # vmapped axis to the front and calls tf.vectorized_map
                 if len(args) != len(in_axes):
                     raise ValueError(f"Expected {len(in_axes)} arguments, got {len(args)}")
                 value = {arg.shape[axis] for arg, axis in zip(args, in_axes) if axis is not None}
@@ -176,7 +179,8 @@ def make_tensorflow_backend():
 
                 return tuple(xs)
 
-            inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
+            inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, "
+            f"in_axes={in_axes}, out_axes={out_axes})"
             return inner
 
         class random:

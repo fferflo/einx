@@ -99,7 +99,8 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         for axis in exprs_in[-1].all():
             if isinstance(axis, einx.expr.stage3.Axis) and axis.name not in axis_names:
                 raise ValueError(
-                    f"Update expression cannot contain axes that are not in the coordinate or tensor expressions: {axis.name}"
+                    f"Update expression cannot contain axes that are not in the "
+                    f"coordinate or tensor expressions: {axis.name}"
                 )
 
     # Call tensor factories
@@ -135,7 +136,8 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         ]
         if len(marked_coordinate_axes) > 1:
             raise ValueError(
-                f"Expected at most one coordinate axis in coordinate expression, got {len(marked_coordinate_axes)} in '{expr_coord}'"
+                f"Expected at most one coordinate axis in coordinate expression, "
+                f"got {len(marked_coordinate_axes)} in '{expr_coord}'"
             )
         ndim = marked_coordinate_axes[0].value if len(marked_coordinate_axes) == 1 else 1
         coordinate_axis_name = (
@@ -197,7 +199,8 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
     if update:
         expr_update = einx.expr.stage3.replace(expr_update, replace)
 
-    # If updating: Add markers around axes in output that are also marked in tensor (and are not broadcasted axes)
+    # If updating: Add markers around axes in output that are also marked
+    # in tensor (and are not broadcasted axes)
     if update:
 
         def replace(expr):
@@ -231,7 +234,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
             if isinstance(axis, einx.expr.stage3.Axis) and not axis.name == longest[0]
         ]
         axes_names = {axis.name for axis in all_axes}
-        for coordinate_axis_name, expr_coord, ndim in layout2:
+        for coordinate_axis_name, expr_coord, _ in layout2:
             for axis in expr_coord.all():
                 if (
                     isinstance(axis, einx.expr.stage3.Axis)
@@ -322,7 +325,8 @@ def parse(description, *tensors_shapes, update, cse=True, **parameters):
             ]
             if len(marked_coordinate_axes) > 1:
                 raise ValueError(
-                    f"Expected at most one marked axis per coordinate tensor, got {len(marked_coordinate_axes)}"
+                    f"Expected at most one marked axis per coordinate tensor"
+                    f", got {len(marked_coordinate_axes)}"
                 )
             elif len(marked_coordinate_axes) == 1:
                 if isinstance(marked_coordinate_axes[0], einx.expr.stage2.NamedAxis):
@@ -380,28 +384,38 @@ def index(
 ) -> einx.Tensor:
     """Updates and/ or returns values from an array at the given coordinates.
 
-    The `description` argument specifies the input and output expressions and must meet one of the following formats:
+    The `description` argument specifies the input and output expressions and must meet one of
+    the following formats:
 
     1. ``tensor, coordinates1, coordinates2, ..., update -> output``
        when modifying values in the tensor.
     2. ``tensor, coordinates1, coordinates2, ... -> output``
        when only returning values from the tensor.
 
-    Brackets in the ``tensor`` expression mark the axes that will be indexed. Brackets in the ``coordinates`` expression mark the single coordinate axis. All other
-    axes are considered batch axes. Using multiple coordinate expressions will yield the same output as concatenating the coordinate expressions along the coordinate axis first.
+    Brackets in the ``tensor`` expression mark the axes that will be indexed. Brackets in the
+    ``coordinates`` expression mark the single coordinate axis. All other axes are considered
+    batch axes. Using multiple coordinate expressions will yield the same output as concatenating
+    the coordinate expressions along the coordinate axis first.
 
     Args:
         description: Description string in Einstein notation (see above).
-        *tensors: Tensors that the operation will be applied to. The first tensor will receive updates, the last tensor contains the updates, and all other tensors represent the coordinates.
-        op: The update/gather function. If `op` is a string, retrieves the attribute of `backend` with the same name.
+        *tensors: Tensors that the operation will be applied to. The first tensor will receive
+            updates, the last tensor contains the updates, and all other tensors represent
+            the coordinates.
+        op: The update/gather function. If `op` is a string, retrieves the attribute of `backend`
+            with the same name.
         update: Whether to update the tensor or return values from the tensor.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        backend: Backend to use for all operations. If None, determines the backend from the
+            input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of computing
+            the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the update/ gather operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the update/ gather operation if `graph=False`, otherwise the graph
+        representation of the operation.
 
     Examples:
         Get values from a batch of images (different indices per image):
@@ -414,7 +428,12 @@ def index(
         >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
         >>> coordinates_x = np.ones((4, 100), "int32")
         >>> coordinates_y = np.ones((4, 100), "int32")
-        >>> einx.get_at("b [h w] c, b p, b p -> b p c", tensor, coordinates_x, coordinates_y).shape
+        >>> einx.get_at(
+        ...     "b [h w] c, b p, b p -> b p c",
+        ...     tensor,
+        ...     coordinates_x,
+        ...     coordinates_y,
+        ... ).shape
         (4, 100, 3)
 
         Set values in a batch of images (same indices per image):
@@ -422,7 +441,9 @@ def index(
         >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
         >>> coordinates = np.ones((100, 2), "int32")
         >>> updates = np.random.uniform(size=(100, 3))
-        >>> einx.set_at("b [h w] c, p [2], p c -> b [h w] c", tensor, coordinates, updates).shape
+        >>> einx.set_at(
+        ...     "b [h w] c, p [2], p c -> b [h w] c", tensor, coordinates, updates
+        ... ).shape
         (4, 128, 128, 3)
 
         >>> tensor = np.random.uniform(size=(4, 128, 128, 3))
@@ -430,7 +451,11 @@ def index(
         >>> coordinates_y = np.ones((100,), "int32")
         >>> updates = np.random.uniform(size=(100, 3))
         >>> einx.set_at(
-        ...     "b [h w] c, p, p, p c -> b [h w] c", tensor, coordinates_x, coordinates_y, updates
+        ...     "b [h w] c, p, p, p c -> b [h w] c",
+        ...     tensor,
+        ...     coordinates_x,
+        ...     coordinates_y,
+        ...     updates,
         ... ).shape
         (4, 128, 128, 3)
     """

@@ -19,7 +19,8 @@ def make_torch_backend():
 
     version = tuple(int(i) for i in torch_.__version__.split(".")[:2])
     if version < (2, 0):
-        message = f"einx with PyTorch requires PyTorch version >= 2, but found {torch_.__version__}. einx functions are disabled for PyTorch."
+        message = "einx with PyTorch requires PyTorch version >= 2, but found "
+        f"{torch_.__version__}. einx functions are disabled for PyTorch."
         print(f"WARNING: {message}")
         return ErrorBackend(message)
 
@@ -115,8 +116,10 @@ def make_torch_backend():
                 else:
                     # Fix for https://github.com/pytorch/functorch/issues/747
                     # Scalar coordinates cause problems with torch.vmap and throw an error:
-                    # "RuntimeError: vmap: It looks like you're calling .item() on a Tensor. We don't support vmap over calling .item() on a Tensor ..."
-                    # As a workaround, we add a dummy dimension and remove it after the indexing operation.
+                    # "RuntimeError: vmap: It looks like you're calling .item() on a Tensor.
+                    # We don't support vmap over calling .item() on a Tensor ..."
+                    # As a workaround, we add a dummy dimension and remove it after the indexing
+                    # operation.
                     return tensor[tuple(c[None] for c in coordinates)][0]
             else:
                 if isinstance(coordinates, (slice, int)) or coordinates.ndim > 0:
@@ -151,7 +154,8 @@ def make_torch_backend():
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
                     raise ValueError(
-                        f"PyTorch only supports softmax along a single axis, got {len(axis)} axes"
+                        "PyTorch only supports softmax along a single axis, "
+                        f"got {len(axis)} axes"
                     )
                 axis = axis[0]
             return torch_.softmax(tensor, axis)
@@ -160,7 +164,8 @@ def make_torch_backend():
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
                     raise ValueError(
-                        f"PyTorch only supports log_softmax along a single axis, got {len(axis)} axes"
+                        "PyTorch only supports log_softmax along a single axis, "
+                        f"got {len(axis)} axes"
                     )
                 axis = axis[0]
             return torch_.nn.functional.log_softmax(tensor, axis)

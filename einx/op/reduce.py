@@ -53,7 +53,8 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
             cse_in_markers=True,
         )[:2]
 
-        # If no axes are marked for reduction in expr_in, mark all axes that don't appear in expr_out
+        # If no axes are marked for reduction in expr_in, mark all axes that
+        # don't appear in expr_out
         if not _any(einx.expr.stage3.is_marked(expr) for expr in expr_in.all()):
             axes_names_out = {
                 axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)
@@ -111,16 +112,20 @@ def reduce(
     """Applies a reduction operation on the given tensors.
 
     The function flattens all input tensors, applies the given reduction operation and rearranges
-    the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    the result to match the output expression (see :doc:`How does einx handle input and
+    output tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions, as well as reduced axes. It must meet one of the following formats:
+    The `description` argument specifies the input and output expressions, as well as
+    reduced axes. It must meet one of the following formats:
 
     1. ``input -> output``
-        Input and output expressions are specified explicitly. Reduced axes are marked with ``[]``-brackets in the input expression. If no axes are
+        Input and output expressions are specified explicitly. Reduced axes are marked
+        with ``[]``-brackets in the input expression. If no axes are
         marked, reduces all axes that do not appear in the output expression.
 
     2. ``input``
-        A single input expression is specified. Reduced axes are marked with ``[]``-brackets. The output expression is determined by removing all marked expressions
+        A single input expression is specified. Reduced axes are marked with ``[]``-brackets.
+        The output expression is determined by removing all marked expressions
         from the input expression.
 
         Example: ``a [b]`` resolves to ``a b -> a``.
@@ -128,15 +133,21 @@ def reduce(
     Args:
         description: Description string in Einstein notation (see above).
         tensor: Input tensor or tensor factory matching the description string.
-        op: Backend reduction operation. Is called with ``op(tensor, axis=...)``. If `op` is a string, retrieves the attribute of `backend` with the same name.
-        keepdims: Whether to replace marked expressions with 1s instead of dropping them. Must be None when `description` already contains an output expression. Defaults to None.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        op: Backend reduction operation. Is called with ``op(tensor, axis=...)``. If `op` is
+            a string, retrieves the attribute of `backend` with the same name.
+        keepdims: Whether to replace marked expressions with 1s instead of dropping them. Must
+            be None when `description` already contains an output expression. Defaults to None.
+        backend: Backend to use for all operations. If None, determines the backend from the
+            input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of
+            computing the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the reduction operation if ``graph=False``, otherwise the graph representation of the operation.
+        The result of the reduction operation if ``graph=False``, otherwise the graph
+        representation of the operation.
 
     Examples:
         Compute mean along rows of a matrix:

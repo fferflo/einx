@@ -6,12 +6,15 @@ import numpy as np
 def flatten(exprs, tensors=None, backend=None):
     """Flatten the given expressions and optionally the corresponding tensors.
 
-    Flattening removes all compositions and concatenations and returns a list of new expressions (and optinally a list of flattened tensors).
+    Flattening removes all compositions and concatenations and returns a list of new expressions
+    (and optinally a list of flattened tensors).
 
     Parameters:
         exprs: Expressions to flatten.
-        tensors: Tensors corresponding to ``exprs``. If None, flattens and returns only ``exprs``. Defaults to None.
-        backend: Backend to use for tensor operations. If None, determines backend from ``tensors``. Defaults to None.
+        tensors: Tensors corresponding to ``exprs``. If None, flattens and returns only
+            ``exprs``. Defaults to None.
+        backend: Backend to use for tensor operations. If None, determines backend from
+            ``tensors``. Defaults to None.
 
     Returns:
         exprs: The flattened expressions.
@@ -92,7 +95,8 @@ def flatten(exprs, tensors=None, backend=None):
 def assignment(exprs_in, exprs_out):
     """Solve the assignment problem between input and output expressions.
 
-    If multiple solutions exist: For each output expression in order, choose the first input expression that matches.
+    If multiple solutions exist: For each output expression in order,
+    choose the first input expression that matches.
 
     Args:
         exprs_in: Input expressions.
@@ -234,8 +238,8 @@ def unflatten(exprs_in, tensors_in, exprs_out, *, backend):
 def _clean_parameter(k, v):
     try:
         v = np.asarray(v)
-    except:
-        raise ValueError(f"Got invalid parameter {k}={v}")
+    except Exception as e:
+        raise ValueError(f"Got invalid parameter {k}={v}") from e
     if not np.issubdtype(v.dtype, np.integer):
         raise ValueError(f"Got invalid parameter {k}={v}")
     return v

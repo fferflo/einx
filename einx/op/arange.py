@@ -128,13 +128,15 @@ def arange(
 ) -> einx.Tensor:
     """n-dimensional ``arange`` operation.
 
-    Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the single marked axis in ``output``. Always uses ``start=0`` and ``step=1``.
+    Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the single
+    marked axis in ``output``. Always uses ``start=0`` and ``step=1``.
 
     The `description` argument must meet one of the following formats:
 
     1. ``input -> output``
-        Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the marked axis in ``output``. The values are stacked in the order
-        that the axes appear in ``input``.
+        Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the
+        marked axis in ``output``. The values are stacked in the order that the axes appear
+        in ``input``.
 
     2. ``output``
         Implicitly determines the input expression by removing the marked axis from ``output``.
@@ -144,12 +146,15 @@ def arange(
     Args:
         description: Description string in Einstein notation (see above).
         backend: Backend to use for all operations.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of computing
+            the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the n-dimensional arange operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the n-dimensional arange operation if `graph=False`, otherwise the graph
+        representation of the operation.
 
     Examples:
         Arange two-dimensional coordinates:
@@ -160,7 +165,8 @@ def arange(
         >>> tensor[2, 3]
         array([2, 3], dtype=int32)
 
-        Arange two-dimensional coordinates with inverted coordinates (`Cartesian ordering <https://numpy.org/doc/stable/reference/generated/numpy.meshgrid.html>`_:
+        Arange two-dimensional coordinates with inverted coordinates (`Cartesian ordering
+        <https://numpy.org/doc/stable/reference/generated/numpy.meshgrid.html>`_:
         First axis of tensor corresponds to second coordinate along stacked axis and vice versa.):
 
         >>> tensor = einx.arange("a b -> b a [2]", a=5, b=6, backend="numpy")

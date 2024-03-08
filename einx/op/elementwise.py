@@ -112,7 +112,8 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
             cse_concat=False,
         )[: len(exprs_in)]
 
-        # Implicitly determine output expression: Check if one input expression contains the axis names of all others, and this choice is unique
+        # Implicitly determine output expression: Check if one input expression contains
+        # the axis names of all others, and this choice is unique
         in_axis_names = [
             {
                 expr.name
@@ -133,7 +134,8 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
         if len(valid_parents) != 1:
             raise ValueError(
-                f"Could not implicitly determine output expression for input expressions {[str(expr) for expr in exprs_in]}"
+                f"Could not implicitly determine output expression for input "
+                f"expressions {[str(expr) for expr in exprs_in]}"
             )
         expr_out = next(iter(valid_parents)).__deepcopy__()
 
@@ -154,19 +156,23 @@ def elementwise(
     cse: bool = True,
     **parameters: npt.ArrayLike,
 ) -> einx.Tensor:
-    """Applies an element-by-element operation over the given tensors. Specializes :func:`einx.vmap_with_axis`.
+    """Applies an element-by-element operation over the given tensors. Specializes
+    :func:`einx.vmap_with_axis`.
 
-    The function flattens all input tensors, applies the given element-by-element operation yielding a single output tensor, and rearranges
-    the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    The function flattens all input tensors, applies the given element-by-element operation
+    yielding a single output tensor, and rearranges the result to match the output expression
+    (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions. It must meet one of the following formats:
+    The `description` argument specifies the input and output expressions. It must meet one of
+    the following formats:
 
     1. ``input1, input2, ... -> output``
         All input and output expressions are specified explicitly.
 
     2. ``input1, input2, ...``
-        All input expressions are specified explicitly. If one of the input expressions is a parent of or equal to all other input expressions,
-        it is used as the output expression. Otherwise, an exception is raised.
+        All input expressions are specified explicitly. If one of the input expressions is a
+        parent of or equal to all other input expressions, it is used as the output expression.
+        Otherwise, an exception is raised.
 
         Example: ``a b, a`` resolves to ``a b, a -> a b``.
 
@@ -179,14 +185,20 @@ def elementwise(
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        op: Backend elemebt-by-element operation. Must accept the same number of tensors as specified in the description string and comply with numpy broadcasting rules. If `op` is a string, retrieves the attribute of `backend` with the same name.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        op: Backend elemebt-by-element operation. Must accept the same number of tensors
+            as specified in the description string and comply with numpy broadcasting rules.
+            If `op` is a string, retrieves the attribute of `backend` with the same name.
+        backend: Backend to use for all operations. If None, determines the backend from
+            the input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of
+            computing the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the elementwise operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the elementwise operation if `graph=False`, otherwise the graph
+        representation of the operation.
 
     Examples:
         Compute a sum of two vectors:
@@ -209,13 +221,19 @@ def elementwise(
 
         Select from one of two choices according to a boolean mask:
 
-        >>> x, mask = np.random.uniform(size=(10, 10)), np.random.uniform(size=(10,))
+        >>> x, mask = (
+        ...     np.random.uniform(size=(10, 10)),
+        ...     np.random.uniform(size=(10,)),
+        ... )
         >>> einx.where("a, a b, -> a b", mask, x, 0).shape
         (10, 10,)
 
         Add a bias onto all channels of a tensor:
 
-        >>> x, w = np.random.uniform(size=(4, 16, 16, 64)), np.random.uniform(size=(64,))
+        >>> x, w = (
+        ...     np.random.uniform(size=(4, 16, 16, 64)),
+        ...     np.random.uniform(size=(64,)),
+        ... )
         >>> einx.add("b... [c]", x, w).shape
         (4, 16, 16, 64)
     """

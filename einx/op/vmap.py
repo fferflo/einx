@@ -98,18 +98,20 @@ def vmap_stage3(
             tensors_out = (tensors_out,)
         if len(tensors_out) != len(exprs_out_expected):
             raise ValueError(
-                f"Expected {len(exprs_out_expected)} output tensor(s) from vmapped function, but got {len(tensors_out)}"
+                f"Expected {len(exprs_out_expected)} output tensor(s) from vmapped "
+                f"function, but got {len(tensors_out)}"
             )
 
         if verbose:
             print("Unflattened output tensors in op:")
-            for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
+            for expr_out, tensor_out in zip(exprs_out_expected, tensors_out):
                 print("    ", expr_out, tensor_out.shape)
 
         for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
             assert (
                 tensor_out.shape == expr_out.shape
-            ), f"Expected output shape {expr_out.shape} from {i}-th (zero-based) output of vmapped function, but got {tensor_out.shape}"
+            ), f"Expected output shape {expr_out.shape} from {i}-th (zero-based) "
+            f"output of vmapped function, but got {tensor_out.shape}"
 
         if not flat:
             exprs_out_funcargs_flat2, tensors_out = util.flatten(
@@ -120,7 +122,8 @@ def vmap_stage3(
                 print("Flattened output tensors in op:", [str(a.shape) for a in tensors_out])
             assert (
                 exprs_out_funcargs_flat2 == exprs_out_funcargs_flat
-            ), f"{[str(s) for s in exprs_out_funcargs_flat2]} != {[str(s) for s in exprs_out_funcargs_flat]}"
+            ), f"{[str(s) for s in exprs_out_funcargs_flat2]} != "
+            f"{[str(s) for s in exprs_out_funcargs_flat]}"
 
         if verbose:
             print("Returning types from vmapped function:", [type(t) for t in tensors_out])
@@ -186,12 +189,14 @@ def vmap_stage3(
         )
         if verbose:
             print(
-                f"Applying backend.vmap to axis {v}, with input axis indices {in_axes} and output axis indices {out_axes}"
+                f"Applying backend.vmap to axis {v}, with input axis indices "
+                f"{in_axes} and output axis indices {out_axes}"
             )
         for out_axis, expr_out in zip(out_axes, exprs_out_flat):
             if out_axis is None:
                 raise ValueError(
-                    f"All vmapped axes must appear in the output expression, but '{v}' does not appear in '{expr_out}'"
+                    f"All vmapped axes must appear in the output expression, "
+                    f"but '{v}' does not appear in '{expr_out}'"
                 )
 
         vmaps.append((in_axes, out_axes, input_shapes, output_shapes))
@@ -214,7 +219,8 @@ def vmap_stage3(
                 axes_names_out_without_broadcast.remove(v)
         if verbose:
             print(
-                f"Now has remaining input axes {axes_names_in} and output axes {axes_names_out_without_broadcast}"
+                f"Now has remaining input axes {axes_names_in} and "
+                f"output axes {axes_names_out_without_broadcast}"
             )
 
     for in_axes, out_axes, input_shapes, output_shapes in reversed(vmaps):
@@ -330,36 +336,46 @@ def vmap(
 ):
     """Applies a function to the marked axes of the input tensors using vectorization.
 
-    The function flattens all input tensors, applies the vectorized operation on the tensors and rearranges
-    the result to match the output expressions (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    The function flattens all input tensors, applies the vectorized operation on the
+    tensors and rearranges the result to match the output expressions (see :doc:`How does
+    einx handle input and output tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions. It must meet one of the following formats:
+    The `description` argument specifies the input and output expressions. It must meet one
+    of the following formats:
 
     1. ``input1, input2, ... -> output1, output2, ...``
-        All input and output expressions are specified explicitly. The operation is applied over all axes marked with ``[]``-brackets.
-        All other axes are considered batch axes.
+        All input and output expressions are specified explicitly. The operation is applied
+        over all axes marked with ``[]``-brackets. All other axes are considered batch axes.
 
     2. ``... [input1|output] ...``
-        The function accepts one input and one output tensor. The left and right choices correspond to the input and output tensor, respectively.
+        The function accepts one input and one output tensor. The left and right choices
+        correspond to the input and output tensor, respectively.
 
         Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
 
-    The function ``op`` should accept input tensors and yield output tensors as specified in ``description`` with shapes matching the subexpressions that
-    are marked with ``[]``-brackets.
+    The function ``op`` should accept input tensors and yield output tensors as specified in
+    ``description`` with shapes matching the subexpressions that are marked with ``[]``-brackets.
 
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        op: Function that will be vectorized. If ``op`` is a string, retrieves the attribute of `backend` with the same name.
-        flat: Whether to pass the tensors to ``op`` in flattened form or matching the nested layout in the input expressions. Defaults to False.
+        op: Function that will be vectorized. If ``op`` is a string, retrieves the attribute
+            of `backend` with the same name.
+        flat: Whether to pass the tensors to ``op`` in flattened form or matching the nested
+            layout in the input expressions. Defaults to False.
         kwargs: Additional keyword arguments that are passed to ``op``. Defaults to ``{}``.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
-        **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
+        backend: Backend to use for all operations. If None, determines the backend from the
+            input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of
+            computing the result. Defaults to False.
+        **parameters: Additional parameters that specify values for single axes,
+            e.g. ``a=4``.
 
     Returns:
-        The result of the vectorized operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the vectorized operation if `graph=False`, otherwise the graph
+        representation of the operation.
 
     Examples:
         Compute the mean along rows of a matrix:
@@ -386,7 +402,10 @@ def vmap(
 
         Compute a matrix-matrix multiplication
 
-        >>> x, y = np.random.uniform(size=(5, 10)), np.random.uniform(size=(10, 3))
+        >>> x, y = (
+        ...     np.random.uniform(size=(5, 10)),
+        ...     np.random.uniform(size=(10, 3)),
+        ... )
         >>> einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot).shape
         (5, 3)
     """

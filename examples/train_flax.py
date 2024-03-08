@@ -126,5 +126,6 @@ for epoch in range(100):
         correct += jnp.sum(accurate)
 
     print(
-        f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} ({time.time() - t0:.2f}sec)"
+        f"Test accuracy after {epoch + 1:5d} epochs: {float(correct) / total} "
+        f"({time.time() - t0:.2f}sec)"
     )

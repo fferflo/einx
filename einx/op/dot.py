@@ -212,39 +212,50 @@ def dot(
 ) -> einx.Tensor:
     """Computes a general dot-product of the input tensors.
 
-    The function flattens all input tensors, applies the general dot-product yielding a single output tensor, and rearranges
-    the result to match the output expression (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    The function flattens all input tensors, applies the general dot-product yielding a single
+    output tensor, and rearranges the result to match the output expression (see
+    :doc:`How does einx handle input and output tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions. It must meet one of the following formats:
+    The `description` argument specifies the input and output expressions. It must meet
+    one of the following formats:
 
     1. ``input1, input2, ... -> output``
-        All input and output expressions are specified explicitly. Similar to `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_ notation.
+        All input and output expressions are specified explicitly. Similar to
+        `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
+        notation.
 
     2. ``input1 -> output``
-        The function accepts two input tensors. ``[]``-brackets mark all axes in ``input1`` and ``output`` that should also appear in the second input.
-        The second input is then determined as an ordered list of all marked axes (without duplicates).
+        The function accepts two input tensors. ``[]``-brackets mark all axes in ``input1``
+        and ``output`` that should also appear in the second input. The second input is then
+        determined as an ordered list of all marked axes (without duplicates).
 
         Example: ``[b c1] -> [b c2]`` resolves to ``b c1, b c1 c2 -> b c2``
 
     3. ``... [input1|output] ...``
-        The function accepts two input tensors. The left and right choices correspond to the first input tensor and the output tensor, respectively.
+        The function accepts two input tensors. The left and right choices correspond to the
+        first input tensor and the output tensor, respectively.
 
         Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
 
-    The function additionally passes the ``in_axes``, ``out_axes`` and ``batch_axes`` arguments to tensor factories that can be used to determine the fan-in
-    and fan-out of a neural network layer and initialize weights accordingly
-    (see e.g. `jax.nn.initializers.lecun_normal <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.initializers.lecun_normal.html#jax.nn.initializers.lecun_normal>`_)
+    The function additionally passes the ``in_axes``, ``out_axes`` and ``batch_axes`` arguments
+    to tensor factories that can be used to determine the fan-in and fan-out of a neural network
+    layer and initialize weights accordingly (see e.g. `jax.nn.initializers.lecun_normal
+    <https://jax.readthedocs.io/en/latest/_autosummary/jax.nn.initializers.lecun_normal.html#jax.nn.initializers.lecun_normal>`_)
 
     Args:
         description: Description string in Einstein notation (see above).
         tensors: Input tensors or tensor factories matching the description string.
-        backend: Backend to use for all operations. If None, determines the backend from the input tensors. Defaults to None.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to True.
-        graph: Whether to return the graph representation of the operation instead of computing the result. Defaults to False.
+        backend: Backend to use for all operations. If None, determines the backend from the
+            input tensors. Defaults to None.
+        cse: Whether to apply common subexpression elimination to the expressions. Defaults
+            to True.
+        graph: Whether to return the graph representation of the operation instead of computing
+            the result. Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the dot-product operation if `graph=False`, otherwise the graph representation of the operation.
+        The result of the dot-product operation if `graph=False`, otherwise the graph
+        representation of the operation.
 
     Examples:
         Compute an inner product between two vectors:

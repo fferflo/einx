@@ -65,7 +65,8 @@ def solve(
     Args:
         description: Description string in Einstein notation.
         tensors: Input tensors or tensor factories matching the description string.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to False.
+        cse: Whether to apply common subexpression elimination to the expressions.
+            Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
@@ -92,7 +93,8 @@ def matches(
     Args:
         description: Description string in Einstein notation.
         tensors: Input tensors or tensor factories matching the description string.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to False.
+        cse: Whether to apply common subexpression elimination to the expressions.
+            Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
@@ -113,7 +115,8 @@ def check(
     Args:
         description: Description string in Einstein notation.
         tensors: Input tensors or tensor factories matching the description string.
-        cse: Whether to apply common subexpression elimination to the expressions. Defaults to False.
+        cse: Whether to apply common subexpression elimination to the expressions.
+            Defaults to False.
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 

@@ -131,5 +131,6 @@ class numpy(Backend):
             )
             return xs
 
-        inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, in_axes={in_axes}, out_axes={out_axes})"
+        inner.__name__ = f"vmap({op.__name__ if '__name__' in dir(op) else str(op)}, "
+        f"in_axes={in_axes}, out_axes={out_axes})"
         return inner

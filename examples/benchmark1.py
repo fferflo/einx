@@ -187,7 +187,8 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         for method in methods:
             if method is not None:
                 print(
-                    f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} +- {1000.0 * np.std(times[method.__name__]):0.6f}"
+                    f"{method.__name__:>25}: {1000.0 * np.mean(times[method.__name__]):0.6f} "
+                    f"+- {1000.0 * np.std(times[method.__name__]):0.6f}"
                 )
         rows.append((name, times))
         print()

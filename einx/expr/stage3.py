@@ -163,7 +163,8 @@ class Concatenation(Expression):
         for c in children:
             if len(c) != 1:
                 raise ValueError(
-                    f"Concatenation can only be used on expressions of length 1, but got expression '{c}'"
+                    "Concatenation can only be used on expressions of length 1, but"
+                    f"got expression '{c}'"
                 )
             c.parent = self
 
@@ -313,7 +314,7 @@ def solve(exprs1, exprs2):
     try:
         solutions = solver.solve(equations)
     except solver.SolveException as e:
-        raise SolveValueException(exprs1, exprs2, str(e))
+        raise SolveValueException(exprs1, exprs2, str(e)) from e
     axis_values = {}
     for k, v in solutions.items():
         if k.startswith("symbolic_expr_values["):

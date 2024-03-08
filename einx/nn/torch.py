@@ -27,11 +27,14 @@ def param(
 ):
     """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
-    When the tensor factory is invoked, it calls the ``materialize`` method of ``uninitialized`` with the given shape and returns ``uninitialized``.
+    When the tensor factory is invoked, it calls the ``materialize`` method of ``uninitialized``
+        with the given shape and returns ``uninitialized``.
 
     Args:
-        uninitialized: An instance of either ``torch.nn.parameter.UninitializedParameter`` or ``torch.nn.parameter.UninitializedBuffer``.
-        init: Initializer for the parameter. If ``None``, uses a default init method determined from the calling operation. Defaults to ``None``.
+        uninitialized: An instance of either ``torch.nn.parameter.UninitializedParameter`` or
+            ``torch.nn.parameter.UninitializedBuffer``.
+        init: Initializer for the parameter. If ``None``, uses a default init method determined
+            from the calling operation. Defaults to ``None``.
 
     Returns:
         A tensor factory with the given default parameters.
@@ -80,16 +83,20 @@ class Norm(torch.nn.Module):
     """Normalization layer.
 
     Args:
-        stats: Einstein string determining the axes along which mean and variance are computed. Will be passed to ``einx.reduce``.
-        params: Einstein string determining the axes along which learnable parameters are applied. Will be passed to ``einx.elementwise``. Defaults to ``"b... [c]"``.
+        stats: Einstein string determining the axes along which mean and variance are computed.
+            Will be passed to ``einx.reduce``.
+        params: Einstein string determining the axes along which learnable parameters are applied.
+            Will be passed to ``einx.elementwise``. Defaults to ``"b... [c]"``.
         mean: Whether to apply mean normalization. Defaults to ``True``.
         var: Whether to apply variance normalization. Defaults to ``True``.
         scale: Whether to apply a learnable scale according to ``params``. Defaults to ``True``.
         bias: Whether to apply a learnable bias according to ``params``. Defaults to ``True``.
-        epsilon: A small float added to the variance to avoid division by zero. Defaults to ``1e-5``.
+        epsilon: A small float added to the variance to avoid division by zero. Defaults
+            to ``1e-5``.
         fastvar: Whether to use a fast variance computation. Defaults to ``True``.
         dtype: Data type of the weights. Defaults to ``"float32"``.
-        decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``, no moving average is applied. Defaults to ``None``.
+        decay_rate: Decay rate for exponential moving average of mean and variance. If ``None``,
+            no moving average is applied. Defaults to ``None``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """
 
@@ -186,7 +193,8 @@ class Linear(torch.nn.Module):
     """Linear layer.
 
     Args:
-        expr: Einstein string determining the axes along which the weight matrix is multiplied. Will be passed to ``einx.dot``.
+        expr: Einstein string determining the axes along which the weight matrix is multiplied.
+            Will be passed to ``einx.dot``.
         bias: Whether to apply a learnable bias. Defaults to ``True``.
         dtype: Data type of the weights. Defaults to ``"float32"``.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
@@ -231,7 +239,8 @@ class Dropout(torch.nn.Module):
     """Dropout layer.
 
     Args:
-        expr: Einstein string determining the axes along which dropout is applied. Will be passed to ``einx.elementwise``.
+        expr: Einstein string determining the axes along which dropout is applied. Will be
+            passed to ``einx.elementwise``.
         drop_rate: Drop rate.
         **kwargs: Additional parameters that specify values for single axes, e.g. ``a=4``.
     """

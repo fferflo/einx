@@ -47,7 +47,8 @@ def instantiate(x, shape, backend, **kwargs):
                 break
 
         if callable(x):
-            # Try to find keyword parameters of the tensor factory and forward all kwargs that are accepted. Pass no keyword parameters if this fails.
+            # Try to find keyword parameters of the tensor factory and forward all kwargs
+            # that are accepted. Pass no keyword parameters if this fails.
             try:
                 params = inspect.signature(x).parameters
                 if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
