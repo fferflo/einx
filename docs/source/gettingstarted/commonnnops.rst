@@ -120,17 +120,17 @@ Apply a weight matrix multiplication along the spatial axes of the input tensor:
 
 ..  code-block:: python
 
-    x = einx.dot("b [s...|s2] c", x, einn.param(name="weight1"))
+    x = einx.dot("b [s...->s2] c", x, einn.param(name="weight1"))
     ...
-    x = einx.dot("b [s2|s...] c", x, einn.param(name="weight2"), s=(256, 256))
+    x = einx.dot("b [s2->s...] c", x, einn.param(name="weight2"), s=(256, 256))
 
 Or with the ``einn.Linear`` layer that includes a bias term:
 
 ..  code-block:: python
 
-    x = einn.Linear("b [s...|s2] c")(x)
+    x = einn.Linear("b [s...->s2] c")(x)
     ...
-    x = einn.Linear("b [s2|s...] c", s=(256, 256))(x)
+    x = einn.Linear("b [s2->s...] c", s=(256, 256))(x)
 
 Reference: `MLP-Mixer <https://paperswithcode.com/method/mlp-mixer>`_
 

@@ -11,7 +11,7 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
-    exprs = description.split(",")
+    exprs = einx.expr.stage1.parse_args(description)
     if len(exprs) != len(tensor_shapes):
         raise ValueError(f"Expected {len(exprs)} tensors, got {len(tensor_shapes)}")
 
@@ -124,7 +124,7 @@ def check(
         description, parameters
     )
 
-    exprs = description.split(",")
+    exprs = einx.expr.stage1.parse_args(description)
     if len(exprs) != len(tensors):
         raise ValueError(f"Expected {len(exprs)} tensors, got {len(tensors)}")
 

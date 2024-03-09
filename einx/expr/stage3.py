@@ -80,6 +80,9 @@ class List(Expression):
     def __str__(self):
         return " ".join([str(c) for c in self.children])
 
+    def __getitem__(self, i):
+        return self.children[i]
+
     def __len__(self):
         return sum(len(c) for c in self.children)
 

@@ -51,7 +51,7 @@ Another example of shorthand notation in :func:`einx.dot`:
     # same as
     einx.dot("a [b] -> a [c]", x, y)
     # same as
-    einx.dot("a [b|c]", x, y)
+    einx.dot("a [b->c]", x, y)
 
 See :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>` and the documentation of the respective functions for allowed shorthand notation.
 

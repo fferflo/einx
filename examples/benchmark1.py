@@ -118,7 +118,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
     experiments.append(("channel_add", (benchmark_einx, None, benchmark_idx), (x, z1), 5.0))
 
     def benchmark_einx(x, w):
-        return einx.dot("b... [c1|c2]", x, w)
+        return einx.dot("b... [c1->c2]", x, w)
 
     def benchmark_einops(x, w):
         return einops.einsum(x, w, "... c1, c1 c2 -> ... c2")

@@ -108,10 +108,11 @@ def vmap_stage3(
                 print("    ", expr_out, tensor_out.shape)
 
         for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
-            assert (
-                tensor_out.shape == expr_out.shape
-            ), f"Expected output shape {expr_out.shape} from {i}-th (zero-based) "
-            f"output of vmapped function, but got {tensor_out.shape}"
+            if tensor_out.shape != expr_out.shape:
+                raise ValueError(
+                    f"Expected output shape {expr_out.shape} from {i}-th (zero-based) "
+                    f"output of vmapped function, but got {tensor_out.shape}"
+                )
 
         if not flat:
             exprs_out_funcargs_flat2, tensors_out = util.flatten(
@@ -271,49 +272,32 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
-    if "->" in description:
-        # Description: Inputs and output
-        description = description.split("->")
-        if len(description) != 2:
-            raise ValueError("Operation string must contain exactly one '->'")
-        exprs_in, exprs_out = description
-        exprs_in = exprs_in.split(",")
-        exprs_out = exprs_out.split(",")
+    op = einx.expr.stage1.parse_op(description)
 
-        if len(exprs_in) != len(tensor_shapes):
-            raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensor_shapes)}")
+    # Implicitly determine output expression
+    if len(op) == 1:
+        op = einx.expr.stage1.Op([
+            op[0],
+            op[0].__deepcopy__(),
+        ])
 
-    else:
-        # Description: "input -> output" using [|]-choice
-        expr = description
-        if "," in expr:
-            raise ValueError(
-                "Only a single expression is allowed when using the choice operator [|]"
-            )
-        if len(tensor_shapes) != 1:
-            raise ValueError(f"Expected 1 input tensor, got {len(tensor_shapes)}")
-
-        expr = einx.expr.stage1.parse(expr)
-        expr_in = str(einx.expr.stage1.choose(expr, 0, num=2))
-        expr_out = str(einx.expr.stage1.choose(expr, 1, num=2))
-
-        exprs_in = [expr_in]
-        exprs_out = [expr_out]
+    if len(op[0]) != len(tensor_shapes):
+        raise ValueError(f"Expected {len(op[0])} input tensors, but got {len(tensor_shapes)}")
 
     exprs = einx.expr.solve(
         [
             einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
+            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
         ]
-        + [einx.expr.Equation(expr_out) for expr_out in exprs_out]
+        + [einx.expr.Equation(expr_out) for expr_out in op[1]]
         + [
             einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
             for k, v in parameters.items()
         ],
         cse=cse,
         cse_concat=False,
-    )[: len(exprs_in) + len(exprs_out)]
-    exprs_in, exprs_out = exprs[: len(exprs_in)], exprs[len(exprs_in) :]
+    )[: len(op[0]) + len(op[1])]
+    exprs_in, exprs_out = exprs[: len(op[0])], exprs[len(op[0]) :]
 
     return exprs_in, exprs_out
 
@@ -340,18 +324,9 @@ def vmap(
     tensors and rearranges the result to match the output expressions (see :doc:`How does
     einx handle input and output tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions. It must meet one
-    of the following formats:
-
-    1. ``input1, input2, ... -> output1, output2, ...``
-        All input and output expressions are specified explicitly. The operation is applied
-        over all axes marked with ``[]``-brackets. All other axes are considered batch axes.
-
-    2. ``... [input1|output] ...``
-        The function accepts one input and one output tensor. The left and right choices
-        correspond to the input and output tensor, respectively.
-
-        Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
+    The `description` argument specifies the input and output expressions. The operation is
+    applied over all axes marked with ``[]``-brackets. All other axes are considered batch
+    axes and vectorized over.
 
     The function ``op`` should accept input tensors and yield output tensors as specified in
     ``description`` with shapes matching the subexpressions that are marked with ``[]``-brackets.

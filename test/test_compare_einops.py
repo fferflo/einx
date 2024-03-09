@@ -45,7 +45,9 @@ if importlib.util.find_spec("einops"):
         )
 
         w = np.random.uniform(size=(3, 32))
-        assert_equal(einx.dot("b... [c1|c2]", x, w), einops.einsum(x, w, "... c1, c1 c2 -> ... c2"))
+        assert_equal(
+            einx.dot("b... [c1->c2]", x, w), einops.einsum(x, w, "... c1, c1 c2 -> ... c2")
+        )
         assert_equal(
             einx.dot("... c1, c1 c2 -> ... c2", x, w),
             einops.einsum(x, w, "... c1, c1 c2 -> ... c2"),
@@ -53,7 +55,7 @@ if importlib.util.find_spec("einops"):
 
         w = np.random.uniform(size=(128, 128, 64))
         assert_equal(
-            einx.dot("b [s...|s2] c", x, w), einops.einsum(x, w, "b h w c, h w s2 -> b s2 c")
+            einx.dot("b [s...->s2] c", x, w), einops.einsum(x, w, "b h w c, h w s2 -> b s2 c")
         )
         assert_equal(
             einx.dot("b h w c, h w s2 -> b s2 c", x, w),

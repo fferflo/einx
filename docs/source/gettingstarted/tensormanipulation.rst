@@ -296,6 +296,24 @@ analogously be expressed using :func:`einx.vmap`:
 :func:`einx.vmap` provides more general vectorization capabilities than :func:`einx.vmap_with_axis`, but might in some cases be slower if the latter relies on a
 specialized implementation.
 
+Composability of ``->`` and ``,``
+---------------------------------
+
+The operators ``->`` and ``,`` that delimit input and output expressions can optionally be composed with other Einstein operations. If
+they appear within a nested expression, the expression is expanded
+`according to distributive law <https://en.wikipedia.org/wiki/Distributive_property>`_ such that ``->`` and ``,`` appear only at the root
+of the expression tree. For example:
+
+.. code::
+
+   einx.vmap("a [b -> c]", x, op=..., c=16)
+   # expands to
+   einx.vmap("a [b] -> a [c]", x, op=..., c=16)
+
+   einx.get_at("b p [i,->]", x, y)
+   # expands to
+   einx.get_at("b p [i], b p -> b p", x, y)
+
 General dot-product
 -------------------
 
@@ -355,18 +373,11 @@ Axes marked multiple times appear only once in the implicit second input express
 
    einx.dot("[a b] -> [a c]", x, y) # Expands to: "a b, a b c -> a c"
 
-This can further be abbreviated using ``[..|..]``-notation:
-
-.. code::
-
-   einx.dot("a [b|c]", x, y)   # Expands to: "a [b] -> a [c]"
-   einx.dot("[a b|a c]", x, y) # Expands to: "[a b] -> [a c]"
-
 The graph representation shows that the expression forwarded to the ``einsum`` call is as expected:
 
 >>> x = np.ones((4, 8))
 >>> y = np.ones((8, 5))
->>> print(einx.dot("a [b|c]", x, y, graph=True))
+>>> print(einx.dot("a [b->c]", x, y, graph=True))
 # backend: einx.backend.numpy
 def op0(i0, i1):
     x0 = backend.einsum("ab,bc->ac", i0, i1)

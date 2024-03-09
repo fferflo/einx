@@ -70,22 +70,23 @@ def parse(description, cse=True, **parameters):
         description, parameters
     )
 
-    description = description.split("->")
-    if len(description) > 2:
-        raise ValueError("Operation string must contain at most one '->'")
-    if "," in description[0]:
-        raise ValueError("Only a single input expression is allowed")
+    op = einx.expr.stage1.parse_op(description)
 
-    if len(description) == 2:
-        if "," in description[1]:
-            raise ValueError("Only a single output expression is allowed")
-        expr_in = einx.expr.stage1.parse(description[0])
-        expr_out = einx.expr.stage1.parse(description[1])
-    else:
-        expr_out = einx.expr.stage1.parse(description[0])
-        expr_in = einx.expr.stage1.get_unmarked(expr_out)
+    # Implicitly determine input expression
+    if len(op) == 1:
+        op = einx.expr.stage1.Op(
+            [
+                einx.expr.stage1.Args([einx.expr.stage1.get_unmarked(op[0][0])]),
+                op[0],
+            ],
+        )
 
-    marked_expr_out = einx.expr.stage1.Composition(einx.expr.stage1.get_marked(expr_out))
+    if len(op[0]) != 1:
+        raise ValueError(f"Expected 1 input expression, but got {len(op[0])}")
+    if len(op[1]) != 1:
+        raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
+
+    marked_expr_out = einx.expr.stage1.Composition(einx.expr.stage1.get_marked(op[1][0]))
 
     def after_stage2(exprs1, exprs2):
         expr_out = exprs1[1]
@@ -101,8 +102,8 @@ def parse(description, cse=True, **parameters):
         return [einx.expr.Equation(marked_expr_out, np.asarray([ndim]))]
 
     expr_in, expr_out = einx.expr.solve(
-        [einx.expr.Equation(expr_in)]
-        + [einx.expr.Equation(expr_out)]
+        [einx.expr.Equation(op[0][0])]
+        + [einx.expr.Equation(op[1][0])]
         + [
             einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
             for k, v in parameters.items()

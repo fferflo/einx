@@ -64,29 +64,24 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
-    description = description.split("->")
-    if len(description) != 2:
-        raise ValueError("Operation must contain exactly one '->'")
-    exprs_in, exprs_out = description
-    exprs_in = exprs_in.split(",")
-    exprs_out = exprs_out.split(",")
-    exprs = exprs_in + exprs_out
-    if len(exprs_in) != len(tensor_shapes):
-        raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensor_shapes)}")
+    op = einx.expr.stage1.parse_op(description)
+
+    if len(op[0]) != len(tensor_shapes):
+        raise ValueError(f"Expected {len(op[0])} input tensors, but got {len(tensor_shapes)}")
 
     exprs = einx.expr.solve(
         [
             einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
+            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
         ]
-        + [einx.expr.Equation(expr_out) for expr_out in exprs_out]
+        + [einx.expr.Equation(expr_out) for expr_out in op[1]]
         + [
             einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
             for k, v in parameters.items()
         ],
         cse=cse,
-    )[: len(exprs_in) + len(exprs_out)]
-    exprs_in, exprs_out = exprs[: len(exprs_in)], exprs[len(exprs_in) :]
+    )[: len(op[0]) + len(op[1])]
+    exprs_in, exprs_out = exprs[: len(op[0])], exprs[len(op[0]) :]
 
     return exprs_in, exprs_out
 

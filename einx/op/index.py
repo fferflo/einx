@@ -268,32 +268,27 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
 
 
 @einx.lru_cache
-def parse(description, *tensors_shapes, update, cse=True, **parameters):
+def parse(description, *tensor_shapes, update, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(
         description, parameters
     )
 
-    description = description.split("->")
-    if update:
-        if len(description) == 1:
-            exprs_in = description[0]
-            exprs_in = exprs_in.split(",")
-            expr_out = exprs_in[0]
-        elif len(description) == 2:
-            exprs_in, expr_out = description
-            exprs_in = exprs_in.split(",")
+    op = einx.expr.stage1.parse_op(description)
+
+    # Implicitiy determine output expression
+    if len(op) == 1:
+        if update:
+            op = einx.expr.stage1.Op([
+                op[0],
+                einx.expr.stage1.Args([op[0][0]]),
+            ])
         else:
-            raise ValueError("Operation string must contain at most one '->'")
-    else:
-        if len(description) != 2:
-            raise ValueError("Operation string must contain exactly one '->'")
-        else:
-            exprs_in, expr_out = description
-            exprs_in = exprs_in.split(",")
-    if "," in expr_out:
-        raise ValueError("Only a single output expression is allowed")
-    if len(tensors_shapes) != len(exprs_in):
-        raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_shapes)}")
+            raise ValueError("Operation string must contain an output expression")
+
+    if len(op[0]) != len(tensor_shapes):
+        raise ValueError(f"Expected {len(op[0])} input tensors, but got {len(tensor_shapes)}")
+    if len(op[1]) != 1:
+        raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
 
     def after_stage2(exprs1, exprs2):
         for expr in exprs1[0].all():
@@ -313,7 +308,7 @@ def parse(description, *tensors_shapes, update, cse=True, **parameters):
 
         concat_this = []
 
-        coord_exprs = exprs1[1 : len(tensors_shapes)]
+        coord_exprs = exprs1[1 : len(tensor_shapes)]
         if update:
             coord_exprs = coord_exprs[:-1]
         for expr in coord_exprs:
@@ -347,17 +342,17 @@ def parse(description, *tensors_shapes, update, cse=True, **parameters):
     exprs = einx.expr.solve(
         [
             einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(exprs_in, tensors_shapes)
+            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
         ]
-        + [einx.expr.Equation(expr_out)]
+        + [einx.expr.Equation(op[1][0])]
         + [
             einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
             for k, v in parameters.items()
         ],
         cse=cse,
         after_stage2=after_stage2,
-    )[: len(exprs_in) + 1]
-    exprs_in, expr_out = exprs[: len(exprs_in)], exprs[len(exprs_in)]
+    )[: len(op[0]) + 1]
+    exprs_in, expr_out = exprs[: len(op[0])], exprs[len(op[0])]
 
     return exprs_in, expr_out
 

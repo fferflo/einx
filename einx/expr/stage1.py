@@ -35,6 +35,18 @@ class Composition(Expression):
     def __deepcopy__(self):
         return Composition(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
 
+    def __eq__(self, other):
+        return isinstance(other, Composition) and self.inner == other.inner
+
+    def __hash__(self):
+        return 87123 + hash(self.inner)
+
+    def __len__(self):
+        return len(self.inner)
+
+    def __getitem__(self, i):
+        return self.inner[i]
+
     def expansion(self):
         return 1
 
@@ -44,10 +56,18 @@ class Composition(Expression):
 
 
 class Marker(Expression):
+    @staticmethod
+    def maybe(inner, *args, **kwargs):
+        if isinstance(inner, List) and len(inner) == 0:
+            return inner
+        else:
+            return Marker(inner, *args, **kwargs)
+
     def __init__(self, inner, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
         self.inner = inner
         self.inner.parent = self
+        assert not (isinstance(inner, List) and len(inner) == 0)
 
     def all(self):
         yield self
@@ -58,6 +78,12 @@ class Marker(Expression):
 
     def __deepcopy__(self):
         return Marker(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
+
+    def __eq__(self, other):
+        return isinstance(other, Marker) and self.inner == other.inner
+
+    def __hash__(self):
+        return 91236 + hash(self.inner)
 
     def expansion(self):
         return self.inner.expansion()
@@ -81,6 +107,12 @@ class NamedAxis(Expression):
     def __deepcopy__(self):
         return NamedAxis(self.name, self.begin_pos, self.end_pos)
 
+    def __eq__(self, other):
+        return isinstance(other, NamedAxis) and self.name == other.name
+
+    def __hash__(self):
+        return 12345 + hash(self.name)
+
     def expansion(self):
         return 1
 
@@ -103,6 +135,12 @@ class UnnamedAxis(Expression):
     def __deepcopy__(self):
         return UnnamedAxis(self.value, self.begin_pos, self.end_pos)
 
+    def __eq__(self, other):
+        return isinstance(other, UnnamedAxis) and self.value == other.value
+
+    def __hash__(self):
+        return 67890 + hash(self.value)
+
     def expansion(self):
         return 1
 
@@ -114,11 +152,18 @@ class UnnamedAxis(Expression):
 class Ellipsis(Expression):
     anonymous_variable_name = "_anonymous_ellipsis_axis"
 
+    def maybe(inner, *args, **kwargs):
+        if isinstance(inner, List) and len(inner) == 0:
+            return inner
+        else:
+            return Ellipsis(inner, *args, **kwargs)
+
     def __init__(self, inner, begin_pos=-1, end_pos=-1, ellipsis_id=None):
         Expression.__init__(self, begin_pos, end_pos)
         self.inner = inner
         self.inner.parent = self
         self.ellipsis_id = uuid.uuid4().int if ellipsis_id is None else ellipsis_id
+        assert not (isinstance(inner, List) and len(inner) == 0)
 
     def all(self):
         yield self
@@ -132,6 +177,12 @@ class Ellipsis(Expression):
 
     def __deepcopy__(self):
         return Ellipsis(self.inner.__deepcopy__(), self.begin_pos, self.end_pos, self.ellipsis_id)
+
+    def __eq__(self, other):
+        return isinstance(other, Ellipsis) and self.inner == other.inner
+
+    def __hash__(self):
+        return 34567 + hash(self.inner)
 
     def expansion(self):
         if self.inner.expansion() == 0:
@@ -170,6 +221,18 @@ class Concatenation(Expression):
             [c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos
         )
 
+    def __eq__(self, other):
+        return isinstance(other, Concatenation) and self.children == other.children
+
+    def __hash__(self):
+        return 234 + hash(tuple(self.children))
+
+    def __len__(self):
+        return len(self.children)
+
+    def __getitem__(self, i):
+        return self.children[i]
+
     def expansion(self):
         return 1
 
@@ -203,6 +266,18 @@ class List(Expression):
     def __deepcopy__(self):
         return List([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
 
+    def __eq__(self, other):
+        return isinstance(other, List) and self.children == other.children
+
+    def __hash__(self):
+        return 2333 + hash(tuple(self.children))
+
+    def __len__(self):
+        return len(self.children)
+
+    def __getitem__(self, i):
+        return self.children[i]
+
     def expansion(self):
         child_expansions = [c.expansion() for c in self.children]
         if any(e is None for e in child_expansions):
@@ -215,9 +290,49 @@ class List(Expression):
         yield from self.children
 
 
-class Choice(Expression):
+class Args(Expression):
+    @staticmethod
+    def maybe(*args, **kwargs):
+        return Args(*args, **kwargs)
+
     def __init__(self, children, begin_pos=-1, end_pos=-1):
         Expression.__init__(self, begin_pos, end_pos)
+        self.children = children
+        for child in self.children:
+            assert not isinstance(child, Args)
+            child.parent = self
+
+    def all(self):
+        yield self
+        for child in self.children:
+            yield from child.all()
+
+    def __str__(self):
+        return ", ".join([str(c) for c in self.children])
+
+    def __deepcopy__(self):
+        return Args([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
+
+    def __eq__(self, other):
+        return isinstance(other, Args) and self.children == other.children
+
+    def __hash__(self):
+        return 233314 + hash(tuple(self.children))
+
+    def __getitem__(self, i):
+        return self.children[i]
+
+    def __len__(self):
+        return len(self.children)
+
+    def __iter__(self):
+        return iter(self.children)
+
+
+class Op(Expression):
+    def __init__(self, children, begin_pos=-1, end_pos=-1):
+        Expression.__init__(self, begin_pos, end_pos)
+        assert len(children) >= 1
         self.children = children
         for child in self.children:
             child.parent = self
@@ -228,21 +343,25 @@ class Choice(Expression):
             yield from child.all()
 
     def __str__(self):
-        return " | ".join([str(c) for c in self.children])
+        return " -> ".join([str(c) for c in self.children])
 
     def __deepcopy__(self):
-        return Choice([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
+        return Op([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
 
-    def expansion(self):
-        child_expansions = {c.expansion() for c in self.children}
-        if len(child_expansions) == 1:
-            return child_expansions.pop()
-        else:
-            return None
+    def __eq__(self, other):
+        return isinstance(other, Op) and self.children == other.children
 
-    @property
-    def direct_children(self):
-        yield from self.children
+    def __hash__(self):
+        return 961121 + hash(tuple(self.children))
+
+    def __getitem__(self, i):
+        return self.children[i]
+
+    def __len__(self):
+        return len(self.children)
+
+    def __iter__(self):
+        return iter(self.children)
 
 
 class Token:
@@ -275,14 +394,14 @@ _parentheses = {
 }
 _parentheses_front = set(_parentheses.keys())
 _parentheses_back = set(_parentheses.values())
-_disallowed_literals = [",", "->", "\t", "\n", "\r"]
-_nary_ops = ["|", " ", "+"]
+_disallowed_literals = ["\t", "\n", "\r"]
+_nary_ops = ["->", "|", ",", " ", "+"]
 _ellipsis = "..."
 _axis_name = r"[a-zA-Z_][a-zA-Z0-9_]*"
 _literals = _nary_ops + list(_parentheses_front) + list(_parentheses_back) + [_ellipsis]
 
 
-def parse(text):
+def parse_op(text):
     text = text.strip()
     for x in _nary_ops:
         while f" {x}" in text:
@@ -331,7 +450,7 @@ def parse(text):
             if in_tokens[0].text == "(":
                 op = Composition
             elif in_tokens[0].text == "[":
-                op = Marker
+                op = Marker.maybe
             else:
                 raise AssertionError()
             return op(
@@ -372,8 +491,10 @@ def parse(text):
 
                 if nary_op == " ":
                     op = List
-                elif nary_op == "|":
-                    op = Choice
+                elif nary_op in {"->", "|"}:
+                    op = Op
+                elif nary_op == ",":
+                    op = Args
                 elif nary_op == "+":
                     op = Concatenation
                 else:
@@ -438,26 +559,146 @@ def parse(text):
         )
     expression = parse(stack[0], 0)
 
-    # Semantic check: Choice must be inside marker
-    for expr in expression.all():
-        if isinstance(expr, Choice) and (
-            expr.parent is None or not isinstance(expr.parent, Marker)
-        ):
-            raise ParseError(
-                text, expr.begin_pos, "Choice with | can only appear inside a [] marker"
+    # Move up and merge Op
+    def move_up(expr):
+        if isinstance(expr, (NamedAxis, UnnamedAxis)):
+            return Op([expr.__deepcopy__()])
+        elif isinstance(expr, Composition):
+            op = move_up(expr.inner)
+            return Op(
+                [Composition(arglist, expr.begin_pos, expr.end_pos) for arglist in op.children],
+                op.begin_pos,
+                op.end_pos,
+            )
+        elif isinstance(expr, Marker):
+            op = move_up(expr.inner)
+            return Op(
+                [Marker.maybe(arglist, expr.begin_pos, expr.end_pos) for arglist in op.children],
+                op.begin_pos,
+                op.end_pos,
+            )
+        elif isinstance(expr, Ellipsis):
+            op = move_up(expr.inner)
+            return Op(
+                [
+                    Ellipsis.maybe(arglist, expr.begin_pos, expr.end_pos, expr.ellipsis_id)
+                    for arglist in op.children
+                ],
+                op.begin_pos,
+                op.end_pos,
             )
 
-    # Semantic check: Choices must have same number of options
-    num = None
-    for expr in expression.all():
-        if isinstance(expr, Choice):
-            n = len(expr.children)
-            if num is None:
-                num = n
-            elif num != n:
+        elif isinstance(expr, (List, Concatenation, Args)):
+            _class = type(expr)
+            children = [move_up(c) for c in expr.children]
+            new_children = []
+
+            nums = {len(c) for c in children if len(c) != 1}
+            if len(nums) > 1:
                 raise ParseError(
-                    text, expr.begin_pos, "Choices must have the same number of options"
+                    text,
+                    expr.begin_pos,
+                    f"Inconsistent usage of '->' operator",
                 )
+            num = nums.pop() if len(nums) > 0 else 1
+
+            new_arglists = []
+            for idx in range(num):
+                new_children = []
+                for op in children:
+                    if len(op) == 1:
+                        new_children.append(op[0])
+                    else:
+                        new_children.append(op[idx])
+                new_arglists.append(_class.maybe(new_children, expr.begin_pos, expr.end_pos))
+
+            return Op(new_arglists, expr.begin_pos, expr.end_pos)
+
+        elif isinstance(expr, Op):
+            return Op(
+                [arglist for child in expr.children for arglist in move_up(child).children],
+                expr.begin_pos,
+                expr.end_pos,
+            )
+
+        else:
+            assert False
+
+    expression = move_up(expression)
+
+    # Move up and merge Args
+    def move_up(expr):
+        if isinstance(expr, (NamedAxis, UnnamedAxis)):
+            return Args([expr.__deepcopy__()])
+        elif isinstance(expr, Composition):
+            args = move_up(expr.inner)
+            return Args(
+                [Composition(arg, expr.begin_pos, expr.end_pos) for arg in args.children],
+                args.begin_pos,
+                args.end_pos,
+            )
+        elif isinstance(expr, Marker):
+            args = move_up(expr.inner)
+            return Args(
+                [Marker.maybe(arg, expr.begin_pos, expr.end_pos) for arg in args.children],
+                args.begin_pos,
+                args.end_pos,
+            )
+        elif isinstance(expr, Ellipsis):
+            args = move_up(expr.inner)
+            return Args(
+                [
+                    Ellipsis.maybe(arg, expr.begin_pos, expr.end_pos, expr.ellipsis_id)
+                    for arg in args.children
+                ],
+                args.begin_pos,
+                args.end_pos,
+            )
+
+        elif isinstance(expr, (List, Concatenation)):
+            _class = type(expr)
+            children = [move_up(c) for c in expr.children]
+            new_children = []
+
+            nums = {len(c) for c in children if len(c) != 1}
+            if len(nums) > 1:
+                raise ParseError(
+                    text,
+                    expr.begin_pos,
+                    f"Inconsistent usage of ',' operator",
+                )
+            num = nums.pop() if len(nums) > 0 else 1
+
+            new_args = []
+            for idx in range(num):
+                new_children = []
+                for args in children:
+                    if len(args) == 1:
+                        new_children.append(args[0])
+                    else:
+                        new_children.append(args[idx])
+                new_args.append(_class.maybe(new_children, expr.begin_pos, expr.end_pos))
+
+            return Args(new_args, expr.begin_pos, expr.end_pos)
+
+        elif isinstance(expr, Args):
+            return Args(
+                [arg for child in expr.children for arg in move_up(child).children],
+                expr.begin_pos,
+                expr.end_pos,
+            )
+
+        else:
+            assert False
+
+    assert isinstance(expression, Op)
+    expression = Op(
+        [move_up(c) for c in expression.children], expression.begin_pos, expression.end_pos
+    )
+
+    # Semantic check: Op cannot have more than two children # TODO:
+    if len(expression.children) > 2:
+        raise ParseError(text, expression.begin_pos, f"Cannot have more than one '->' operator")
 
     # Semantic check: Axis names can only be used once per expression
     def traverse(expr, key, axes_by_key):
@@ -475,8 +716,6 @@ def parse(text):
         elif isinstance(expr, Concatenation):
             for i, c in enumerate(expr.children):
                 traverse(c, key + ((id(expr), i),), axes_by_key)
-        elif isinstance(expr, Choice):
-            raise AssertionError()
         elif isinstance(expr, Marker):
             traverse(expr.inner, key, axes_by_key)
         elif isinstance(expr, Ellipsis):
@@ -498,13 +737,28 @@ def parse(text):
                     f"Axis name '{exprs[0].name}' is used more than once in expression '{root}'",
                 )
 
-    if num is None:
-        check(expression)
-    else:
-        for i in range(num):
-            check(choose(expression, i, num))
+    for arglist in expression.children:
+        for arg in arglist.children:
+            check(arg)
 
     return expression
+
+
+def parse_args(text):
+    op = parse_op(text)
+    if len(op.children) != 1:
+        raise ParseError(text, op.begin_pos, f"Expression cannot contain '->'")
+    assert isinstance(op.children[0], Args)
+    return op.children[0]
+
+
+def parse_arg(text):
+    if isinstance(text, Expression):
+        return text
+    args = parse_args(text)
+    if len(args.children) != 1:
+        raise ParseError(text, args.begin_pos, f"Expression cannot contain ','")
+    return args.children[0]
 
 
 def expr_map(f):
@@ -556,8 +810,6 @@ def _expr_map(expr, f):
         return [c2 for c1 in expr.children for c2 in _expr_map(c1, f)]
     elif isinstance(expr, Concatenation):
         return [Concatenation([List.maybe(_expr_map(c, f)) for c in expr.children])]
-    elif isinstance(expr, Choice):
-        return [Choice([List.maybe(_expr_map(c, f)) for c in expr.children])]
     elif isinstance(expr, Marker):
         x = _expr_map(expr.inner, f)
         if len(x) == 0:
@@ -569,20 +821,6 @@ def _expr_map(expr, f):
         return [Ellipsis(List.maybe(_expr_map(expr.inner, f)), ellipsis_id=expr.ellipsis_id)]
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
-
-
-@expr_map
-def _choose(expr, index, num):
-    if isinstance(expr, Choice):
-        if len(expr.children) != num:
-            raise ValueError(f"Expected choice with {num} choices, got {len(expr.children)}")
-        return [expr.children[index]], expr_map.REPLACE_AND_CONTINUE
-
-
-def choose(expr, index, num):
-    if not any(isinstance(expr, Choice) for expr in expr.all()):
-        raise ValueError("Expression does not contain any choices")
-    return _choose(expr, index, num)
 
 
 @expr_map
@@ -626,8 +864,6 @@ def _get_marked(expr):
         return [Composition(List.maybe(_get_marked(expr.inner)))]
     elif isinstance(expr, List):
         return [List.maybe([x for c in expr.children for x in _get_marked(c)])]
-    elif isinstance(expr, Choice):
-        raise ValueError("Expression cannot contain choice")
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
 

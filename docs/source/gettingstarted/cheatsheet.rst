@@ -50,12 +50,12 @@ Cheatsheet
    * - Dot
      - | ``einx.dot("a b, b c -> a c", x, y)``
        | ``einx.dot("a [b] -> a [c]", x, y)``
-       | ``einx.dot("a [b|c]", x, y)``
+       | ``einx.dot("a [b->c]", x, y)``
      - ``np.einsum("ab,bc->ac", x, y)``
    * -
      - | ``einx.dot("a b, a b c -> a c", x, y)``
        | ``einx.dot("[a b] -> [a c]", x, y)``
-       | ``einx.dot("[a b|a c]", x, y)``
+       | ``einx.dot("[a b -> a c]", x, y)``
      - ``np.einsum("ab,abc->ac", x, y)``
    * - Indexing
      - ``einx.get_at("[h w] c, p [2] -> p c", x, y)``

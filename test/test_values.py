@@ -57,24 +57,24 @@ def test_values(backend):
             einx.vmap("a b [c] -> a b", x, op=backend.mean),
         )
 
-        assert einx.dot("[|]", 1, 1) == 1
+        assert einx.dot("[->]", 1, 1) == 1
 
         x = backend.ones((10, 10), "float32")
         y = backend.ones((10,), "float32")
         assert backend.allclose(
-            einx.dot("a [|]", y, 1),
+            einx.dot("a [->]", y, 1),
             y,
         )
         assert backend.allclose(
-            einx.dot("a [b|]", x, y),
+            einx.dot("a [b->]", x, y),
             y * 10,
         )
         assert backend.allclose(
-            einx.dot("a [|b]", y, y),
+            einx.dot("a [->b]", y, y),
             x,
         )
         assert backend.allclose(
-            einx.dot("a [b|b]", x, y),
+            einx.dot("a [b->b]", x, y),
             einx.multiply("a b, b -> a b", x, y),
         )
 

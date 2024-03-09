@@ -175,44 +175,54 @@ def test_shape_dot(backend):
     y = backend.zeros((20, 30), "float32")
     assert einx.dot("a [b] -> a [c]", x, y).shape == (10, 30)
     assert einx.dot("a b, b c -> a c", x, y).shape == (10, 30)
-    assert einx.dot("a [b|c]", x, y).shape == (10, 30)
-    assert einx.dot("a [b...|c]", x, y).shape == (10, 30)
+    assert einx.dot("a [b->c]", x, y).shape == (10, 30)
+    assert einx.dot("a [b...->c]", x, y).shape == (10, 30)
 
     x = backend.zeros((10, 20), "float32")
     y = backend.zeros((10, 20, 30), "float32")
     assert einx.dot("a b, a b c -> a c", x, y).shape == (10, 30)
     assert einx.dot("[a b] -> [a c]", x, y).shape == (10, 30)
-    assert einx.dot("[a b|a c]", x, y).shape == (10, 30)
+    assert einx.dot("[a b->a c]", x, y).shape == (10, 30)
 
     x = backend.zeros((10,), "float32")
     y = backend.zeros((30,), "float32")
     assert einx.dot("a, a ->", x, x).shape == ()
-    assert einx.dot("[a|]", x, x).shape == ()
+    assert einx.dot("[a->]", x, x).shape == ()
     assert einx.dot("a, c -> a c", x, y).shape == (10, 30)
-    assert einx.dot("a [|c]", x, y).shape == (10, 30)
-    assert einx.dot("a [b...|c]", x, y).shape == (10, 30)
+    assert einx.dot("a [->c]", x, y).shape == (10, 30)
+    assert einx.dot("a [b...->c]", x, y).shape == (10, 30)
 
     x = backend.zeros((4, 128, 128, 16), "float32")
-    assert einx.dot("b s... [c1|c2]", x, backend.zeros, c2=32).shape == (4, 128, 128, 32)
-    assert einx.dot("b [s...|s2] c", x, backend.zeros, s2=32).shape == (4, 32, 16)
+    assert einx.dot("b s... [c1->c2]", x, backend.zeros, c2=32).shape == (4, 128, 128, 32)
+    assert einx.dot("b [s...->s2] c", x, backend.zeros, s2=32).shape == (4, 32, 16)
 
     w = backend.zeros((2, 2, 16, 32), "float32")
-    assert einx.dot("b (s [s2|])... [c1|c2]", x, w, s2=2, c2=32).shape == (4, 64, 64, 32)
+    assert einx.dot("b (s [s2->])... [c1->c2]", x, w, s2=2, c2=32).shape == (4, 64, 64, 32)
 
     x = backend.zeros((4, 16, 16, 16), "float32")
 
     def w(shape):
         return backend.zeros(shape, "float32")
 
-    assert einx.dot("b [(s s2)|s]... [c1|c2]", x, w, s2=4, c2=4).shape == (4, 4, 4, 4)
-    assert einx.dot("b (s [s2|])... [c1|c2]", x, w, s2=4, c2=4).shape == (4, 4, 4, 4)
+    assert einx.dot("b [(s s2)->s]... [c1->c2]", x, w, s2=4, c2=4).shape == (4, 4, 4, 4)
+    assert einx.dot("b (s [s2->])... [c1->c2]", x, w, s2=4, c2=4).shape == (4, 4, 4, 4)
 
     x = backend.ones((10, 10), "float32")
     y = backend.ones((10,), "float32")
-    assert einx.dot("[|]", 1, 1).shape == ()
-    assert einx.dot("a [|]", y, 1).shape == (10,)
-    assert einx.dot("a [b|]", x, y).shape == (10,)
-    assert einx.dot("a [|b]", y, y).shape == (10, 10)
+    assert einx.dot("[->]", 1, 1).shape == ()
+    assert einx.dot("a [->]", y, 1).shape == (10,)
+    assert einx.dot("a [b->]", x, y).shape == (10,)
+    assert einx.dot("a [->b]", y, y).shape == (10, 10)
+
+    x = backend.ones((11, 10), "float32")
+    y = backend.ones((11,), "float32")
+    assert einx.dot("... b, ... -> b", x, y).shape == (10,)
+    assert einx.dot("[...] b -> b", x, y).shape == (10,)
+
+    x = backend.ones((10,), "float32")
+    y = backend.ones((), "float32")
+    assert einx.dot("... b, ... -> b", x, y).shape == (10,)
+    assert einx.dot("[...] b -> b", x, y).shape == (10,)
 
 
 @pytest.mark.parametrize("backend", backends)
@@ -259,6 +269,10 @@ def test_shape_reduce(backend):
     assert einx.logsumexp("[a]", [0.0] * 10, backend=backend).shape == ()
     with pytest.raises(ValueError):
         einx.logsumexp("a", [0.0, [1.0]], backend=backend)
+
+    x = backend.ones((16, 15))
+    assert einx.sum("[b] a []", x).shape == (15,)
+    assert einx.sum("[b] a [...]", x).shape == (15,)
 
 
 @pytest.mark.parametrize("backend", backends)
@@ -317,7 +331,7 @@ def test_shape_vmap(backend):
 
     with pytest.raises(ValueError):
         einx.vmap("b -> [b] 3", x, op=lambda x: x + backend.zeros((3,)))
-    with pytest.raises(AssertionError):
+    with pytest.raises(Exception):
         einx.vmap("b -> b 3", x, op=lambda x: x + backend.ones((3,)))
 
     x = backend.zeros((4, 13, 2), "float32")
@@ -396,8 +410,8 @@ def test_shape_vmap(backend):
     x = backend.zeros((16, 64), "float32")  # b c
     assert einx.vmap("b ([c d]) -> b [2]", x, op=func, c=16).shape == (16, 2)
     assert einx.vmap("b ([c d]) -> b [2] 1", x, op=func, c=16).shape == (16, 2, 1)
-    assert einx.vmap("b [(c d)|2]", x, op=func, c=16).shape == (16, 2)
-    assert einx.vmap("b ([c d|2])", x, op=func, c=16).shape == (16, 2)
+    assert einx.vmap("b [(c d)->2]", x, op=func, c=16).shape == (16, 2)
+    assert einx.vmap("b ([c d->2])", x, op=func, c=16).shape == (16, 2)
     with pytest.raises(Exception):
         einx.vmap("b ([c d]) -> [2]", x, op=func, c=16)
 
@@ -409,8 +423,8 @@ def test_shape_vmap(backend):
     x = backend.zeros((16, 64), "float32")  # b c
     assert einx.vmap("b ([c d]) -> b [2]", x, op=func, c=16, flat=True).shape == (16, 2)
     assert einx.vmap("b ([c d]) -> b [2] 1", x, op=func, c=16, flat=True).shape == (16, 2, 1)
-    assert einx.vmap("b [(c d)|2]", x, op=func, c=16, flat=True).shape == (16, 2)
-    assert einx.vmap("b ([c d|2])", x, op=func, c=16, flat=True).shape == (16, 2)
+    assert einx.vmap("b [(c d)->2]", x, op=func, c=16, flat=True).shape == (16, 2)
+    assert einx.vmap("b ([c d->2])", x, op=func, c=16, flat=True).shape == (16, 2)
     with pytest.raises(Exception):
         einx.vmap("b ([c d]) -> [2]", x, op=func, c=16, flat=True)
 
@@ -557,6 +571,12 @@ def test_shape_index(backend):
     assert einx.set_at("b [h w] c, b p [2], b c -> b [h w] c", x, y, z2).shape == (4, 128, 128, 3)
     assert einx.set_at("b [h w] c, b [2], b p c -> b [h w] c", x, y, z2).shape == (4, 128, 128, 3)
 
+    x = backend.ones((4, 128, 16))
+    y = backend.cast(backend.zeros((4, 128)), coord_dtype)
+    z = backend.ones((4, 128))
+    assert einx.get_at("b p [i,->]", x, y).shape == (4, 128)
+    assert einx.set_at("b p [i,,->i]", x, y, z).shape == (4, 128, 16)
+
     consts = {"b": 4, "h": 16, "w": 16, "c": 3, "p": 128}
 
     def make_coords(shape):
@@ -680,3 +700,6 @@ def test_shape_solve(backend):
     assert einx.matches("(a + b) c", x)
     assert einx.matches("(a + b) c", x, a=2)
     assert not einx.matches("(a + b) c", x, a=10)
+
+    params = einx.solve("a b, c b", x, x)
+    assert params["a"] == 5 and params["b"] == 4 and params["c"] == 5

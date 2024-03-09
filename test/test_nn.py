@@ -28,7 +28,7 @@ if importlib.util.find_spec("torch"):
     def test_torch_linear():
         x = torch.zeros((4, 128, 128, 3))
 
-        layer = einx.nn.torch.Linear("b... [c1|c2]", c2=32)
+        layer = einx.nn.torch.Linear("b... [c1->c2]", c2=32)
         assert layer.forward(x).shape == (4, 128, 128, 32)
         layer = torch.compile(layer)
         assert layer.forward(x).shape == (4, 128, 128, 32)
@@ -80,7 +80,7 @@ if importlib.util.find_spec("haiku"):
         rng = jax.random.PRNGKey(42)
 
         def model(x):
-            return einx.nn.haiku.Linear("b... [c1|c2]", c2=32)(x)
+            return einx.nn.haiku.Linear("b... [c1->c2]", c2=32)(x)
 
         model = hk.transform_with_state(model)
 
@@ -148,7 +148,7 @@ if importlib.util.find_spec("flax"):
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
 
-        model = einx.nn.flax.Linear("b... [c1|c2]", c2=32)
+        model = einx.nn.flax.Linear("b... [c1->c2]", c2=32)
 
         params = model.init(rng, x)
 
@@ -202,7 +202,7 @@ if importlib.util.find_spec("equinox"):
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
 
-        layer = einx.nn.equinox.Linear("b... [c1|c2]", c2=32)
+        layer = einx.nn.equinox.Linear("b... [c1->c2]", c2=32)
         assert layer(x, rng=rng).shape == (4, 128, 128, 32)
         assert layer(x).shape == (4, 128, 128, 32)
         layer = eqx.nn.inference_mode(layer)
@@ -254,7 +254,7 @@ if importlib.util.find_spec("keras"):
         def test_keras_linear():
             x = tf.zeros((4, 128, 128, 3))
 
-            layer = einx.nn.keras.Linear("b... [c1|c2]", c2=32)
+            layer = einx.nn.keras.Linear("b... [c1->c2]", c2=32)
             model = keras.Sequential([layer])
             assert model(x, training=True).shape == (4, 128, 128, 32)
             assert model(x, training=True).shape == (4, 128, 128, 32)

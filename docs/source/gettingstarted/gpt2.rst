@@ -19,7 +19,7 @@ pretrained weights from Hugging Face and validate the model by generating some t
     # Define some layer types we will use.
     # 1. Use channels-last layout
     # 2. Use layer normalization, and an epsilon of 1e-5 as in the original implementation
-    Linear = partial(einn.Linear, "... [_|channels]")
+    Linear = partial(einn.Linear, "... [_->channels]")
     Norm = partial(einn.Norm, "... [c]", epsilon=1e-5)
 
 The main building block of GPT-2 consists of multi-head self-attention and a multi-layer perceptron (MLP). Each sub-block uses a residual connection and

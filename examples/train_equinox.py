@@ -55,7 +55,7 @@ class Block(eqx.Module):
     dropout: einn.Dropout
 
     def __init__(self, c):
-        self.linear = einn.Linear("b [...|c]", c=c)
+        self.linear = einn.Linear("b [...->c]", c=c)
         self.norm = einn.Norm("b [c]")
         self.dropout = einn.Dropout("[...]", drop_rate=0.2)
 
@@ -73,7 +73,7 @@ class Net(eqx.Module):
 
     def __init__(self):
         self.blocks = [Block(c) for c in [1024, 512, 256]]
-        self.classifier = einn.Linear("b [...|c]", c=10)
+        self.classifier = einn.Linear("b [...->c]", c=10)
 
     def __call__(self, x, rng):
         for block in self.blocks:

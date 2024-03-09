@@ -18,9 +18,9 @@ Numpy cannot be mixed in the same operation.
 
     x = np.zeros((10, 20))
     y = np.zeros((20, 30))
-    einx.dot("a [c1|c2]", x, torch.from_numpy(y))              # Uses torch
-    einx.dot("a [c1|c2]", x, jnp.asarray(y))                   # Uses jax
-    einx.dot("a [c1|c2]", torch.from_numpy(x), jnp.asarray(y)) # Raises exception
+    einx.dot("a [c1->c2]", x, torch.from_numpy(y))              # Uses torch
+    einx.dot("a [c1->c2]", x, jnp.asarray(y))                   # Uses jax
+    einx.dot("a [c1->c2]", torch.from_numpy(x), jnp.asarray(y)) # Raises exception
 
 Unkown tensor objects and python sequences are converted using ``np.asarray`` and used as numpy backend tensors.
 

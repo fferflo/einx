@@ -247,11 +247,9 @@ def _clean_parameter(k, v):
 
 def _clean_description_and_parameters(description, parameters):
     # Remove parameters that are not used in the description
-    exprs = [einx.expr.stage1.parse(d) for d in description.split("->") for d in d.split(",")]
     axis_names = {
         axis.name
-        for root in exprs
-        for axis in root.all()
+        for axis in einx.expr.stage1.parse_op(description).all()
         if isinstance(axis, einx.expr.stage1.NamedAxis)
     }
     parameters = {k: _clean_parameter(k, v) for k, v in parameters.items() if k in axis_names}

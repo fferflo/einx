@@ -49,7 +49,7 @@ A non-exhaustive comparison of operations expressed in einx-notation and einops-
           einops.reduce(x, "b (h h2) (w w2) c -> b h w c", reduction="mean", h2=2, w2=2)
    * - .. code-block:: python
           
-          einx.dot("... [c1|c2]", x, w)
+          einx.dot("... [c1->c2]", x, w)
      - .. code-block:: python
           
           einops.einsum(x, w, "... c1, c1 c2 -> ... c2")
@@ -71,7 +71,7 @@ A non-exhaustive comparison of operations expressed in einx-notation and einops-
      - Rearranging and broadcasting not supported in ``einops.pack``
    * - .. code-block:: python
           
-          einx.dot("... (g [c1|c2])", x, w)
+          einx.dot("... (g [c1->c2])", x, w)
      - Shape rearrangement not supported in ``einops.einsum``
    * - .. code-block:: python
     

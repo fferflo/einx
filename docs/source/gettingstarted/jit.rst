@@ -48,7 +48,7 @@ def op0(i0):
 A call to ``einx.dot`` that forwards computation to ``backend.einsum``:
 
 >>> x = np.zeros((10, 10))
->>> print(einx.dot("b... (g [c1|c2])", x, np.ones, g=2, c2=8, graph=True))
+>>> print(einx.dot("b... (g [c1->c2])", x, np.ones, g=2, c2=8, graph=True))
 # backend: einx.backend.numpy
 def op0(i0, i1):
     x2 = backend.reshape(i0, (10, 2, 5))

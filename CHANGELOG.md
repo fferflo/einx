@@ -18,6 +18,10 @@
 
 ### Changed
 
+- Allow `->` and `,` to be composed with other operators. (This deprecates the existing `[|]` notation which should instead be implemented with
+  composable `->`. The feature is still maintained for backwards compatibility). For example:
+    - `einx.dot("b [c1->c2]", ...)` expands to `einx.dot("b [c1] -> b [c2]", ...)`
+    - `einx.get_at("b p [i,->]", ...)` expands to `einx.get_at("b p [i], b p -> b p", ...)`
 - Allow `einx.{set_at|add_at|...}` to be called with zero-sized updates or coordinates (in which case the input tensor is returned as-is).
 - Remove `backend.dot` which was not used anywhere but in the unit tests.
 - Improve error reporting:

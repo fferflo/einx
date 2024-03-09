@@ -121,35 +121,11 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
-    description = description.split("->")
-    if len(description) == 1:
-        # Description: "input -> output" using [|]-choice
-        expr = description[0]
-        if "," in expr:
-            raise ValueError(
-                "Only a single input expression is allowed when output expression is not given"
-            )
-        if len(tensor_shapes) != 2:
-            raise ValueError(f"Expected 2 input tensors, got {len(tensor_shapes)}")
+    op = einx.expr.stage1.parse_op(description)
 
-        expr = einx.expr.stage1.parse(expr)
-        expr_in1 = str(einx.expr.stage1.choose(expr, 0, num=2))
-        expr_out = str(einx.expr.stage1.choose(expr, 1, num=2))
-
-        exprs_in = [expr_in1]
-    else:
-        # Description: "inputs... -> output"
-        if len(description) > 2:
-            raise ValueError("Operation can contain at most one '->'")
-        exprs_in, expr_out = description
-        exprs_in = exprs_in.split(",")
-
-    if len(exprs_in) == 1 and len(tensor_shapes) == 2:
-        # Description: input1 -> output, determine input2 implicitly
-        expr_in1 = einx.expr.stage1.parse(exprs_in[0])
-        expr_out = einx.expr.stage1.parse(expr_out)
-
-        for root in [expr_in1, expr_out]:
+    # Implicitly determine second input expression
+    if len(op[0]) == 1 and len(tensor_shapes) == 2:
+        for root in [op[0][0], op[1][0]]:
             for expr in root.all():
                 if (
                     isinstance(expr, einx.expr.stage1.UnnamedAxis)
@@ -158,40 +134,60 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
                 ):
                     raise ValueError(f"Cannot mark unnamed non-trivial axes, but found {expr}")
 
-        # Get ordered list of axes for second input
-        names = []
-        for root in [expr_in1, expr_out]:
+        # Create second input expression from ordered list of marked axes
+        names = set()
+        expr_in2 = []
+        for root in [op[0][0], op[1][0]]:
             for expr in root.all():
-                if isinstance(expr, einx.expr.stage1.NamedAxis) and einx.expr.stage1.is_marked(
-                    expr
+                if (
+                    isinstance(expr, einx.expr.stage1.NamedAxis)
+                    and einx.expr.stage1.is_marked(expr)
+                    and not expr.name in names
                 ):
-                    name = expr.name
-                    for _ in range(expr.depth):
-                        name = name + einx.expr.stage1._ellipsis
-                    if name not in names:
-                        names.append(name)
-        expr_in2 = " ".join(names)
+                    names.add(expr.name)
 
-        expr_in1 = einx.expr.stage1.demark(expr_in1)
-        expr_out = einx.expr.stage1.demark(expr_out)
-        exprs_in = [expr_in1, expr_in2]
+                    # Copy axis
+                    expr2 = expr.__deepcopy__()
 
-    if len(exprs_in) != len(tensor_shapes):
-        raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensor_shapes)}")
+                    # Apply the same ellipses
+                    parent = expr
+                    while parent.parent is not None:
+                        if isinstance(parent, einx.expr.stage1.Ellipsis):
+                            expr2 = einx.expr.stage1.Ellipsis(expr2, ellipsis_id=parent.ellipsis_id)
+                        parent = parent.parent
+
+                    # Append to second output expression
+                    expr_in2.append(expr2)
+        expr_in2 = einx.expr.stage1.List(expr_in2)
+
+        op = einx.expr.stage1.Op([
+            einx.expr.stage1.Args([
+                einx.expr.stage1.demark(op[0][0]),
+                expr_in2,
+            ]),
+            einx.expr.stage1.Args([
+                einx.expr.stage1.demark(op[1][0]),
+            ]),
+        ])
+
+    if len(op[0]) != len(tensor_shapes):
+        raise ValueError(f"Expected {len(op[0])} input tensor(s), got {len(tensor_shapes)}")
+    if len(op[1]) != 1:
+        raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
 
     exprs = einx.expr.solve(
         [
             einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
+            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
         ]
-        + [einx.expr.Equation(expr_out)]
+        + [einx.expr.Equation(op[1][0])]
         + [
             einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
             for k, v in parameters.items()
         ],
         cse=cse,
         cse_concat=False,
-    )[: len(exprs_in) + 1]
+    )[: len(op[0]) + 1]
     exprs_in, expr_out = exprs[:-1], exprs[-1]
 
     return exprs_in, expr_out
@@ -231,12 +227,6 @@ def dot(
 
         Example: ``[b c1] -> [b c2]`` resolves to ``b c1, b c1 c2 -> b c2``
 
-    3. ``... [input1|output] ...``
-        The function accepts two input tensors. The left and right choices correspond to the
-        first input tensor and the output tensor, respectively.
-
-        Example: ``b [c1|c2]`` resolves to ``b [c1] -> b [c2]``
-
     The function additionally passes the ``in_axes``, ``out_axes`` and ``batch_axes`` arguments
     to tensor factories that can be used to determine the fan-in and fan-out of a neural network
     layer and initialize weights accordingly (see e.g. `jax.nn.initializers.lecun_normal
@@ -271,7 +261,7 @@ def dot(
         (10,)
         >>> einx.dot("a [b] -> a", a, b).shape
         (10,)
-        >>> einx.dot("a [b|]", a, b).shape
+        >>> einx.dot("a [b->]", a, b).shape
         (10,)
 
         Compute a vector-matrix product:
@@ -281,7 +271,7 @@ def dot(
         (10,)
         >>> einx.dot("[a] -> [b]", a, b).shape
         (10,)
-        >>> einx.dot("[a|b]", a, b).shape
+        >>> einx.dot("[a->b]", a, b).shape
         (10,)
 
         Multiply a tensor with a weight matrix:
@@ -295,7 +285,7 @@ def dot(
         ...         )
         ...     ),
         ... )
-        >>> einx.dot("b... [c1|c2]", x, w).shape
+        >>> einx.dot("b... [c1->c2]", x, w).shape
         (4, 16, 16, 32)
     """
     exprs_in, expr_out = parse(

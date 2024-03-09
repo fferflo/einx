@@ -159,10 +159,18 @@ class Concatenation(Expression):
 
 
 class Marker(Expression):
+    @staticmethod
+    def maybe(inner, *args, **kwargs):
+        if len(inner) == 0:
+            return inner
+        else:
+            return Marker(inner, *args, **kwargs)
+
     def __init__(self, inner, ellipsis_indices):
         Expression.__init__(self, ellipsis_indices)
         self.inner = inner
         inner.parent = self
+        assert len(inner) > 0
 
     def __str__(self):
         return f"[{self.inner}]"
@@ -181,8 +189,8 @@ class Marker(Expression):
         yield from self.inner.all()
 
 
-class SolveException(Exception):
-    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message, type):
+class SolveDepthException(Exception):
+    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
         assert (
             len({
                 len(exprs1),
@@ -200,32 +208,51 @@ class SolveException(Exception):
         self.expansions2 = expansions2
         self.depths1 = depths1
         self.depths2 = depths2
-        self.message = f"Failed to solve {type} of expressions. {message}\nInput:\n"
+        self.message = f"Failed to solve for the depth of axes, i.e. the number of outer ellipses.\nEquations:\n"
         for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(
             exprs1, exprs2, expansions1, expansions2, depths1, depths2
         ):
-            self.message += "    "
-            self.message += f"{einx.expr.util._to_str(expr1)} (expansion="
-            f"{einx.expr.util._to_str(expansion1)} at depth={depth1})"
-            self.message += " = "
-            self.message += f"{einx.expr.util._to_str(expr2)} (expansion="
-            f"{einx.expr.util._to_str(expansion2)} at depth={depth2})"
-            self.message += "\n"
+            if not expr1 is None and not expr2 is None:
+                self.message += "    "
+                self.message += f"{einx.expr.util._to_str(expr1)}"
+                self.message += " = "
+                self.message += f"{einx.expr.util._to_str(expr2)}"
+                self.message += "\n"
+        self.message += f"Reason: {message}"
         super().__init__(self.message)
 
 
-class SolveDepthException(SolveException):
+class SolveExpansionException(Exception):
     def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
-        super().__init__(
-            exprs1, exprs2, expansions1, expansions2, depths1, depths2, message, "depths"
+        assert (
+            len({
+                len(exprs1),
+                len(exprs2),
+                len(expansions1),
+                len(expansions2),
+                len(depths1),
+                len(depths2),
+            })
+            == 1
         )
-
-
-class SolveExpansionException(SolveException):
-    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
-        super().__init__(
-            exprs1, exprs2, expansions1, expansions2, depths1, depths2, message, "expansions"
-        )
+        self.exprs1 = exprs1
+        self.exprs2 = exprs2
+        self.expansions1 = expansions1
+        self.expansions2 = expansions2
+        self.depths1 = depths1
+        self.depths2 = depths2
+        self.message = f"Failed to solve for the number of axes in the expressions.\nEquations:\n"
+        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(
+            exprs1, exprs2, expansions1, expansions2, depths1, depths2
+        ):
+            if not expr1 is None and not expr2 is None:
+                self.message += "    "
+                self.message += f"{einx.expr.util._to_str(expr1)}"
+                self.message += " = "
+                self.message += f"{einx.expr.util._to_str(expr2)}"
+                self.message += "\n"
+        self.message += f"Reason: {message}"
+        super().__init__(self.message)
 
 
 def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
@@ -251,11 +278,6 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
         != 1
     ):
         raise ValueError("Number of expressions, expansions and depths must be equal")
-
-    # Semantic check: Cannot contain choices
-    for root in exprs1 + exprs2:
-        if root is not None and any(isinstance(expr, stage1.Choice) for expr in root.all()):
-            raise ValueError(f"[|] Choice not allowed in expression '{root}'")
 
     # ##### 1. Find expression depths #####
     equations = []
@@ -648,7 +670,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             ]
         elif isinstance(expr, stage1.Marker):
             return [
-                Marker(
+                Marker.maybe(
                     List.maybe(
                         map(expr.inner, ellipsis_indices=ellipsis_indices),
                         ellipsis_indices=ellipsis_indices,
@@ -945,7 +967,7 @@ def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
             ]
         elif isinstance(expr, Marker):
             return [
-                Marker(
+                Marker.maybe(
                     List.maybe(replace(expr.inner), expr.ellipsis_indices), expr.ellipsis_indices
                 )
             ]
@@ -1019,7 +1041,7 @@ def _expr_map(expr, f):
             # Drop empty marker
             return []
         else:
-            return [Marker(List.maybe(x))]
+            return [Marker.maybe(List.maybe(x))]
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
 
@@ -1063,8 +1085,6 @@ def _get_marked(expr):
         return [Composition(List.maybe(_get_marked(expr.inner)))]
     elif isinstance(expr, List):
         return [List.maybe([x for c in expr.children for x in _get_marked(c)])]
-    elif isinstance(expr, Choice):
-        raise ValueError("Expression cannot contain choice")
     else:
         raise TypeError(f"Invalid expression type {type(expr)}")
 

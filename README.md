@@ -50,7 +50,7 @@ einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
 einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
 einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
 
-einx.dot("... [c1|c2]", x, y)                     # Matmul = linear map from c1 to c2 channels
+einx.dot("... [c1->c2]", x, y)                    # Matmul = linear map from c1 to c2 channels
 
 # Vectorizing map
 einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling
@@ -76,10 +76,10 @@ attn = einx.softmax("b q [k] h", attn)
 x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
 
 # Matmul in linear layers
-einx.dot("b...      [c1|c2]",  x, w)              # - Regular
-einx.dot("b...   (g [c1|c2])", x, w)              # - Grouped: Same weights per group
-einx.dot("b... ([g c1|g c2])", x, w)              # - Grouped: Different weights per group
-einx.dot("b  [s...|s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
+einx.dot("b...      [c1->c2]",  x, w)              # - Regular
+einx.dot("b...   (g [c1->c2])", x, w)              # - Grouped: Same weights per group
+einx.dot("b... ([g c1->g c2])", x, w)              # - Grouped: Different weights per group
+einx.dot("b  [s...->s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 ```
 
 See [Common neural network ops](https://einx.readthedocs.io/en/latest/gettingstarted/commonnnops.html) for more examples.
@@ -95,10 +95,10 @@ instancenorm    = einn.Norm("b [s...] c")
 groupnorm       = einn.Norm("b [s...] (g [c])", g=8)
 rmsnorm         = einn.Norm("b... [c]", mean=False, bias=False)
 
-channel_mix     = einn.Linear("b... [c1|c2]", c2=64)
-spatial_mix1    = einn.Linear("b [s...|s2] c", s2=64)
-spatial_mix2    = einn.Linear("b [s2|s...] c", s=(64, 64))
-patch_embed     = einn.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=64)
+channel_mix     = einn.Linear("b... [c1->c2]", c2=64)
+spatial_mix1    = einn.Linear("b [s...->s2] c", s2=64)
+spatial_mix2    = einn.Linear("b [s2->s...] c", s=(64, 64))
+patch_embed     = einn.Linear("b (s [s2->])... [c1->c2]", s2=4, c2=64)
 
 dropout         = einn.Dropout("[...]",       drop_rate=0.2)
 spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)

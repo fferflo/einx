@@ -159,54 +159,32 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
-    if "->" in description:
-        # Description: Inputs and output
-        description = description.split("->")
-        if len(description) != 2:
-            raise ValueError("Operation string must contain exactly one '->'")
-        exprs_in, exprs_out = description
-        exprs_in = exprs_in.split(",")
-        exprs_out = exprs_out.split(",")
+    op = einx.expr.stage1.parse_op(description)
 
-        if len(exprs_in) != len(tensor_shapes):
-            raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensor_shapes)}")
+    # Implicitly determine output expression
+    if len(op) == 1:
+        op = einx.expr.stage1.Op([
+            op[0],
+            op[0].__deepcopy__(),
+        ])
 
-    else:
-        # Description: Single expression
-        expr = description
-        if "," in expr:
-            raise ValueError(
-                "Only a single expression is allowed when using the choice operator [|]"
-            )
-        if len(tensor_shapes) != 1:
-            raise ValueError(f"Expected 1 input tensor, got {len(tensor_shapes)}")
-
-        expr = einx.expr.stage1.parse(expr)
-        if any(isinstance(expr, einx.expr.stage1.Choice) for expr in expr.all()):
-            # "input -> output" using [|]-choice
-            expr_in = str(einx.expr.stage1.choose(expr, 0, num=2))
-            expr_out = str(einx.expr.stage1.choose(expr, 1, num=2))
-        else:
-            # Same input and output
-            expr_in = expr_out = str(expr)
-
-        exprs_in = [expr_in]
-        exprs_out = [expr_out]
+    if len(op[0]) != len(tensor_shapes):
+        raise ValueError(f"Expected {len(op[0])} input tensors, but got {len(tensor_shapes)}")
 
     exprs = einx.expr.solve(
         [
             einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
+            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
         ]
-        + [einx.expr.Equation(expr_out) for expr_out in exprs_out]
+        + [einx.expr.Equation(expr_out) for expr_out in op[1]]
         + [
             einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
             for k, v in parameters.items()
         ],
         cse=cse,
         cse_concat=False,
-    )[: len(exprs_in) + len(exprs_out)]
-    exprs_in, exprs_out = exprs[: len(exprs_in)], exprs[len(exprs_in) :]
+    )[: len(op[0]) + len(op[1])]
+    exprs_in, exprs_out = exprs[: len(op[0])], exprs[len(op[0]) :]
 
     return exprs_in, exprs_out
 
@@ -233,19 +211,8 @@ def vmap_with_axis(
     the result to match the output expressions (see :doc:`How does einx handle input and output
     tensors? </faq/flatten>`).
 
-    The `description` argument specifies the input and output expressions, as well as axes along
-    which the operation is applied. It must meet one of the following formats:
-
-    1. ``input1, input2, ... -> output1, output2, ...``
-        All input and output expressions are specified explicitly. Axes that the operation is
-        applied along are marked with ``[]``-brackets.
-
-    2. ``... [input|output] ...``
-        The left and right choices correspond to the input and output tensors, respectively.
-        Axes that the operation is applied along are marked with ``[]``-brackets.
-
-        Example: ``a [b1|b2]`` resolves to ``a [b1] -> a [b2]``. ``a [b]`` resolves
-        to ``a [b] -> a [b]``.
+    The `description` argument specifies the input and output expressions. The operation is
+    applied over all axes marked with ``[]``-brackets. All other axes are considered batch axes.
 
     When the function is applied on scalars, the ``axis`` argument is not passed. For multiple
     input tensors, the function must follow

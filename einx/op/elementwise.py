@@ -57,70 +57,28 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
-    if "->" in description:
-        # Description: Inputs and output
-        description = description.split("->")
-        if len(description) != 2:
-            raise ValueError("Operation cannot contain more than one '->'")
-        exprs_in, expr_out = description
-        exprs_in = exprs_in.split(",")
-        if len(exprs_in) != len(tensor_shapes):
-            raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensor_shapes)}")
+    op = einx.expr.stage1.parse_op(description)
 
-        exprs = einx.expr.solve(
+    # Add second input expression from marked subexpressions
+    if len(op[0]) == 1 and len(tensor_shapes) == 2:
+        op = einx.expr.stage1.Op(
             [
-                einx.expr.Equation(expr_in, tensor_shape)
-                for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
+                einx.expr.stage1.Args([
+                    einx.expr.stage1.demark(op[0][0]),
+                    einx.expr.stage1.get_marked(op[0][0]),
+                ]),
             ]
-            + [
-                einx.expr.Equation(
-                    expr_out,
-                )
-            ]
-            + [
-                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-                for k, v in parameters.items()
-            ],
-            cse=cse,
-            cse_concat=False,
-        )[: len(exprs_in) + 1]
-        exprs_in, expr_out = exprs[:-1], exprs[-1]
-    else:
-        # Description: Only inputs
-        exprs_in = description.split(",")
+            + list(op[1:])
+        )
 
-        if len(exprs_in) == 1 and len(tensor_shapes) == 2:
-            # Expression contains markers -> add second input expression from marked subexpressions
-            expr_in1 = einx.expr.stage1.parse(exprs_in[0])
-            expr_in2 = einx.expr.stage1.get_marked(expr_in1)
-            expr_in1 = einx.expr.stage1.demark(expr_in1)
-            exprs_in = [expr_in1, expr_in2]
-
-        if len(exprs_in) != len(tensor_shapes):
-            raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensor_shapes)}")
-
-        exprs_in = einx.expr.solve(
-            [
-                einx.expr.Equation(expr_in, tensor_shape)
-                for expr_in, tensor_shape in zip(exprs_in, tensor_shapes)
-            ]
-            + [
-                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-                for k, v in parameters.items()
-            ],
-            cse=cse,
-            cse_concat=False,
-        )[: len(exprs_in)]
-
-        # Implicitly determine output expression: Check if one input expression contains
-        # the axis names of all others, and this choice is unique
+    # Implicitly determine output expression
+    if len(op) == 1:
+        # Use one of the input expression if contains the axis names of
+        # all others and if this choice is unique
+        input_args = op[0]
         in_axis_names = [
-            {
-                expr.name
-                for expr in root.all()
-                if isinstance(expr, einx.expr.stage3.Axis) and not expr.is_unnamed
-            }
-            for root in exprs_in
+            {expr.name for expr in root.all() if isinstance(expr, einx.expr.stage1.NamedAxis)}
+            for root in input_args
         ]
 
         valid_parents = set()
@@ -130,14 +88,36 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
                     break
             else:
                 # Found valid parent
-                valid_parents.add(exprs_in[i])
+                valid_parents.add(input_args[i])
 
         if len(valid_parents) != 1:
-            raise ValueError(
-                f"Could not implicitly determine output expression for input "
-                f"expressions {[str(expr) for expr in exprs_in]}"
-            )
+            raise ValueError(f"Could not implicitly determine output expression for op '{op}'")
         expr_out = next(iter(valid_parents)).__deepcopy__()
+        op = einx.expr.stage1.Op([op[0], einx.expr.stage1.Args([expr_out])])
+
+    if len(op[0]) != len(tensor_shapes):
+        raise ValueError(f"Expected {len(op[0])} input tensors, but got {len(tensor_shapes)}")
+    if len(op[1]) != 1:
+        raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
+
+    exprs = einx.expr.solve(
+        [
+            einx.expr.Equation(expr_in, tensor_shape)
+            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
+        ]
+        + [
+            einx.expr.Equation(
+                op[1][0],
+            )
+        ]
+        + [
+            einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+            for k, v in parameters.items()
+        ],
+        cse=cse,
+        cse_concat=False,
+    )[: len(op[0]) + 1]
+    exprs_in, expr_out = exprs[:-1], exprs[-1]
 
     return exprs_in, expr_out
 

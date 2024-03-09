@@ -303,16 +303,5 @@ Operations are sensitive to the positioning of brackets, e.g. allowing for flexi
 
 In the second example, ``c`` is reduced within the composition ``(c)``, resulting in an empty composition ``()``, i.e. a trivial axis with size 1.
 
-*Brief notation:* The bracket notation also allows using a shorthand with ``[..|..]``-notation where two expressions are specified jointly:
-
-..  code::
-
-    einx.vmap("b [c1|c2]", x, op=op, c2=7)
-    # same as
-    einx.vmap("b [c1] -> b [c2]", x, op=op, c2=7)
-
-The left and right options inside the bracket are selected for the input and output expressions, while all other parts are kept as-is. See the
-documentation of the respective functions for more details on how bracket notation is used.
-
 einx provides a wide range of tensor operations that accept arguments in Einstein notation as described in this document.
 The following tutorial gives an overview of these functions and their usage.

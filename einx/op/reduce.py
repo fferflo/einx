@@ -30,46 +30,11 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
         description, parameters
     )
 
-    if "," in description:
-        raise ValueError("Only a single input and output expression is allowed")
+    op = einx.expr.stage1.parse_op(description)
 
-    if "->" in description:
-        if keepdims is not None:
-            raise ValueError("keepdims cannot be given when using '->'")
-        description = description.split("->")
-        if len(description) != 2:
-            raise ValueError("Operation cannot contain more than one '->'")
-
-        expr_in, expr_out = description
-
-        expr_in, expr_out = einx.expr.solve(
-            [einx.expr.Equation(expr_in, tensor_shape)]
-            + [einx.expr.Equation(expr_out)]
-            + [
-                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-                for k, v in parameters.items()
-            ],
-            cse=cse,
-            cse_in_markers=True,
-        )[:2]
-
-        # If no axes are marked for reduction in expr_in, mark all axes that
-        # don't appear in expr_out
-        if not _any(einx.expr.stage3.is_marked(expr) for expr in expr_in.all()):
-            axes_names_out = {
-                axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)
-            }
-            expr_in = einx.expr.stage3.mark(
-                expr_in,
-                lambda expr: isinstance(expr, einx.expr.stage3.Axis)
-                and expr.name not in axes_names_out,
-            )
-
-    else:
-        expr_in = description
-
+    if len(op) == 1:
         expr_in = einx.expr.solve(
-            [einx.expr.Equation(expr_in, tensor_shape)]
+            [einx.expr.Equation(op[0][0], tensor_shape)]
             + [
                 einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
                 for k, v in parameters.items()
@@ -90,6 +55,38 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
                     return []
 
         expr_out = einx.expr.stage3.replace(expr_in, replace)
+
+    else:
+        if keepdims is not None:
+            raise ValueError("keepdims cannot be given when using '->'")
+
+        if len(op[0]) != 1:
+            raise ValueError(f"Expected 1 input expression, but got {len(op[0])}")
+        if len(op[1]) != 1:
+            raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
+
+        expr_in, expr_out = einx.expr.solve(
+            [einx.expr.Equation(op[0][0], tensor_shape)]
+            + [einx.expr.Equation(op[1][0])]
+            + [
+                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
+                for k, v in parameters.items()
+            ],
+            cse=cse,
+            cse_in_markers=True,
+        )[:2]
+
+        # If no axes are marked for reduction in expr_in, mark all axes that
+        # don't appear in expr_out
+        if not _any(einx.expr.stage3.is_marked(expr) for expr in expr_in.all()):
+            axes_names_out = {
+                axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)
+            }
+            expr_in = einx.expr.stage3.mark(
+                expr_in,
+                lambda expr: isinstance(expr, einx.expr.stage3.Axis)
+                and expr.name not in axes_names_out,
+            )
 
     return expr_in, expr_out
 

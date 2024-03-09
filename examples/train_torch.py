@@ -42,11 +42,11 @@ class Net(nn.Module):
         super().__init__()
         blocks = []
         for c in [1024, 512, 256]:
-            blocks.append(einn.Linear("b [...|c]", c=c))
+            blocks.append(einn.Linear("b [...->c]", c=c))
             blocks.append(einn.Norm("[b] c", decay_rate=0.99))
             blocks.append(nn.GELU())
             blocks.append(einn.Dropout("[...]", drop_rate=0.2))
-        blocks.append(einn.Linear("b [...|c]", c=10))
+        blocks.append(einn.Linear("b [...->c]", c=10))
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x):

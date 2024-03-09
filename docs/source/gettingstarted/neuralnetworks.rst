@@ -18,7 +18,7 @@ For example, consider the following linear layer:
 
 ..  code::
 
-    x = einx.dot("... [c1|c2]", x, w) # x * w
+    x = einx.dot("... [c1->c2]", x, w) # x * w
     x = einx.add("... [c2]", x, b)    # x + b
 
 The arguments ``w`` and ``b`` represent the layer weights. Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually,
@@ -35,7 +35,7 @@ in the current module and can be defined as a tensor factory as follows:
             w = lambda shape: hk.get_parameter(name="weight", shape=shape, dtype="float32", init=hk.initializers.VarianceScaling(1.0, "fan_in", "truncated_normal"))
             b = lambda shape: hk.get_parameter(name="bias", shape=shape, dtype="float32", init=hk.initializers.Constant(0.0))
 
-            x = einx.dot("b... [c1|c2]", x, w, c2=64)
+            x = einx.dot("b... [c1->c2]", x, w, c2=64)
             x = einx.add("b... [c2]", x, b)
             return x
 
@@ -147,7 +147,7 @@ Our definition of a linear layer above that used the ``lambda shape: ...`` synta
     class Linear(hk.Module):
         dtype: str = "float32"
         def __call__(self, x):
-            x = einx.dot("... [c1|c2]", x, einn.param(), c2=64)
+            x = einx.dot("... [c1->c2]", x, einn.param(), c2=64)
             x = einx.add("... [c2]", x, einn.param())
             return x
 
@@ -170,7 +170,7 @@ In Haiku, ``hk.get_parameter`` and ``hk.get_state`` can be passed as the first p
     class Linear(nn.Module):
         dtype: str = "float32"
         def __call__(self, x):
-            x = einx.dot("... [c1|c2]", x, einn.param(self), c2=64)
+            x = einx.dot("... [c1->c2]", x, einn.param(self), c2=64)
             x = einx.add("... [c2]", x, einn.param(self))
             return x
 
@@ -198,7 +198,7 @@ convenience, einx provides several options to determine which one is used:
             self.b = nn.parameter.UninitializedParameter(dtype=torch.float32)
 
         def forward(self, x):
-            x = einx.dot("b... [c1|c2]", x, self.w, c2=64)
+            x = einx.dot("b... [c1->c2]", x, self.w, c2=64)
             x = einx.add("b... [c2]", x, self.b)
             return x
 
@@ -229,7 +229,7 @@ For PyTorch, ``einn.param`` does not support a ``dtype`` and ``name`` argument s
             self.b = None
 
         def forward(self, x, rng=None):
-            x = einx.dot("b... [c1|c2]", x, einn.param(self, name="weight", rng=rng), c2=64)
+            x = einx.dot("b... [c1->c2]", x, einn.param(self, name="weight", rng=rng), c2=64)
             x = einx.add("b... [c2]", x, einn.param(self, name="bias", rng=rng))
             return x
 
@@ -250,7 +250,7 @@ Stateful layers are currently not supported for Equinox, since they require the 
 
     class Linear(einn.Layer):
         def call(self, x):
-            x = einx.dot("b... [c1|c2]", x, einn.param(self, name="weight"), c2=64)
+            x = einx.dot("b... [c1->c2]", x, einn.param(self, name="weight"), c2=64)
             x = einx.add("b... [c2]", x, einn.param(self, name="bias"))
             return x
 
@@ -287,10 +287,10 @@ A bias is added corresponding to the marked output expressions, and is disabled 
 
 ..  code::
 
-    channel_mix     = einn.Linear("b... [c1|c2]", c2=64)
-    spatial_mix1    = einn.Linear("b [s...|s2] c", s2=64)
-    spatial_mix2    = einn.Linear("b [s2|s...] c", s=(64, 64))
-    patch_embed     = einn.Linear("b (s [s2|])... [c1|c2]", s2=4, c2=64)
+    channel_mix     = einn.Linear("b... [c1->c2]", c2=64)
+    spatial_mix1    = einn.Linear("b [s...->s2] c", s2=64)
+    spatial_mix2    = einn.Linear("b [s2->s...] c", s=(64, 64))
+    patch_embed     = einn.Linear("b (s [s2->])... [c1->c2]", s2=4, c2=64)
 
 **einn.Dropout** implements a stochastic dropout. The first parameter specifies the shape of the mask in Einstein notation that is applied to the input tensor.
 
@@ -311,11 +311,11 @@ The following is an example of a simple fully-connected network for image classi
         @nn.compact
         def __call__(self, x, training):
             for c in [1024, 512, 256]:
-                x = einn.Linear("b [...|c]", c=c)(x)
+                x = einn.Linear("b [...->c]", c=c)(x)
                 x = einn.Norm("[b] c", decay_rate=0.99)(x, training=training)
                 x = nn.gelu(x)
                 x = einn.Dropout("[...]", drop_rate=0.2)(x, training=training)
-            x = einn.Linear("b [...|c]", c=10)(x) # 10 classes
+            x = einn.Linear("b [...->c]", c=10)(x) # 10 classes
             return x
 
 Example trainings on CIFAR10 are provided in ``examples/train_{torch|flax|haiku|equinox|keras}.py`` for models implemented using ``einn``. ``einn`` layers can be combined

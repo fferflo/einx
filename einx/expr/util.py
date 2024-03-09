@@ -83,8 +83,8 @@ def solve(
                 f"{_to_str(expr2)} (expansion={_to_str(expansion2)} at depth={depth2})"
             )
 
-    exprs1 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs1]
-    exprs2 = [(stage1.parse(expr) if isinstance(expr, str) else expr) for expr in exprs2]
+    exprs1 = [(stage1.parse_arg(expr) if isinstance(expr, str) else expr) for expr in exprs1]
+    exprs2 = [(stage1.parse_arg(expr) if isinstance(expr, str) else expr) for expr in exprs2]
 
     expansions1 = [
         expansion if expansion is not None else _get_expansion(expr)

@@ -718,8 +718,12 @@ class tracer(Backend):
         if op.tracable:
             x = op(*args, **kwargs)
 
+            got_output_shapes = einx.tree_util.tree_map(lambda x: x.shape, x)
             def assertion(tensor, shape):
-                assert tuple(tensor.shape) == tuple(shape)
+                if tuple(tensor.shape) != tuple(shape):
+                    raise ValueError(
+                        f"Expected shapes {output_shapes} from custom op, got {got_output_shapes}"
+                    )
 
             einx.tree_util.tree_map(assertion, x, output_shapes)
             return x
