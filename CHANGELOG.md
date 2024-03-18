@@ -14,6 +14,16 @@
     - `einx.dot` (`mx.einsum` is not implemented yet)
     - `einx.vmap` (`mx.vmap` does not fully support all primitives yet)
     - `einx.{index|get_at|set_at|...}` (due to relying on `einx.vmap`)
+- Add partial support for [dask.array](https://docs.dask.org/en/stable/array.html).
+  - Supported:
+    - `einx.rearrange`
+    - `einx.{elementwise|add|multiply|where|...}`
+    - `einx.{reduce|sum|mean|...}`
+    - `einx.{vmap_with_axis|flip|softmax|...}`
+    - `einx.dot`
+  - Not supported:
+    - `einx.vmap` (`vmap` not implemented in dask)
+    - `einx.{index|get_at|set_at|...}` (due to relying on `einx.vmap`)
 - Add environment variable `EINX_WARN_ON_RETRACE` to warn when excessive retracing is detected.
 
 ### Changed

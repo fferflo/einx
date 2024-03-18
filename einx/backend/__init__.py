@@ -28,6 +28,10 @@ from ._mlx import make_mlx_backend
 
 backend_factories["mlx"] = make_mlx_backend
 
+from ._dask import make_dask_backend
+
+backend_factories["dask"] = make_dask_backend
+
 from .tracer import tracer
 
 backends.append(tracer)

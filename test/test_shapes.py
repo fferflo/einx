@@ -14,6 +14,8 @@ if importlib.util.find_spec("tensorflow"):
     tnp.experimental_enable_numpy_behavior()
 if importlib.util.find_spec("mlx"):
     import mlx
+if importlib.util.find_spec("dask"):
+    import dask.array
 
 import einx
 import pytest
@@ -302,7 +304,7 @@ def test_shape_elementwise(backend):
     assert einx.add("b, -> b 3", y, 1).shape == (10, 3)
 
     x = backend.zeros((2, 3), "float32")
-    y = backend.zeros((10,), "float32")
+    y = backend.ones((10,), "float32")
     with pytest.raises(Exception):
         einx.add("a b, c", x, y)
 
@@ -323,7 +325,7 @@ def test_shape_elementwise(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_vmap(backend):
-    if backend.name == "mlx":
+    if backend.name in {"mlx", "dask"}:
         pytest.xfail(reason="mlx does not fully support vmap with all primites yet")
 
     x = backend.zeros((13,), "float32")
@@ -440,7 +442,7 @@ def test_shape_vmap(backend):
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_index(backend):
-    if backend.name == "mlx":
+    if backend.name in {"mlx", "dask"}:
         pytest.xfail(reason="mlx does not fully support vmap with all primites yet")
 
     coord_dtype = "int32" if backend.name != "torch" else "long"

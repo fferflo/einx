@@ -14,6 +14,8 @@ if importlib.util.find_spec("tensorflow"):
     tnp.experimental_enable_numpy_behavior()
 if importlib.util.find_spec("mlx"):
     import mlx
+if importlib.util.find_spec("dask"):
+    import dask.array
 
 import einx
 import pytest

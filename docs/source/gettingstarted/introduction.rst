@@ -12,7 +12,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 
 - Fully composable and powerful Einstein expressions with ``[]``-notation.
 - Support for many tensor operations (``einx.{sum|max|where|add|dot|flip|get_at|...}``) with Numpy-like naming.
-- Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow, MLX and Jax.
+- Easy integration and mixing with existing code. Supports tensor frameworks Numpy, PyTorch, Tensorflow, Jax and others.
 - Just-in-time compilation of all operations into regular Python functions using Python's `exec() <https://docs.python.org/3/library/functions.html#exec>`_.
 
 *Optional:*
