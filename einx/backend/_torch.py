@@ -129,15 +129,51 @@ def make_torch_backend():
                     return tensor[coordinates[None]][0]
 
         def set_at(tensor, coordinates, updates):
-            tensor[coordinates] = updates
+            if isinstance(coordinates, tuple):
+                if any(isinstance(c, (slice, int)) for c in coordinates) or coordinates[0].ndim > 0:
+                    tensor[coordinates] = updates
+                else:
+                    # See above
+                    tensor[tuple(c[None] for c in coordinates)][0] = updates
+            else:
+                if isinstance(coordinates, (slice, int)) or coordinates.ndim > 0:
+                    tensor[coordinates] = updates
+                else:
+                    # See above
+                    tensor[coordinates[None]][0] = updates
+
             return tensor
 
         def add_at(tensor, coordinates, updates):
-            tensor[coordinates] += updates
-            return tensor
+            if isinstance(coordinates, tuple):
+                if any(isinstance(c, (slice, int)) for c in coordinates) or coordinates[0].ndim > 0:
+                    tensor[coordinates] += updates
+                else:
+                    # See above
+                    tensor[tuple(c[None] for c in coordinates)][0] += updates
+            else:
+                if isinstance(coordinates, (slice, int)) or coordinates.ndim > 0:
+                    tensor[coordinates] += updates
+                else:
+                    # See above
+                    tensor[coordinates[None]][0] += updates
 
+            return tensor
+        
         def subtract_at(tensor, coordinates, updates):
-            tensor[coordinates] -= updates
+            if isinstance(coordinates, tuple):
+                if any(isinstance(c, (slice, int)) for c in coordinates) or coordinates[0].ndim > 0:
+                    tensor[coordinates] -= updates
+                else:
+                    # See above
+                    tensor[tuple(c[None] for c in coordinates)][0] -= updates
+            else:
+                if isinstance(coordinates, (slice, int)) or coordinates.ndim > 0:
+                    tensor[coordinates] -= updates
+                else:
+                    # See above
+                    tensor[coordinates[None]][0] -= updates
+
             return tensor
 
         def flip(tensor, axis):
