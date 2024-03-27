@@ -152,6 +152,15 @@ def test_shape_rearrange(backend):
     x, y = einx.rearrange("h w, b h w c -> 1 h w 1, b h w c", x, y)
     assert backend.where(x, y, 0.0).shape == (4, 10, 20, 3)
 
+    x = np.zeros((5, 4))
+    x = einx.rearrange("(a + b + c) d -> b d, (a + c) d", x, a=1, b=2)
+    assert x[0].shape == (2, 4)
+    assert x[1].shape == (3, 4)
+    x = np.zeros((5, 4))
+    x = einx.rearrange("(a + b + c) d -> (a + c) d, b d", x, a=1, b=2)
+    assert x[0].shape == (3, 4)
+    assert x[1].shape == (2, 4)
+
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_dot(backend):

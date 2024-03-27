@@ -192,16 +192,13 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
 
         tensors_out = []
         for i in range(len(concat_expr.children)):
-            # Extract subexpression
+            # Extract subexpression of i-th child in concatenation
             subexpr = einx.expr.stage3.replace(
                 expr_out_flat,
                 lambda expr: expr.children[i].__deepcopy__()
                 if id(expr) == id(concat_expr)
                 else None,
             )
-            assert einx.expr.stage3.remove_unnamed_trivial_axes(
-                einx.expr.stage3.decompose(subexpr)
-            ) == next(exprs_in)
 
             # Get subtensor
             subtensor = _unflatten(exprs_in, tensors_in, subexpr, backend)
@@ -210,11 +207,16 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
 
         tensor_out = backend.concatenate(tensors_out, axis=concat_index)
     else:
+        next_expr_in = next(exprs_in)
+        assert einx.expr.stage3.remove_unnamed_trivial_axes(
+            einx.expr.stage3.decompose(expr_out)
+        ) == einx.expr.stage3.remove_unnamed_trivial_axes(einx.expr.stage3.decompose(next_expr_in))
         tensor_out = next(tensors_in)
 
     assert tensor_out.shape is not None
     if tensor_out.shape != expr_out.shape:
         tensor_out = backend.reshape(tensor_out, expr_out.shape)
+
     return tensor_out
 
 
