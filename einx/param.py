@@ -9,10 +9,10 @@ def get_shape(x):
     if isinstance(x, (tuple, list)):
         subshapes = {get_shape(y) for y in x}
         if len(subshapes) != 1:
-            raise ValueError("Failed to determine shape in input tensor")
+            raise ValueError("Failed to determine shape of input tensor")
         subshape = subshapes.pop()
         if subshape is None:
-            raise ValueError("Failed to determine shape in input tensor")
+            raise ValueError("Failed to determine shape of input tensor")
         return (len(x),) + subshape
     elif isinstance(x, (float, int, np.floating, np.integer)):
         # Scalar
