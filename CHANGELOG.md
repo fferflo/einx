@@ -37,12 +37,14 @@
 - Improve error reporting:
   - Drop internal stack frames when raising exceptions.
   - Better error when passing invalid shape constraints to einx functions.
+- Reduce overhead of einx when using the PyTorch backend.
 
 ### Fixed
 
 - Fix compatibility of `einx.nn.torch.Norm` with PyTorch 2.2.
-- Fix `name` parameter in `einn.param` being ignored.
-
+- Fix parameters in `einn.param` being ignored.
+- Fix bug when using concatenations in `einx.rearrange`. See: https://github.com/fferflo/einx/issues/6
+- Fix broadcasting new axes in `einx.vmap_with_axis`.
 
 
 ## [0.1.3]
