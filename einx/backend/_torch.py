@@ -30,6 +30,8 @@ def make_torch_backend():
         else:
             return x
 
+    MARKER_DECORATED_CONSTRUCT_GRAPH = "__einx_decorated_construct_graph"
+
     class torch(Backend):
         @staticmethod
         def to_tensor(tensor):
@@ -225,12 +227,15 @@ def make_torch_backend():
 
         @staticmethod
         def _decorate_construct_graph(f):
+            if hasattr(f, MARKER_DECORATED_CONSTRUCT_GRAPH):
+                return f
+            setattr(f, MARKER_DECORATED_CONSTRUCT_GRAPH, True)
             if "compiler" in dir(torch_):
-                return torch_.compiler.disable(f)
+                torch_.compiler.disable(f)
             else:
                 import torch._dynamo as _dynamo
 
-                return _dynamo.disable(f)
+                _dynamo.disable(f)
 
     if "compiler" in dir(torch_):
         einx.lru_cache.decorate_traced_functions(torch_.compiler.allow_in_graph)
