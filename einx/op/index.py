@@ -357,15 +357,9 @@ def parse(description, *tensor_shapes, update, cse=True, **parameters):
     if update:
         # Check that all axes in first input expression also appear in output expression
         axes_in = {
-            axis.name
-            for axis in exprs_in[0].all()
-            if isinstance(axis, einx.expr.stage3.Axis)
+            axis.name for axis in exprs_in[0].all() if isinstance(axis, einx.expr.stage3.Axis)
         }
-        axes_out = {
-            axis.name
-            for axis in expr_out.all()
-            if isinstance(axis, einx.expr.stage3.Axis)
-        }
+        axes_out = {axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)}
         if not axes_in.issubset(axes_out):
             raise ValueError(
                 f"Output expression does not contain all axes from first input expression: "

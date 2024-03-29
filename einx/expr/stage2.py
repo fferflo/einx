@@ -208,11 +208,12 @@ class SolveDepthException(Exception):
         self.expansions2 = expansions2
         self.depths1 = depths1
         self.depths2 = depths2
-        self.message = f"Failed to solve for the depth of axes, i.e. the number of outer ellipses.\nEquations:\n"
-        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(
-            exprs1, exprs2, expansions1, expansions2, depths1, depths2
-        ):
-            if not expr1 is None and not expr2 is None:
+        self.message = (
+            "Failed to solve for the depth of axes, i.e. the number of outer ellipses.\n"
+            "Equations:\n"
+        )
+        for expr1, expr2 in zip(exprs1, exprs2):
+            if expr1 is not None and expr2 is not None:
                 self.message += "    "
                 self.message += f"{einx.expr.util._to_str(expr1)}"
                 self.message += " = "
@@ -241,11 +242,9 @@ class SolveExpansionException(Exception):
         self.expansions2 = expansions2
         self.depths1 = depths1
         self.depths2 = depths2
-        self.message = f"Failed to solve for the number of axes in the expressions.\nEquations:\n"
-        for expr1, expr2, expansion1, expansion2, depth1, depth2 in zip(
-            exprs1, exprs2, expansions1, expansions2, depths1, depths2
-        ):
-            if not expr1 is None and not expr2 is None:
+        self.message = "Failed to solve for the number of axes in the expressions.\nEquations:\n"
+        for expr1, expr2 in zip(exprs1, exprs2):
+            if expr1 is not None and expr2 is not None:
                 self.message += "    "
                 self.message += f"{einx.expr.util._to_str(expr1)}"
                 self.message += " = "

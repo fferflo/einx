@@ -159,7 +159,7 @@ def make_torch_backend():
                     tensor[coordinates[None]][0] += updates
 
             return tensor
-        
+
         def subtract_at(tensor, coordinates, updates):
             if isinstance(coordinates, tuple):
                 if any(isinstance(c, (slice, int)) for c in coordinates) or coordinates[0].ndim > 0:

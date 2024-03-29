@@ -598,7 +598,7 @@ def parse_op(text):
                 raise ParseError(
                     text,
                     expr.begin_pos,
-                    f"Inconsistent usage of '->' operator",
+                    "Inconsistent usage of '->' operator",
                 )
             num = nums.pop() if len(nums) > 0 else 1
 
@@ -622,7 +622,7 @@ def parse_op(text):
             )
 
         else:
-            assert False
+            raise AssertionError()
 
     expression = move_up(expression)
 
@@ -665,7 +665,7 @@ def parse_op(text):
                 raise ParseError(
                     text,
                     expr.begin_pos,
-                    f"Inconsistent usage of ',' operator",
+                    "Inconsistent usage of ',' operator",
                 )
             num = nums.pop() if len(nums) > 0 else 1
 
@@ -689,7 +689,7 @@ def parse_op(text):
             )
 
         else:
-            assert False
+            raise AssertionError()
 
     assert isinstance(expression, Op)
     expression = Op(
@@ -698,7 +698,7 @@ def parse_op(text):
 
     # Semantic check: Op cannot have more than two children # TODO:
     if len(expression.children) > 2:
-        raise ParseError(text, expression.begin_pos, f"Cannot have more than one '->' operator")
+        raise ParseError(text, expression.begin_pos, "Cannot have more than one '->' operator")
 
     # Semantic check: Axis names can only be used once per expression
     def traverse(expr, key, axes_by_key):
@@ -747,7 +747,7 @@ def parse_op(text):
 def parse_args(text):
     op = parse_op(text)
     if len(op.children) != 1:
-        raise ParseError(text, op.begin_pos, f"Expression cannot contain '->'")
+        raise ParseError(text, op.begin_pos, "Expression cannot contain '->'")
     assert isinstance(op.children[0], Args)
     return op.children[0]
 
@@ -757,7 +757,7 @@ def parse_arg(text):
         return text
     args = parse_args(text)
     if len(args.children) != 1:
-        raise ParseError(text, args.begin_pos, f"Expression cannot contain ','")
+        raise ParseError(text, args.begin_pos, "Expression cannot contain ','")
     return args.children[0]
 
 

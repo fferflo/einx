@@ -142,7 +142,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
                 if (
                     isinstance(expr, einx.expr.stage1.NamedAxis)
                     and einx.expr.stage1.is_marked(expr)
-                    and not expr.name in names
+                    and expr.name not in names
                 ):
                     names.add(expr.name)
 

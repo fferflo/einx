@@ -719,6 +719,7 @@ class tracer(Backend):
             x = op(*args, **kwargs)
 
             got_output_shapes = einx.tree_util.tree_map(lambda x: x.shape, x)
+
             def assertion(tensor, shape):
                 if tuple(tensor.shape) != tuple(shape):
                     raise ValueError(
