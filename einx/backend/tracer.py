@@ -496,9 +496,19 @@ def optimize(output, backend):
             ):
                 # Skip reshape op if tensor already has right shape
                 new_node = _optimize(node.application.args[0])
+            elif (
+                node.application.op.op == "broadcast_to"
+                and node.application.args[0].shape == node.shape
+            ):
+                # Skip broadcast_to op if tensor already has right shape
+                new_node = _optimize(node.application.args[0])
+            elif node.application.op.op == "transpose" and list(node.application.args[1]) == list(
+                range(len(node.shape))
+            ):
+                # Skip transpose op if permutation is identity
+                new_node = _optimize(node.application.args[0])
             else:
                 new_node = OpOutput(_optimize(node.application), node.shape, node.key)
-            # TODO: skip transpose ops etc. Remove checks in all functions
         elif isinstance(node, VmappedOp):
             new_node = VmappedOp(
                 _optimize(node.op),
