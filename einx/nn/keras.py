@@ -12,7 +12,7 @@ if _version < (3, 0):
 def param(
     layer: keras.layers.Layer,
     name: Optional[str] = None,
-    init: Optional[Callable] = None,
+    init: Optional[Any] = None,
     dtype: Optional[Any] = None,
     trainable: bool = True,
 ):
@@ -33,10 +33,17 @@ def param(
     """
 
     name0 = name
+    init0 = init
+    dtype0 = dtype
 
     def keras_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
         if name0 is not None:
             name = name0
+        if init0 is not None:
+            init = init0
+        if dtype0 is not None:
+            dtype = dtype0
+
         if name is None:
             raise ValueError("Must specify name for tensor factory keras.layers.Layer")
 

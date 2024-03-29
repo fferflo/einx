@@ -9,7 +9,7 @@ from typing import Callable, Union, Optional, Any
 def param(
     bound_method: Union[Callable, nn.Module],
     name: Optional[str] = None,
-    init: Optional[str] = None,
+    init: Optional[Any] = None,
     dtype: Optional[nn.dtypes.Dtype] = None,
     col: Optional[str] = None,
 ):
@@ -34,10 +34,17 @@ def param(
         bound_method = bound_method.param
 
     name0 = name
+    init0 = init
+    dtype0 = dtype
 
     def flax_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
         if name0 is not None:
             name = name0
+        if init0 is not None:
+            init = init0
+        if dtype0 is not None:
+            dtype = dtype0
+
         if name is None:
             raise ValueError(
                 "Must specify name for tensor factory flax.linen.Module.{param|variable}"

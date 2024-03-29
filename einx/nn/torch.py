@@ -23,7 +23,7 @@ def param(
     uninitialized: Union[
         torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer
     ],
-    init: Optional[Callable] = None,
+    init: Optional[Any] = None,
 ):
     """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
@@ -40,7 +40,12 @@ def param(
         A tensor factory with the given default parameters.
     """
 
+    init0 = init
+
     def torch_param_factory(shape, init=init, **kwargs):
+        if init0 is not None:
+            init = init0
+
         if init is None:
             raise ValueError(
                 "Must specify init for tensor factory torch.nn.parameter.Uninitialized*"

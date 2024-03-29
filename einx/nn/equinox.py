@@ -5,6 +5,8 @@ from functools import partial
 import jax.numpy as jnp
 from typing import Optional, Callable, Any
 
+# TODO: type annotations
+
 
 def param(module, name=None, init=None, dtype=None, rng=None):
     """Create a tensor factory for Equinox parameters.
@@ -22,7 +24,18 @@ def param(module, name=None, init=None, dtype=None, rng=None):
         A tensor factory with the given default parameters.
     """
 
+    name0 = name
+    init0 = init
+    dtype0 = dtype
+
     def equinox_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
+        if name0 is not None:
+            name = name0
+        if init0 is not None:
+            init = init0
+        if dtype0 is not None:
+            dtype = dtype0
+
         if name is None:
             raise ValueError("Must specify name for tensor factory eqx.Module")
 
