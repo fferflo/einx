@@ -29,6 +29,8 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
+    if len(exprs_out) > 1:
+        raise ValueError("Only one output tensor allowed")
     kwargs = {**kwargs}
 
     # Call tensor factories
@@ -39,25 +41,29 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
-    exprs_out_flat = util.flatten(exprs_out)
-    assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_in)
-    assert all(einx.expr.stage3.is_flat(expr) for expr in exprs_out_flat)
+    in_axis_names = {axis.name for expr in exprs_in for axis in expr}
 
-    transpose_first = len(exprs_in) > 1  # TODO: and inputs dont have matching expressions
-    if not transpose_first and len(exprs_in) > 1:
-        raise ValueError(
-            "When multiple input expressions are given, they have to be transposed to the same "
-            "layout before applying the operation (transpose_first has to be set to True)"
-        )
+    def is_broadcast_axis(expr):
+        return isinstance(expr, einx.expr.stage3.Axis) and expr.name not in in_axis_names
+
+    exprs_out_flat = util.flatten(exprs_out)
+    exprs_out_flat_without_broadcast = [
+        einx.expr.stage3.remove(expr, is_broadcast_axis) for expr in exprs_out_flat
+    ]
+
+    transpose_first = len(exprs_in) > 1
 
     # Ensure that axis markings are consistent
     def is_vmapped(expr):
         return not einx.expr.stage3.is_marked(expr)
 
     vmapped_axis_names = {
-        v.name for root in list(exprs_in) + list(exprs_out_flat) for v in root if is_vmapped(v)
+        v.name
+        for root in list(exprs_in) + list(exprs_out_flat_without_broadcast)
+        for v in root
+        if is_vmapped(v)
     }
-    for root in list(exprs_in) + list(exprs_out_flat):
+    for root in list(exprs_in) + list(exprs_out_flat_without_broadcast):
         for v in root:
             if (v.name in vmapped_axis_names) != is_vmapped(v):
                 raise ValueError(f"Axis {v.name} appears both as vmapped and non-vmapped")
@@ -70,18 +76,26 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
     }
     marked_output_axes = {
         axis.name
-        for expr_out in exprs_out_flat
+        for expr_out in exprs_out_flat_without_broadcast
         for axis in expr_out.all()
         if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis)
     }
+    if marked_output_axes.difference(marked_input_axes):
+        raise ValueError("Marked output axes must be a subset of marked input axes")
 
     if transpose_first:
         # Transpose and insert trivial axes
         if marked_input_axes != marked_output_axes:
-            raise ValueError("transpose_first can only be used when axes are unchanged")
+            raise ValueError(
+                "When using multiple input tensors the same axes must be marked in all tensors"
+            )
         x = [
             util.transpose_broadcast(
-                expr_in, tensor_in, exprs_out_flat[0], broadcast=False, backend=backend
+                expr_in,
+                tensor_in,
+                exprs_out_flat_without_broadcast[0],
+                broadcast=False,
+                backend=backend,
             )
             for expr_in, tensor_in in zip(exprs_in, tensors_in)
         ]
@@ -94,11 +108,35 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
             for axis in expr_in.all()
             if isinstance(axis, einx.expr.stage3.Axis) and einx.expr.stage3.is_marked(axis)
         }
+        exprs_op_output = exprs_out_flat_without_broadcast
+    else:
+        assert len(exprs_in) == 1  # TODO: see above
+        expr_in = exprs_in[0]
+
+        def to_op_output(expr_out_flat_wb):
+            axis_names = {
+                axis.name
+                for axis in expr_out_flat_wb.all()
+                if isinstance(axis, einx.expr.stage3.Axis)
+            }
+            new_axes = []
+            for axis in expr_in.all():
+                if isinstance(axis, einx.expr.stage3.Axis) and axis.name in axis_names:
+                    if isinstance(axis.parent, einx.expr.stage3.Marker):
+                        axis = axis.parent
+                    new_axes.append(axis)
+            return einx.expr.stage3.List.maybe(new_axes)
+
+        exprs_op_output = [
+            to_op_output(expr_out_flat_wb) for expr_out_flat_wb in exprs_out_flat_without_broadcast
+        ]
 
     # Add axis argument
     if transpose_first:
         axis_indices = tuple(
-            i for i, axis in enumerate(exprs_out_flat[0]) if axis.name in marked_input_axes
+            i
+            for i, axis in enumerate(exprs_out_flat_without_broadcast[0])
+            if axis.name in marked_input_axes
         )
     else:
         axes_in = [list(expr) for expr in exprs_in]
@@ -111,41 +149,27 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
         kwargs["axis"] = axis_indices if len(axis_indices) > 1 else axis_indices[0]
 
     # Apply operation
-    in_axis_names = {axis.name for expr in exprs_in for axis in expr}
-    output_shape = np.asarray([
-        (axis.value if axis.name in in_axis_names else 1) for axis in exprs_out_flat[0]
-    ])
-    output_shapes = (
-        (output_shape,) * len(exprs_out_flat) if len(exprs_out_flat) > 1 else output_shape
+    tensors_out = backend.apply(
+        op,
+        args=tensors_in,
+        kwargs=kwargs,
+        output_shapes=[expr.shape for expr in exprs_op_output]
+        if len(exprs_op_output) > 1
+        else exprs_op_output[0].shape,
     )
-    tensors_out = backend.apply(op, args=tensors_in, kwargs=kwargs, output_shapes=output_shapes)
     if not isinstance(tensors_out, (tuple, list)):
         tensors_out = (tensors_out,)
-    if len(tensors_out) != len(exprs_out_flat):
-        raise ValueError(f"Expected {len(exprs_out_flat)} output tensor(s), got {len(tensors_out)}")
+    if len(tensors_out) != len(exprs_out_flat_without_broadcast):
+        raise ValueError(
+            f"Expected {len(exprs_out_flat_without_broadcast)} output tensor(s), "
+            f"got {len(tensors_out)}"
+        )
 
-    if not transpose_first:
-        # Transpose and broadcast missing output dimensions
-        def replace(expr):
-            if isinstance(expr, einx.expr.stage3.Marker):
-                if len(marked_output_axes) == 0:
-                    return []
-                else:
-                    return expr.__deepcopy__()
-
-        exprs_in = [einx.expr.stage3.replace(expr_in, replace) for expr_in in exprs_in]
-        tensors_out = [
-            util.transpose_broadcast(exprs_in[0], tensor_out, expr_out, backend=backend)[0]
-            for tensor_out, expr_out in zip(tensors_out, exprs_out_flat)
-        ]
-    else:
-        # Already transposed, only broadcast to flat output shape
-        def broadcast(tensor, expr):
-            if tensor.shape != expr.shape:
-                tensor = backend.broadcast_to(tensor, expr.shape)
-            return tensor
-
-        tensors_out = [broadcast(tensor, expr) for tensor, expr in zip(tensors_out, exprs_out_flat)]
+    # Transpose and broadcast missing output dimensions
+    tensors_out = [
+        util.transpose_broadcast(expr_in, tensor_out, expr_out, backend=backend)[0]
+        for expr_in, tensor_out, expr_out in zip(exprs_op_output, tensors_out, exprs_out_flat)
+    ]
 
     # Unflatten output expressions
     tensors_out = util.unflatten(exprs_out_flat, tensors_out, exprs_out, backend=backend)

@@ -285,6 +285,8 @@ def test_shape_reduce(backend):
     assert einx.sum("[b] a []", x).shape == (15,)
     assert einx.sum("[b] a [...]", x).shape == (15,)
 
+    assert einx.sum("b [p] -> b p2", x, p2=7).shape == (16, 7)
+
 
 @pytest.mark.parametrize("backend", backends)
 def test_shape_elementwise(backend):
@@ -678,6 +680,8 @@ def test_shape_vmap_with_axis(backend):
     assert einx.roll("a [b]", x, shift=(5,)).shape == (10, 10)
     assert einx.softmax("a [b] -> a [b]", x).shape == (10, 10)
     assert einx.softmax("a [b]", x).shape == (10, 10)
+    assert einx.softmax("a [b] -> (a [b]) c", x, c=3).shape == (100, 3)
+    assert einx.softmax("a [b] -> a ([b] c)", x, c=3).shape == (10, 30)
     assert einx.log_softmax("(a [b]) c", x, b=2).shape == (10, 10)
 
     assert einx.flip("a ([b c])", x, b=2).shape == (10, 10)
