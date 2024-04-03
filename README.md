@@ -43,7 +43,7 @@ einx.sum("a [b]", x)                              # Sum-reduction along second a
 einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
 einx.mean("b [s...] c", x)                        # Global mean-pooling
 einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
-einx.add("b... [c]", x, b)                        # Add bias
+einx.add("a, b -> a b", x, y)                     # Outer sum
 
 einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
 
@@ -52,7 +52,7 @@ einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channe
 
 einx.dot("... [c1->c2]", x, y)                    # Matmul = linear map from c1 to c2 channels
 
-# Vectorizing map
+                                                  # Apply custom operations:
 einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
 ```

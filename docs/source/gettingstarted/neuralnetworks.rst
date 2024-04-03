@@ -19,7 +19,7 @@ For example, consider the following linear layer:
 ..  code::
 
     x = einx.dot("... [c1->c2]", x, w) # x * w
-    x = einx.add("... [c2]", x, b)    # x + b
+    x = einx.add("... [c2]", x, b)     # x + b
 
 The arguments ``w`` and ``b`` represent the layer weights. Instead of determining the shapes of ``w`` and ``b`` in advance to create the weights manually,
 we define ``w`` and ``b`` as tensor factories that

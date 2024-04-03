@@ -124,12 +124,12 @@ Using ellipses e.g. for spatial dimensions often results in simpler and more rea
 
 >>> # Divide an image into a list of patches with size p=8
 >>> x = np.ones((256, 256, 3), dtype="uint8")
->>> einx.rearrange("(s p)... c -> (s...) p... c", x, p=8)
+>>> einx.rearrange("(s p)... c -> (s...) p... c", x, p=8).shape
 (1024, 8, 8, 3)
 
 >>> # Divide a volume into a list of cubes with size p=8
 >>> x = np.ones((256, 256, 256, 3), dtype="uint8")
->>> einx.rearrange("(s p)... c -> (s...) p... c", x, p=8)
+>>> einx.rearrange("(s p)... c -> (s...) p... c", x, p=8).shape
 (32768, 8, 8, 8, 3)
 
 This operation requires multiple backend calls in index-based notation that might be difficult to understand on first glance. The einx call on the other hand clearly conveys
