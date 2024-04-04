@@ -27,7 +27,6 @@ def make_mlx_backend():
             return x
 
     class mlx(Backend):
-        @staticmethod
         def to_tensor(tensor):
             return mx.array(tensor)
 

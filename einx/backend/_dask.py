@@ -6,7 +6,6 @@ def make_dask_backend():
     import dask.array as da
 
     class dask(Backend):
-        @staticmethod
         def to_tensor(tensor):
             return da.asarray(tensor)
 

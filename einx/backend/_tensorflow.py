@@ -25,7 +25,6 @@ def make_tensorflow_backend():
         return coordinates, updates
 
     class tensorflow(Backend):
-        @staticmethod
         def to_tensor(tensor):
             tensor = tf.convert_to_tensor(tensor)
             if any(s is None for s in tensor.shape):

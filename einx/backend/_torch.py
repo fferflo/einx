@@ -33,7 +33,6 @@ def make_torch_backend():
     MARKER_DECORATED_CONSTRUCT_GRAPH = "__einx_decorated_construct_graph"
 
     class torch(Backend):
-        @staticmethod
         def to_tensor(tensor):
             if torch_.is_tensor(tensor):
                 return tensor
@@ -225,7 +224,6 @@ def make_torch_backend():
             def bernoulli(rng, p, shape):
                 return torch_.bernoulli(torch_.full(shape, p), generator=rng) > 0.5
 
-        @staticmethod
         def _decorate_construct_graph(f):
             if hasattr(f, MARKER_DECORATED_CONSTRUCT_GRAPH):
                 return f

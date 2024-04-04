@@ -698,7 +698,6 @@ class tracer(Backend):
     Input = Input
     Graph = Graph
 
-    @staticmethod
     def to_tensor(tensor):
         if isinstance(tensor, Tensor):
             return OpApplication(

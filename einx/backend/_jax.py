@@ -7,7 +7,6 @@ def make_jax_backend():
     import jax.numpy as jnp
 
     class jax(Backend):
-        @staticmethod
         def to_tensor(tensor):
             return jnp.asarray(tensor)
 

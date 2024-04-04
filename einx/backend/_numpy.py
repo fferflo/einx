@@ -4,7 +4,6 @@ from .base import Backend, associative_binary_to_nary
 
 
 class numpy(Backend):
-    @staticmethod
     def to_tensor(tensor):
         return np.asarray(tensor)
 
