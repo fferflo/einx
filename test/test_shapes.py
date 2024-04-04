@@ -601,7 +601,7 @@ def test_shape_index(backend):
     zs = ["b p c", "c (p b)"]
     for x in xs:
         for z in zs:
-            shape = einx.add(f"{z}, ", backend.zeros, 0, **consts).shape
+            shape = einx.add(f"{z}, ", backend.zeros, 0, **consts, backend=backend).shape
             for y in ys:
                 assert (
                     einx.get_at(
@@ -625,7 +625,7 @@ def test_shape_index(backend):
 
     for x in xs:
         shape = einx.add(
-            f"{x.replace('[', '').replace(']', '')}, ", backend.zeros, 0, **consts
+            f"{x.replace('[', '').replace(']', '')}, ", backend.zeros, 0, **consts, backend=backend
         ).shape
         for z in zs:
             z_axes = {a for a in z if a.isalpha()}
