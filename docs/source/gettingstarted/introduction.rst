@@ -26,7 +26,7 @@ einx is a Python library that allows formulating many tensor operations as conci
 - :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>`
 - :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`
 
-Related libraries
+Related resources
 -----------------
 
 * `einops <https://github.com/arogozhnikov/einops>`_
@@ -39,3 +39,6 @@ Related libraries
 * `eingather <https://twitter.com/francoisfleuret/status/1661372730241953793>`_
 * `Named tensors in PyTorch <https://pytorch.org/docs/stable/named_tensor.html>`_
 * `Named axes in Jax <https://jax.readthedocs.io/en/latest/notebooks/xmap_tutorial.html>`_
+* `Dex <https://github.com/google-research/dex-lang>`_
+* `Named Tensor Notation <https://namedtensor.github.io/>`_
+* `Tensor Considered Harmful <https://nlp.seas.harvard.edu/NamedTensor>`_
