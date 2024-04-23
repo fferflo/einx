@@ -2,6 +2,7 @@ import torch
 import jax
 import einx
 import timeit
+import types
 import einops
 import random
 import argparse
@@ -20,52 +21,71 @@ n = args.n // k
 rows = []
 
 envs = [
-    ("numpy", einx.backend.get("numpy"), lambda x: x, lambda x: x, lambda x: x, np.asarray),
-    (
-        "torch-eager",
-        einx.backend.get("torch"),
-        lambda x: x,
-        lambda x: x.cuda(),
-        lambda x: torch.cuda.synchronize(),
-        lambda x: np.asarray(x.cpu()),
+    types.SimpleNamespace(
+        name="numpy",
+        backend=einx.backend.get("numpy"),
+        jit=lambda x: x,
+        block_until_ready=lambda x: x,
+        to_numpy=np.asarray,
+        ones=lambda shape, dtype: np.ones(shape, dtype=dtype),
+        transpose=np.transpose,
+        mean=np.mean,
+        einsum=np.einsum,
     ),
-    (
-        "torch-compile",
-        einx.backend.get("torch"),
-        torch.compile,
-        lambda x: x.cuda(),
-        lambda x: torch.cuda.synchronize(),
-        lambda x: np.asarray(x.cpu()),
+    types.SimpleNamespace(
+        name="torch-eager",
+        backend=einx.backend.get("torch"),
+        jit=lambda x: x,
+        block_until_ready=lambda x: torch.cuda.synchronize(),
+        to_numpy=lambda x: np.asarray(x.cpu()),
+        ones=lambda shape, dtype: torch.ones(shape, dtype=vars(torch)[dtype]).cuda(),
+        transpose=torch.permute,
+        mean=torch.mean,
+        einsum=torch.einsum,
     ),
-    (
-        "jax-jit",
-        einx.backend.get("jax"),
-        jax.jit,
-        lambda x: x,
-        lambda x: x.block_until_ready(),
-        lambda x: np.asarray(x),
+    types.SimpleNamespace(
+        name="torch-compile",
+        backend=einx.backend.get("torch"),
+        jit=torch.compile,
+        block_until_ready=lambda x: torch.cuda.synchronize(),
+        to_numpy=lambda x: np.asarray(x.cpu()),
+        ones=lambda shape, dtype: torch.ones(shape, dtype=vars(torch)[dtype]).cuda(),
+        transpose=torch.permute,
+        mean=torch.mean,
+        einsum=torch.einsum,
+    ),
+    types.SimpleNamespace(
+        name="jax-jit",
+        backend=einx.backend.get("jax"),
+        jit=jax.jit,
+        block_until_ready=lambda x: x.block_until_ready(),
+        to_numpy=lambda x: np.asarray(x),
+        ones=lambda shape, dtype: jnp.ones(shape, dtype=dtype),
+        transpose=jnp.transpose,
+        mean=jnp.mean,
+        einsum=jnp.einsum,
     ),
 ]
 
-for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
+for env in envs:
     experiments = []
 
-    f = 4 if xnp.name == "numpy" else 1
+    f = 4 if env.name == "numpy" else 1
 
-    x = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f, 64 // f), "float32"))
-    x2 = tensor_init(xnp.ones((16 // f, 64 // f, 64 // f, 64 // f), "float32"))
-    y = tensor_init(xnp.ones((512 // f, 512 // f), "float32"))
-    z1 = tensor_init(xnp.ones((64 // f,), "float32"))
-    w = tensor_init(xnp.ones((64 // f, 128 // f), "float32"))
+    x = env.ones((16 // f, 512 // f, 512 // f, 64 // f), "float32")
+    x2 = env.ones((16 // f, 256 // f, 256 // f, 64 // f), "float32")
+    y = env.ones((512 // f, 512 // f), "float32")
+    z1 = env.ones((64 // f,), "float32")
+    w = env.ones((64 // f, 128 // f), "float32")
 
     def benchmark_einx(x):
-        return einx.rearrange("b h w c -> b c h w", x)
+        return einx.rearrange("b h w c -> b c h w", x, backend=env.backend)
 
     def benchmark_einops(x):
         return einops.rearrange(x, "b h w c -> b c h w")
 
     def benchmark_idx(x):
-        return xnp.transpose(x, (0, 3, 1, 2))
+        return env.transpose(x, (0, 3, 1, 2))
 
     experiments.append(("rearrange", (benchmark_einx, benchmark_einops, benchmark_idx), (x,), 5.0))
 
@@ -76,7 +96,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         return einops.reduce(x, "b h w c -> b c", reduction="mean")
 
     def benchmark_idx(x):
-        return xnp.mean(x, axis=(1, 2))
+        return env.mean(x, axis=(1, 2))
 
     experiments.append((
         "spatial_mean",
@@ -92,7 +112,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         return einops.reduce(x, "b h w c -> b h w", reduction="mean")
 
     def benchmark_idx(x):
-        return xnp.mean(x, axis=3)
+        return env.mean(x, axis=3)
 
     experiments.append((
         "channel_mean",
@@ -124,12 +144,12 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         return einops.einsum(x, w, "... c1, c1 c2 -> ... c2")
 
     def benchmark_idx(x, w):
-        return xnp.einsum("b h w c, c d -> b h w d", x, w)
+        return env.einsum("b h w c, c d -> b h w d", x, w)
 
-    experiments.append(("matmul", (benchmark_einx, benchmark_einops, benchmark_idx), (x2, w), 5.0))
+    experiments.append(("einsum", (benchmark_einx, benchmark_einops, benchmark_idx), (x2, w), 5.0))
 
     for name, methods, inputs, mul in experiments:
-        name = env_name + " " + name
+        name = env.name + " " + name
         print(name)
 
         # Assert correctness
@@ -137,7 +157,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         for method in methods:
             if method is not None:
                 results.append(method(*inputs))
-        results = [to_numpy(r) for r in results]
+        results = [env.to_numpy(r) for r in results]
         for r2 in results[1:]:
             assert np.allclose(results[0], r2)
 
@@ -145,12 +165,12 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
         for _ in range(5):
             for method in methods:
                 if method is not None:
-                    block_until_ready(method(*inputs))
-        methods = [jit(m) if m is not None else None for m in methods]
+                    env.block_until_ready(method(*inputs))
+        methods = [env.jit(m) if m is not None else None for m in methods]
         for _ in range(5):
             for method in methods:
                 if method is not None:
-                    block_until_ready(method(*inputs))
+                    env.block_until_ready(method(*inputs))
 
         # Benchmark
         times = defaultdict(list)
@@ -163,7 +183,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
                     if method is not None:
                         times[method.__name__].append(
                             timeit.repeat(
-                                lambda: block_until_ready(method(*inputs)), repeat=1, number=k
+                                lambda: env.block_until_ready(method(*inputs)), repeat=1, number=k
                             )[0]
                             / k
                         )
@@ -173,7 +193,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy in envs:
                     for _ in range(max(1, int(n * mul))):
                         times[method.__name__].append(
                             timeit.repeat(
-                                lambda: block_until_ready(method(*inputs)), repeat=1, number=k
+                                lambda: env.block_until_ready(method(*inputs)), repeat=1, number=k
                             )[0]
                             / k
                         )

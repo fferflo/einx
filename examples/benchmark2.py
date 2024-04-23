@@ -7,6 +7,7 @@ import random
 import argparse
 import math
 import gc
+import types
 import jax.numpy as jnp
 import numpy as np
 from functools import partial
@@ -21,64 +22,91 @@ n = args.n // k
 rows = []
 
 envs = [
-    (
-        "torch-eager",
-        einx.backend.get("torch"),
-        lambda x: x,
-        lambda x: x.cuda(),
-        lambda x: torch.cuda.synchronize(),
-        lambda x: np.asarray(x.cpu()),
-        torch.rsqrt,
-        True,
+    types.SimpleNamespace(
+        name="torch-eager",
+        backend=einx.backend.get("torch"),
+        jit=lambda x: x,
+        block_until_ready=lambda x: torch.cuda.synchronize(),
+        to_numpy=lambda x: np.asarray(x.cpu()),
+        ones=lambda shape, dtype="float32": torch.ones(shape, dtype=vars(torch)[dtype]).cuda(),
+        transpose=torch.permute,
+        mean=torch.mean,
+        var=torch.var,
+        square=torch.square,
+        einsum=torch.einsum,
+        swapaxes=torch.swapaxes,
+        rsqrt=torch.rsqrt,
+        where=torch.where,
+        dot=torch.matmul,
+        softmax=lambda x, axis: torch.nn.functional.softmax(x, axis),
+        native_transposed=True,
     ),
-    (
-        "torch-compile",
-        einx.backend.get("torch"),
-        torch.compile,
-        lambda x: x.cuda(),
-        lambda x: torch.cuda.synchronize(),
-        lambda x: np.asarray(x.cpu()),
-        torch.rsqrt,
-        True,
+    types.SimpleNamespace(
+        name="torch-compile",
+        backend=einx.backend.get("torch"),
+        jit=torch.compile,
+        block_until_ready=lambda x: torch.cuda.synchronize(),
+        to_numpy=lambda x: np.asarray(x.cpu()),
+        ones=lambda shape, dtype="float32": torch.ones(shape, dtype=vars(torch)[dtype]).cuda(),
+        transpose=torch.permute,
+        mean=torch.mean,
+        var=torch.var,
+        square=torch.square,
+        einsum=torch.einsum,
+        swapaxes=torch.swapaxes,
+        rsqrt=torch.rsqrt,
+        where=torch.where,
+        dot=torch.matmul,
+        softmax=lambda x, axis: torch.nn.functional.softmax(x, axis),
+        native_transposed=True,
     ),
-    (
-        "jax-jit",
-        einx.backend.get("jax"),
-        jax.jit,
-        lambda x: x,
-        lambda x: x.block_until_ready(),
-        lambda x: np.asarray(x),
-        jax.lax.rsqrt,
-        False,
+    types.SimpleNamespace(
+        name="jax-jit",
+        backend=einx.backend.get("jax"),
+        jit=jax.jit,
+        block_until_ready=lambda x: x.block_until_ready(),
+        to_numpy=lambda x: np.asarray(x),
+        ones=lambda shape, dtype="float32": jnp.ones(shape, dtype=dtype),
+        transpose=jnp.transpose,
+        mean=jnp.mean,
+        var=jnp.var,
+        square=jnp.square,
+        einsum=jnp.einsum,
+        swapaxes=jnp.swapaxes,
+        rsqrt=jnp.sqrt,
+        where=jnp.where,
+        dot=jnp.dot,
+        softmax=jax.nn.softmax,
+        native_transposed=False,
     ),
 ]
 
 k = int(math.sqrt(args.n))
 
-for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_transposed in envs:
+for env in envs:
     experiments = []
 
     f = 1
 
-    x = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f, 64 // f), "float32"))
-    if "torch" in env_name:
-        x_transposed = tensor_init(xnp.ones((16 // f, 64 // f, 512 // f, 512 // f), "float32"))
+    x = env.ones((16 // f, 512 // f, 512 // f, 64 // f), "float32")
+    if "torch" in env.name:
+        x_transposed = env.ones((16 // f, 64 // f, 512 // f, 512 // f), "float32")
         x_transposed[:] = einx.rearrange("b s... c -> b c s...", x)
-    y = tensor_init(xnp.ones((512 // f, 512 // f)))
-    z1 = tensor_init(xnp.ones((64 // f,), "float32"))
-    z2 = tensor_init(xnp.ones((64 // f,), "float32"))
-    w = tensor_init(xnp.ones((64 // f, 128 // f), "float32"))
-    if "torch" in env_name:
-        w_transposed = tensor_init(xnp.ones((128 // f, 64 // f), "float32"))
+    y = (env.ones((512 // f, 512 // f)))
+    z1 = (env.ones((64 // f,), "float32"))
+    z2 = (env.ones((64 // f,), "float32"))
+    w = (env.ones((64 // f, 128 // f), "float32"))
+    if "torch" in env.name:
+        w_transposed = (env.ones((128 // f, 64 // f), "float32"))
         w_transposed[:] = w.T
-    w1 = tensor_init(xnp.ones((512 // f, 512 // f, 128 // f)))
-    w2 = tensor_init(xnp.ones((128 // f, 512 // f, 512 // f)))
-    b128 = tensor_init(xnp.ones((128 // f,), "float32"))
+    w1 = (env.ones((512 // f, 512 // f, 128 // f)))
+    w2 = (env.ones((128 // f, 512 // f, 512 // f)))
+    b128 = (env.ones((128 // f,), "float32"))
     epsilon = 1e-5
 
-    query = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
-    key = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
-    value = tensor_init(xnp.ones((16 // f, 512 // f, 512 // f), "float32"))
+    query = (env.ones((16 // f, 512 // f, 512 // f), "float32"))
+    key = (env.ones((16 // f, 512 // f, 512 // f), "float32"))
+    value = (env.ones((16 // f, 512 // f, 512 // f), "float32"))
 
     def benchmark_einx(x, bias, scale):
         return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[
@@ -86,15 +114,15 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         ]
 
     def benchmark_idx(x, bias, scale):
-        mean = xnp.mean(x, axis=-1, keepdims=True)
-        var = xnp.var(x, axis=-1, keepdims=True)
+        mean = env.mean(x, axis=-1, keepdims=True)
+        var = env.var(x, axis=-1, keepdims=True)
 
-        inv = scale * rsqrt(var + epsilon)
+        inv = scale * env.rsqrt(var + epsilon)
         x = inv * (x - mean) + bias
 
         return x
 
-    if "torch" in env_name:
+    if "torch" in env.name:
 
         def benchmark_native(x, bias, scale):
             return torch.nn.functional.layer_norm(
@@ -114,16 +142,16 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
     def benchmark_idx(x, bias, scale):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/layer_norm.py
-        mean = xnp.mean(x, axis=-1, keepdims=True)
-        mean_of_squares = xnp.mean(xnp.square(x), axis=-1, keepdims=True)
-        var = mean_of_squares - xnp.square(mean)
+        mean = env.mean(x, axis=-1, keepdims=True)
+        mean_of_squares = env.mean(env.square(x), axis=-1, keepdims=True)
+        var = mean_of_squares - env.square(mean)
 
-        inv = scale * rsqrt(var + epsilon)
+        inv = scale * env.rsqrt(var + epsilon)
         x = inv * (x - mean) + bias
 
         return x
 
-    if "torch" in env_name:
+    if "torch" in env.name:
 
         def benchmark_native(x, bias, scale):
             return torch.nn.functional.layer_norm(
@@ -144,15 +172,15 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         ]
 
     def benchmark_idx(x, bias, scale):
-        mean = xnp.mean(x, axis=(1, 2), keepdims=True)
-        var = xnp.var(x, axis=(1, 2), keepdims=True)
+        mean = env.mean(x, axis=(1, 2), keepdims=True)
+        var = env.var(x, axis=(1, 2), keepdims=True)
 
-        inv = scale * rsqrt(var + epsilon)
+        inv = scale * env.rsqrt(var + epsilon)
         x = inv * (x - mean) + bias
 
         return x
 
-    if "torch" in env_name:
+    if "torch" in env.name:
 
         def benchmark_native(x, bias, scale):
             return torch.nn.functional.batch_norm(
@@ -163,7 +191,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append((
         "batchnorm",
         (benchmark_einx, benchmark_native, benchmark_idx),
-        lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2),
+        lambda m: (x_transposed if env.native_transposed and "native" in m.__name__ else x, z1, z2),
         3.0,
     ))
 
@@ -172,16 +200,16 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
     def benchmark_idx(x, bias, scale):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/batch_norm.py
-        mean = xnp.mean(x, axis=(1, 2), keepdims=True)
-        mean_of_squares = xnp.mean(xnp.square(x), axis=(1, 2), keepdims=True)
-        var = mean_of_squares - xnp.square(mean)
+        mean = env.mean(x, axis=(1, 2), keepdims=True)
+        mean_of_squares = env.mean(env.square(x), axis=(1, 2), keepdims=True)
+        var = mean_of_squares - env.square(mean)
 
-        inv = scale * rsqrt(var + epsilon)
+        inv = scale * env.rsqrt(var + epsilon)
         x = inv * (x - mean) + bias
 
         return x
 
-    if "torch" in env_name:
+    if "torch" in env.name:
 
         def benchmark_native(x, bias, scale):
             return torch.nn.functional.batch_norm(
@@ -192,7 +220,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append((
         "batchnorm_fastvar",
         (benchmark_einx, benchmark_native, benchmark_idx),
-        lambda m: (x_transposed if native_transposed and "native" in m.__name__ else x, z1, z2),
+        lambda m: (x_transposed if env.native_transposed and "native" in m.__name__ else x, z1, z2),
         3.0,
     ))
 
@@ -201,11 +229,11 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
 
     def benchmark_idx(x, bias, weight):
         # https://github.com/deepmind/dm-haiku/blob/main/haiku/_src/basic.py
-        x = xnp.dot(x, weight)
+        x = env.dot(x, weight)
         x = x + bias
         return x
 
-    if "torch" in env_name:
+    if "torch" in env.name:
 
         def benchmark_native(x, bias, weight):
             return torch.nn.functional.linear(x, weight=weight, bias=bias)
@@ -214,14 +242,14 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     experiments.append((
         "channel_linear",
         (benchmark_einx, benchmark_native, benchmark_idx),
-        lambda m: (x, b128, w_transposed if native_transposed and "native" in m.__name__ else w),
+        lambda m: (x, b128, w_transposed if env.native_transposed and "native" in m.__name__ else w),
         1.0,
     ))
 
     def benchmark_einx(x, w1, b1, w2, b2):
         x0 = x
         x = einx.nn.linear(x, "b [s...->s2] c", weight=w1, bias=b1)
-        x = xnp.where(x < 0, 0, x)
+        x = env.where(x < 0, 0, x)
         x = einx.nn.linear(x, "b [s2->s...] c", weight=w2, bias=b2)
         x = x + x0
         return x
@@ -232,13 +260,13 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         x0 = x
         shape = x.shape
         x = x.reshape([x.shape[0], -1, x.shape[-1]])
-        x = xnp.swapaxes(x, 1, 2)
-        x = xnp.dot(x, w1.reshape([-1, w1.shape[-1]]))
+        x = env.swapaxes(x, 1, 2)
+        x = env.dot(x, w1.reshape([-1, w1.shape[-1]]))
         x = x + b1
-        x = xnp.where(x < 0, 0, x)
-        x = xnp.dot(x, w2.reshape([w2.shape[0], -1]))
+        x = env.where(x < 0, 0, x)
+        x = env.dot(x, w2.reshape([w2.shape[0], -1]))
         x = x + b2.reshape([-1])
-        x = xnp.swapaxes(x, 1, 2)
+        x = env.swapaxes(x, 1, 2)
         x = x.reshape(shape)
         x = x + x0
         return x
@@ -262,9 +290,9 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
         q = einops.rearrange(q, "b l (h k) -> b h l k", h=heads)
         k = einops.rearrange(k, "b t (h k) -> b h t k", h=heads)
         v = einops.rearrange(v, "b t (h v) -> b h t v", h=heads)
-        attn = xnp.einsum("bhlk,bhtk->bhlt", q, k)
-        attn = xnp.softmax(attn, axis=3)
-        x = xnp.einsum("bhlt,bhtv->bhlv", attn, v)
+        attn = env.einsum("bhlk,bhtk->bhlt", q, k)
+        attn = env.softmax(attn, axis=3)
+        x = env.einsum("bhlt,bhtv->bhlv", attn, v)
         x = einops.rearrange(x, "b h l v -> b l (h v)")
         return x
 
@@ -276,29 +304,29 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
     ))
 
     for name, methods, inputs, mul in experiments:
-        name = env_name + " " + name
+        name = env.name + " " + name
         print(name)
 
         results = []
         for method in methods:
             if method is not None:
                 r = method(*inputs(method))
-                if "batchnorm" in name and "torch" in env_name and "native" in method.__name__:
+                if "batchnorm" in name and "torch" in env.name and "native" in method.__name__:
                     r = einx.rearrange("b c s... -> b s... c", r)
                 results.append(r)
-        results = [to_numpy(r) for r in results]
+        results = [env.to_numpy(r) for r in results]
         for r2 in results[1:]:
             assert np.allclose(results[0], r2)
 
         for _ in range(5):
             for method in methods:
                 if method is not None:
-                    block_until_ready(method(*inputs(method)))
-        methods = [jit(m) if m is not None else None for m in methods]
+                    env.block_until_ready(method(*inputs(method)))
+        methods = [env.jit(m) if m is not None else None for m in methods]
         for _ in range(5):
             for method in methods:
                 if method is not None:
-                    block_until_ready(method(*inputs(method)))
+                    env.block_until_ready(method(*inputs(method)))
 
         times = defaultdict(list)
         order = "random"
@@ -311,7 +339,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
                         inputs2 = inputs(method)
                         times[method.__name__].append(
                             timeit.repeat(
-                                lambda: block_until_ready(method(*inputs2)), repeat=1, number=k
+                                lambda: env.block_until_ready(method(*inputs2)), repeat=1, number=k
                             )[0]
                             / k
                         )
@@ -322,7 +350,7 @@ for env_name, xnp, jit, tensor_init, block_until_ready, to_numpy, rsqrt, native_
                     for _ in range(max(1, int(n * mul))):
                         times[method.__name__].append(
                             timeit.repeat(
-                                lambda: block_until_ready(method(*inputs2)), repeat=1, number=k
+                                lambda: env.block_until_ready(method(*inputs2)), repeat=1, number=k
                             )[0]
                             / k
                         )
