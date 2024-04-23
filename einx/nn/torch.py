@@ -19,67 +19,121 @@ def _allow_in_graph(func):
         return _dynamo.allow_in_graph(func)
 
 
+ttorch = einx.tracer.import_("torch")
+
+
+class ParamFactory:
+    class Concrete(einx.tracer.input.Input):
+        def __init__(self, param, init):
+            self.param = param
+            self.init = init
+
+        def to_value_and_key(self):
+            return self.param, ParamFactory.CacheKey(self.init)
+
+    class CacheKey(einx.tracer.input.CacheKey):
+        def __init__(self, init):
+            self.init = init
+
+        def __hash__(self):
+            return hash(self.init)
+
+        def __eq__(self, other):
+            return isinstance(other, ParamFactory.CacheKey) and self.init == other.init
+
+        def to_tracer(self, backend, virtual_arg):
+            x = ParamFactory.Tracer(self.init)
+            return x, x
+
+    class Tracer(einx.tracer.TensorFactory):
+        def __init__(self, init):
+            self.init = init
+
+        def __call__(self, shape, kwargs):
+            init = self.init if not self.init is None else kwargs.get("init", None)
+
+            x = self
+
+            output = einx.tracer.Tensor(shape)
+            x = einx.tracer.apply(
+                x.materialize,
+                args=[shape],
+                output=output,
+                inplace_updates=[(x, output)],
+            )
+
+            if init is None:
+                raise ValueError(
+                    "Must specify init for tensor factory torch.nn.parameter.Uninitialized*"
+                )
+            elif isinstance(init, str):
+                if init == "get_at" or init == "rearrange":
+                    init = partial(ttorch.nn.init.normal_, std=0.02)
+                elif init == "add":
+                    init = ttorch.nn.init.zeros_
+                elif init == "multiply":
+                    init = ttorch.nn.init.ones_
+                elif init == "dot":
+                    fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
+                    std = np.sqrt(1.0 / fan_in) / 0.87962566103423978
+                    init = partial(ttorch.nn.init.trunc_normal_, mean=0.0, std=std, a=-2.0, b=2.0)
+                else:
+                    raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+            elif isinstance(init, (int, float)):
+                init = partial(ttorch.nn.init.constant_, val=init)
+
+            output = einx.tracer.Tensor(shape)
+            x = einx.tracer.apply(
+                init,
+                args=[x],
+                output=output,
+                inplace_updates=[(x, output)],
+            )
+
+            return x
+
+
 def param(
-    uninitialized: Union[
-        torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer
+    x: Union[
+        torch.nn.parameter.UninitializedParameter,
+        torch.nn.parameter.UninitializedBuffer,
+        torch.nn.parameter.Parameter,
     ],
     init: Optional[Any] = None,
 ):
     """Create a tensor factory for an uninitialized PyTorch parameter or buffer.
 
-    When the tensor factory is invoked, it calls the ``materialize`` method of ``uninitialized``
-        with the given shape and returns ``uninitialized``.
+    If the given parameter is not initialized, this returns a tensor factory that calls
+    the ``materialize`` method of ``uninitialized`` with the given shape and returns
+    ``uninitialized``. Otherwise, the parameter is returned as is.
 
     Args:
-        uninitialized: An instance of either ``torch.nn.parameter.UninitializedParameter`` or
-            ``torch.nn.parameter.UninitializedBuffer``.
+        x: An instance of ``torch.nn.parameter.UninitializedParameter``,
+            ``torch.nn.parameter.UninitializedBuffer`` or ``torch.nn.parameter.Parameter``.
         init: Initializer for the parameter. If ``None``, uses a default init method determined
             from the calling operation. Defaults to ``None``.
 
     Returns:
-        A tensor factory with the given default parameters.
+        A tensor factory with the given default parameters, or the parameter itself if it is
+        already materialized.
     """
-
-    init0 = init
-
-    def torch_param_factory(shape, init=init, **kwargs):
-        if init0 is not None:
-            init = init0
-
-        if init is None:
-            raise ValueError(
-                "Must specify init for tensor factory torch.nn.parameter.Uninitialized*"
-            )
-        elif isinstance(init, str):
-            if init == "get_at" or init == "rearrange":
-                init = partial(torch.nn.init.normal_, std=0.02)
-            elif init == "add":
-                init = torch.nn.init.zeros_
-            elif init == "multiply":
-                init = torch.nn.init.ones_
-            elif init == "dot":
-                fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
-                std = np.sqrt(1.0 / fan_in) / 0.87962566103423978
-                init = partial(torch.nn.init.trunc_normal_, mean=0.0, std=std, a=-2.0, b=2.0)
-            else:
-                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-        elif isinstance(init, (int, float)):
-            init = partial(torch.nn.init.constant_, val=init)
-
-        with torch.no_grad():
-            uninitialized.materialize(shape)
-            init(uninitialized)
-
-        return uninitialized
-
-    return torch_param_factory
-
-
-def to_tensor_factory(x):
     if isinstance(
         x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)
     ) and not isinstance(x, torch._subclasses.FakeTensor):
-        return param(x)
+        # Return
+        return ParamFactory.Concrete(x, init)
+    else:
+        # If parameter is already materialized, return it as is
+        return x
+
+
+# Allow passing UninitializedParameter and UninitializedBuffer as tensor factory:
+@einx.tracer.input.register_tensor_factory
+def tensor_factory(x):
+    if isinstance(
+        x, (torch.nn.parameter.UninitializedParameter, torch.nn.parameter.UninitializedBuffer)
+    ) and not isinstance(x, torch._subclasses.FakeTensor):
+        return param(x).to_value_and_key()
     else:
         return None
 

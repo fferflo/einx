@@ -4,6 +4,101 @@ from functools import partial
 from haiku._src.base import current_module
 from typing import Any, Callable, Literal, Optional
 
+thk = einx.tracer.import_("haiku", "hk")
+
+
+class ParamFactory:
+    class Concrete(einx.tracer.input.Input):
+        def __init__(self, name, init, dtype, param_type):
+            self.name = name
+            self.init = init
+
+            if dtype is None:
+                module = current_module()
+                if hasattr(module, "dtype"):
+                    dtype = module.dtype
+                else:
+                    dtype = "float32"
+            self.dtype = dtype
+
+            self.param_type = param_type
+
+        def to_value_and_key(self):
+            return None, ParamFactory.CacheKey(self.name, self.init, self.dtype, self.param_type)
+
+    class CacheKey(einx.tracer.input.CacheKey):
+        def __init__(self, name, init, dtype, param_type):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+            self.param_type = param_type
+
+        def __hash__(self):
+            return hash((self.name, self.init, self.dtype, self.param_type))
+
+        def __eq__(self, other):
+            return (
+                isinstance(other, ParamFactory.CacheKey)
+                and self.name == other.name
+                and self.init == other.init
+                and self.dtype == other.dtype
+                and self.param_type == other.param_type
+            )
+
+        def to_tracer(self, backend, virtual_arg):
+            return (
+                None,
+                ParamFactory.Tracer(self.name, self.init, self.dtype, self.param_type, virtual_arg),
+            )
+
+    class Tracer(einx.tracer.TensorFactory):
+        def __init__(self, name, init, dtype, param_type, depend_on):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+            self.param_type = param_type
+            self.depend_on = depend_on
+
+        def __call__(self, shape, kwargs):
+            name = self.name if not self.name is None else kwargs.get("name", None)
+            init = self.init if not self.init is None else kwargs.get("init", None)
+            dtype = self.dtype if not self.dtype is None else kwargs.get("dtype", None)
+
+            if name is None:
+                raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
+
+            if init is None:
+                raise ValueError("Must specify init for tensor factory hk.get_{parameter|state}")
+            elif isinstance(init, str):
+                if init in "get_at" or init == "rearrange":
+                    init = thk.initializers.RandomNormal(stddev=0.02)
+                elif init == "add":
+                    init = thk.initializers.Constant(0.0)
+                elif init == "multiply":
+                    init = thk.initializers.Constant(1.0)
+                elif init == "dot":
+                    init = thk.initializers.VarianceScaling(
+                        1.0, "fan_in", "truncated_normal", fan_in_axes=kwargs["in_axis"]
+                    )
+                else:
+                    raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+            elif isinstance(init, (int, float)):
+                init = thk.initializers.Constant(init)
+
+            if self.param_type == "parameter":
+                func = thk.get_parameter
+            elif self.param_type == "state":
+                func = thk.get_state
+            else:
+                assert False
+
+            return einx.tracer.apply(
+                func,
+                kwargs={"shape": shape, "name": name, "dtype": dtype, "init": init},
+                output=einx.tracer.Tensor(shape),
+                depend_on=[self.depend_on],
+            )
+
 
 def param(
     func: Literal[hk.get_parameter, hk.get_state] = hk.get_parameter,
@@ -25,55 +120,20 @@ def param(
     Returns:
         A tensor factory with the given default parameters.
     """
-
-    name0 = name
-    init0 = init
-    dtype0 = dtype
-
-    def haiku_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if name0 is not None:
-            name = name0
-        if init0 is not None:
-            init = init0
-        if dtype0 is not None:
-            dtype = dtype0
-
-        if name is None:
-            raise ValueError("Must specify name for tensor factory hk.get_{parameter|state}")
-
-        if init is None:
-            raise ValueError("Must specify init for tensor factory hk.get_{parameter|state}")
-        elif isinstance(init, str):
-            if init in "get_at" or init == "rearrange":
-                init = hk.initializers.RandomNormal(stddev=0.02)
-            elif init == "add":
-                init = hk.initializers.Constant(0.0)
-            elif init == "multiply":
-                init = hk.initializers.Constant(1.0)
-            elif init == "dot":
-                init = hk.initializers.VarianceScaling(
-                    1.0, "fan_in", "truncated_normal", fan_in_axes=kwargs["in_axis"]
-                )
-            else:
-                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-        elif isinstance(init, (int, float)):
-            init = hk.initializers.Constant(init)
-
-        if dtype is None:
-            module = current_module()
-            if hasattr(module, "dtype"):
-                dtype = module.dtype
-            else:
-                dtype = "float32"
-
-        return func(shape=shape, name=name, dtype=dtype, init=init)
-
-    return haiku_param_factory
+    if func == hk.get_parameter:
+        param_type = "parameter"
+    elif func == hk.get_state:
+        param_type = "state"
+    else:
+        raise ValueError(f"Unknown parameter function '{func}'")
+    return ParamFactory.Concrete(name, init, dtype, param_type)
 
 
-def to_tensor_factory(x):
+# Allow passing hk.get_parameter and hk.get_state as tensor factory:
+@einx.tracer.input.register_tensor_factory
+def tensor_factory(x):
     if id(x) == id(hk.get_parameter) or id(x) == id(hk.get_state):
-        return param(x)
+        return param(x).to_value_and_key()
     else:
         return None
 

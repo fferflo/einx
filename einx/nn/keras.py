@@ -9,6 +9,107 @@ if _version < (3, 0):
     raise ImportError(f"einx.nn.keras requires Keras version >= 3, but found {keras.__version__}")
 
 
+tkeras = einx.tracer.import_("keras")
+
+
+def create_or_retrieve(layer, name, shape, dtype, init, trainable):
+    if name in vars(layer):
+        tensor = vars(layer)[name]
+    else:
+        tensor = vars(layer)[name] = layer.add_weight(
+            shape=shape,
+            dtype=dtype,
+            initializer=init,
+            name=name,
+            trainable=trainable,
+        )
+    return tensor
+
+
+class ParamFactory:
+    class Concrete(einx.tracer.input.Input):
+        def __init__(self, layer, name, init, dtype, trainable):
+            self.layer = layer
+            self.name = name
+            self.init = init
+
+            if dtype is None:
+                if hasattr(layer, "dtype"):
+                    dtype = layer.dtype
+                else:
+                    dtype = "float32"
+            self.dtype = dtype
+
+            self.trainable = trainable
+
+        def to_value_and_key(self):
+            return self.layer, ParamFactory.CacheKey(
+                self.name, self.init, self.dtype, self.trainable
+            )
+
+    class CacheKey(einx.tracer.input.CacheKey):
+        def __init__(self, name, init, dtype, trainable):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+            self.trainable = trainable
+
+        def __hash__(self):
+            return hash((self.name, self.init, self.dtype, self.trainable))
+
+        def __eq__(self, other):
+            return (
+                isinstance(other, ParamFactory.CacheKey)
+                and self.name == other.name
+                and self.init == other.init
+                and self.dtype == other.dtype
+                and self.trainable == other.trainable
+            )
+
+        def to_tracer(self, backend, virtual_arg):
+            x = ParamFactory.Tracer(self.name, self.init, self.dtype, self.trainable)
+            return x, x
+
+    class Tracer(einx.tracer.TensorFactory):
+        def __init__(self, name, init, dtype, trainable):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+            self.trainable = trainable
+
+        def __call__(self, shape, kwargs):
+            name = self.name if not self.name is None else kwargs.get("name", None)
+            init = self.init if not self.init is None else kwargs.get("init", None)
+            dtype = self.dtype if not self.dtype is None else kwargs.get("dtype", None)
+
+            if name is None:
+                raise ValueError("Must specify name for tensor factory keras.layers.Layer")
+
+            if init is None:
+                raise ValueError("Must specify init for tensor factory keras.layers.Layer")
+            elif isinstance(init, str):
+                if init == "get_at" or init == "rearrange":
+                    init = tkeras.initializers.TruncatedNormal(stddev=0.02)
+                elif init == "add":
+                    init = tkeras.initializers.Constant(0.0)
+                elif init == "multiply":
+                    init = tkeras.initializers.Constant(1.0)
+                elif init == "dot":
+                    fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
+                    std = np.sqrt(1.0 / fan_in) / 0.87962566103423978
+                    init = tkeras.initializers.TruncatedNormal(mean=0.0, stddev=std)
+                else:
+                    raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+            elif isinstance(init, (int, float)):
+                init = tkeras.initializers.Constant(init)
+
+            return einx.tracer.apply(
+                create_or_retrieve,  # TODO: make tracable
+                args=[self, name, shape, dtype, init, self.trainable],
+                output=einx.tracer.Tensor(shape),
+            )
+
+
 def param(
     layer: keras.layers.Layer,
     name: Optional[str] = None,
@@ -31,67 +132,7 @@ def param(
     Returns:
         A tensor factory with the given default parameters.
     """
-
-    name0 = name
-    init0 = init
-    dtype0 = dtype
-
-    def keras_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if name0 is not None:
-            name = name0
-        if init0 is not None:
-            init = init0
-        if dtype0 is not None:
-            dtype = dtype0
-
-        if name is None:
-            raise ValueError("Must specify name for tensor factory keras.layers.Layer")
-
-        if dtype is None:
-            if hasattr(layer, "dtype"):
-                dtype = layer.dtype
-            else:
-                dtype = "float32"
-
-        if init is None:
-            raise ValueError("Must specify init for tensor factory keras.layers.Layer")
-        elif isinstance(init, str):
-            if init == "get_at" or init == "rearrange":
-                init = keras.initializers.TruncatedNormal(stddev=0.02)
-            elif init == "add":
-                init = keras.initializers.Constant(0.0)
-            elif init == "multiply":
-                init = keras.initializers.Constant(1.0)
-            elif init == "dot":
-                fan_in = np.prod([shape[i] for i in kwargs["in_axis"]])
-                std = np.sqrt(1.0 / fan_in) / 0.87962566103423978
-                init = keras.initializers.TruncatedNormal(mean=0.0, stddev=std)
-            else:
-                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-        elif isinstance(init, (int, float)):
-            init = keras.initializers.Constant(init)
-
-        if name in vars(layer):
-            tensor = vars(layer)[name]
-        else:
-            tensor = vars(layer)[name] = layer.add_weight(
-                shape=shape,
-                dtype=dtype,
-                initializer=init,
-                name=name,
-                trainable=trainable,
-            )
-        return tensor
-
-    return keras_param_factory
-
-
-def to_tensor_factory(x):
-    return None
-
-
-def einx_backend_for_keras():
-    return einx.backend.get(keras.config.backend())
+    return ParamFactory.Concrete(layer, name, init, dtype, trainable)
 
 
 def is_leaf(x):
@@ -103,9 +144,8 @@ class Layer(keras.layers.Layer):
         super().__init__(*args, **kwargs)
 
     def build(self, inputs_shape):
-        backend = einx_backend_for_keras()
         tracers = einx.tree_util.tree_map(
-            lambda shape: backend.zeros(shape=shape, dtype="float32"), inputs_shape, is_leaf=is_leaf
+            lambda shape: keras.ops.zeros(shape, dtype="float32"), inputs_shape, is_leaf=is_leaf
         )
 
         if "is_initializing" in inspect.signature(self.call).parameters:

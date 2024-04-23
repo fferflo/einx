@@ -6,7 +6,7 @@ from typing import Union
 import numpy.typing as npt
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, expr_out, backend=None, dtype="int32": c(
         exprs_in, expr_out, dtype=dtype
     )
@@ -49,6 +49,7 @@ def arange_stage3(expr_in, expr_out, backend, dtype="int32"):
         [axis.__deepcopy__() for axis in expr_in],
         [backend.arange(axis.value, dtype=dtype) for axis in expr_in],
         [expr_out_flat_withconcat],
+        backend=backend,
     )
 
     # Unflatten output expressions
@@ -116,9 +117,7 @@ def parse(description, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
-    trace=lambda t, c: lambda description, backend=None, **kwargs: c(description, **kwargs)
-)
+@einx.jit(trace=lambda t, c: lambda description, backend=None, **kwargs: c(description, **kwargs))
 def arange(
     description: str,
     *,

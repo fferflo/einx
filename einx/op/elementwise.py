@@ -6,16 +6,12 @@ from typing import Callable, Union
 import numpy.typing as npt
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, op, backend=None: c(
         exprs_in, [t(x) for x in tensors_in], expr_out, op
     )
 )
 def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    elif isinstance(backend, str):
-        backend = einx.backend.get(backend)
     for root in list(exprs_in) + [expr_out]:
         for expr in root.all():
             if isinstance(expr, einx.expr.stage3.Concatenation):
@@ -34,7 +30,7 @@ def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
             return s
 
     tensors_in = [
-        einx.param.instantiate(
+        einx.tracer.call_factory(
             tensor,
             expr.shape,
             backend,
@@ -43,6 +39,7 @@ def elementwise_stage3(exprs_in, tensors_in, expr_out, op, backend=None):
         )
         for tensor, expr in zip(tensors_in, exprs_in)
     ]
+    tensors_in = backend.all_to_tensor(tensors_in)
 
     tensors_out, exprs_out = einx.vmap_with_axis_stage3(
         exprs_in, tensors_in, [expr_out], op, backend=backend
@@ -123,7 +120,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(
         description, *[t(x) for x in tensors], **kwargs
     )
@@ -218,7 +215,7 @@ def elementwise(
         (4, 16, 16, 64)
     """
     exprs_in, expr_out = parse(
-        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+        description, *[einx.tracer.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
     )
     tensor, expr_out = elementwise_stage3(exprs_in, tensors, expr_out, op=op, backend=backend)
     return tensor

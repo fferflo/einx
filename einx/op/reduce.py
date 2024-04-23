@@ -8,7 +8,7 @@ import numpy.typing as npt
 _any = any  # Is overwritten below
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda expr_in, tensor_in, expr_out, op, backend=None: c(
         expr_in, t(tensor_in), expr_out, op=op
     )
@@ -92,7 +92,7 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, tensor, backend=None, **kwargs: c(
         description, t(tensor), **kwargs
     )
@@ -176,7 +176,7 @@ def reduce(
         (3,)
     """
     expr_in, expr_out = parse(
-        description, einx.param.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters
+        description, einx.tracer.get_shape(tensor), keepdims=keepdims, cse=cse, **parameters
     )
     tensor, expr_out = reduce_stage3(expr_in, tensor, expr_out, op=op, backend=backend)
     return tensor

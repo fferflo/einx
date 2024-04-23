@@ -1,5 +1,5 @@
-from . import param
-from .lru_cache import lru_cache
+from . import tracer
+from .tracer import jit, lru_cache, trace
 from . import traceback_util
 from . import tree_util
 from . import backend

@@ -78,7 +78,7 @@ def solve(
         {'a': 10, 'b': 5}
     """
     return _solve(
-        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+        description, *[einx.tracer.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
     )
 
 
@@ -128,7 +128,7 @@ def check(
     if len(exprs) != len(tensors):
         raise ValueError(f"Expected {len(exprs)} tensors, got {len(tensors)}")
 
-    tensor_shapes = [einx.param.get_shape(tensor) for tensor in tensors]
+    tensor_shapes = [einx.tracer.get_shape(tensor) for tensor in tensors]
     einx.expr.solve(
         [einx.expr.Equation(expr, tensor_shape) for expr, tensor_shape in zip(exprs, tensor_shapes)]
         + [

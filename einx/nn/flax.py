@@ -5,9 +5,123 @@ from functools import partial
 import jax.numpy as jnp
 from typing import Callable, Union, Optional, Any
 
+tnn = einx.tracer.import_("flax.linen", "nn")
+
+
+class ParamFactory:
+    class Concrete(einx.tracer.input.Input):
+        def __init__(self, module, name, init, dtype, col, param_type):
+            self.module = module
+            self.name = name
+            self.init = init
+
+            if dtype is None:
+                if hasattr(module, "dtype"):
+                    dtype = module.dtype
+                else:
+                    dtype = "float32"
+            self.dtype = dtype
+
+            self.col = col
+
+            if param_type == "param":
+                if col is not None:
+                    raise ValueError("col is not accepted for flax.linen.Module.param")
+            elif param_type == "variable":
+                if col is None:
+                    raise ValueError("col must be specified for flax.linen.Module.variable")
+            else:
+                raise ValueError(f"Unknown tensor factory flax.linen.Module.{param_type}")
+            self.param_type = param_type
+
+        def to_value_and_key(self):
+            return self.module, ParamFactory.CacheKey(
+                self.name, self.init, self.dtype, self.col, self.param_type
+            )
+
+    class CacheKey(einx.tracer.input.CacheKey):
+        def __init__(self, name, init, dtype, col, param_type):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+            self.col = col
+            self.param_type = param_type
+
+        def __hash__(self):
+            return hash((self.name, self.init, self.dtype, self.col, self.param_type))
+
+        def __eq__(self, other):
+            return (
+                isinstance(other, ParamFactory.CacheKey)
+                and self.name == other.name
+                and self.init == other.init
+                and self.dtype == other.dtype
+                and self.col == other.col
+                and self.param_type == other.param_type
+            )
+
+        def to_tracer(self, backend, virtual_arg):
+            x = ParamFactory.Tracer(self.name, self.init, self.dtype, self.col, self.param_type)
+            return x, x
+
+    class Tracer(einx.tracer.TensorFactory):
+        def __init__(self, name, init, dtype, col, param_type):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+            self.col = col
+            self.param_type = param_type
+
+        def __call__(self, shape, kwargs):
+            name = self.name if not self.name is None else kwargs.get("name", None)
+            init = self.init if not self.init is None else kwargs.get("init", None)
+            dtype = self.dtype if not self.dtype is None else kwargs.get("dtype", None)
+            col = self.col
+
+            if name is None:
+                raise ValueError(
+                    "Must specify name for tensor factory flax.linen.Module.{param|variable}"
+                )
+
+            if init is None:
+                raise ValueError(
+                    "Must specify init for tensor factory flax.linen.Module.{param|variable}"
+                )
+            elif isinstance(init, str):
+                if init == "get_at" or init == "rearrange":
+                    init = tnn.initializers.normal(stddev=0.02)
+                elif init == "add":
+                    init = tnn.initializers.zeros_init()
+                elif init == "multiply":
+                    init = tnn.initializers.ones_init()
+                elif init == "dot":
+                    init = tnn.initializers.lecun_normal(
+                        kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"]
+                    )
+                else:
+                    raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+            elif isinstance(init, (int, float)):
+                init = tnn.initializers.constant(init, dtype=dtype)
+
+            if self.param_type == "param":
+                x = einx.tracer.apply(
+                    self.param, args=[name, init, shape, dtype], output=einx.tracer.Tensor(shape)
+                )
+            else:
+                assert self.param_type == "variable"
+                # Assume that variable initialization does not need an rng key by passing None
+                x = einx.tracer.apply(
+                    self.variable,
+                    args=[col, name, init, None, shape, dtype],
+                )
+                x = einx.tracer.apply(
+                    einx.tracer.MemberAccess(), args=[x, "value"], output=einx.tracer.Tensor(shape)
+                )
+            return x
+
 
 def param(
-    bound_method: Union[Callable, nn.Module],
+    x: Union[Callable, nn.Module],
     name: Optional[str] = None,
     init: Optional[Any] = None,
     dtype: Optional[nn.dtypes.Dtype] = None,
@@ -16,7 +130,7 @@ def param(
     """Create a tensor factory for Flax parameters.
 
     Args:
-        bound_method: The bound method of a Flax module, i.e. ``nn.Module.param`` or
+        x: The bound method of a Flax module, i.e. ``nn.Module.param`` or
             ``nn.Module.variable``, or a module instance in which case its ``param`` method
             is used.
         name: Name of the parameter. If ``None``, uses a default name determined from the calling
@@ -30,73 +144,29 @@ def param(
     Returns:
         A tensor factory with the given default parameters.
     """
-    if isinstance(bound_method, nn.Module):
-        bound_method = bound_method.param
+    if hasattr(x, "__func__") and x.__func__ == nn.Module.param:
+        module = x.__self__
+        param_type = "param"
+    elif hasattr(x, "__func__") and x.__func__ == nn.Module.variable:
+        module = x.__self__
+        param_type = "variable"
+    elif isinstance(x, nn.Module):
+        module = x
+        param_type = "param"
+    else:
+        raise ValueError("x must be a bound method of a Flax module or a Flax module instance")
 
-    name0 = name
-    init0 = init
-    dtype0 = dtype
-
-    def flax_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if name0 is not None:
-            name = name0
-        if init0 is not None:
-            init = init0
-        if dtype0 is not None:
-            dtype = dtype0
-
-        if name is None:
-            raise ValueError(
-                "Must specify name for tensor factory flax.linen.Module.{param|variable}"
-            )
-
-        if init is None:
-            raise ValueError(
-                "Must specify init for tensor factory flax.linen.Module.{param|variable}"
-            )
-        elif isinstance(init, str):
-            if init == "get_at" or init == "rearrange":
-                init = nn.initializers.normal(stddev=0.02)
-            elif init == "add":
-                init = nn.initializers.zeros_init()
-            elif init == "multiply":
-                init = nn.initializers.ones_init()
-            elif init == "dot":
-                init = nn.initializers.lecun_normal(
-                    kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"]
-                )
-            else:
-                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-        elif isinstance(init, (int, float)):
-            init = nn.initializers.constant(init, dtype=dtype)
-
-        if dtype is None:
-            module = bound_method.__self__
-            if hasattr(module, "dtype"):
-                dtype = module.dtype
-            else:
-                dtype = "float32"
-
-        if bound_method.__func__ == nn.Module.param:
-            if col is not None:
-                raise ValueError("col is not accepted for flax.linen.Module.param")
-            return bound_method(name, init, shape, dtype)
-        elif bound_method.__func__ == nn.Module.variable:
-            if col is None:
-                raise ValueError("col must be specified for flax.linen.Module.variable")
-            # Assume that variable initialization does not need an rng key by passing None:
-            return bound_method(col, name, init, None, shape, dtype).value
-        else:
-            raise ValueError(
-                f"Unknown tensor factory flax.linen.Module.{bound_method.__func__.__name__}"
-            )
-
-    return flax_param_factory
+    return ParamFactory.Concrete(module, name, init, dtype, col, param_type)
 
 
-def to_tensor_factory(x):
-    if isinstance(x, nn.Module) or (hasattr(x, "__func__") and x.__func__ == nn.Module.param):
-        return param(x)
+# Allow passing nn.Module, nn.Module.param, nn.Module.variable as tensor factory:
+@einx.tracer.input.register_tensor_factory
+def tensor_factory(x):
+    if isinstance(x, nn.Module) or (
+        hasattr(x, "__func__")
+        and (x.__func__ == nn.Module.param or x.__func__ == nn.Module.variable)
+    ):
+        return param(x).to_value_and_key()
     else:
         return None
 

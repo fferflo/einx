@@ -8,7 +8,7 @@ import numpy.typing as npt
 _op_names = ["roll", "flip"]
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, op, kwargs={}, backend=None: c(
         exprs_in, [t(x) for x in tensors_in], exprs_out, op, kwargs
     )
@@ -16,11 +16,6 @@ _op_names = ["roll", "flip"]
 def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, backend=None):
     if kwargs is None:
         kwargs = {}
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    elif isinstance(backend, str):
-        backend = einx.backend.get(backend)
-    op = backend.op(op, tracable=False)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
     if len(set(exprs_out)) != 1:
@@ -31,13 +26,16 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
                 raise ValueError("Concatenation not allowed")
     if len(exprs_out) > 1:
         raise ValueError("Only one output tensor allowed")
+    if all(einx.tracer.is_scalar(tensor) for tensor in tensors_in):
+        raise ValueError("At least one input tensor must be a non-scalar")  # TODO: support this
     kwargs = {**kwargs}
 
     # Call tensor factories
     tensors_in = [
-        einx.param.instantiate(tensor, expr.shape, backend=backend)
+        einx.tracer.call_factory(tensor, expr.shape, backend=backend)
         for tensor, expr in zip(tensors_in, exprs_in)
     ]
+    tensors_in = backend.all_to_tensor(tensors_in)
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
@@ -90,7 +88,9 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
                 "When using multiple input tensors the same axes must be marked in all tensors"
             )
         x = [
-            util.transpose_broadcast(
+            (tensor_in, expr_in)
+            if einx.tracer.is_scalar(tensor_in)
+            else util.transpose_broadcast(
                 expr_in,
                 tensor_in,
                 exprs_out_flat_without_broadcast[0],
@@ -101,7 +101,7 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
         ]
         tensors_in = [x[0] for x in x]
         exprs_in = [x[1] for x in x]
-        assert len({len(expr) for expr in exprs_in}) == 1
+        assert len({len(expr) for expr in exprs_in if len(expr) > 0}) == 1
         marked_input_axes = {
             axis.name
             for expr_in in exprs_in
@@ -149,14 +149,21 @@ def vmap_with_axis_stage3(exprs_in, tensors_in, exprs_out, op, kwargs=None, back
         kwargs["axis"] = axis_indices if len(axis_indices) > 1 else axis_indices[0]
 
     # Apply operation
-    tensors_out = backend.apply(
-        op,
-        args=tensors_in,
-        kwargs=kwargs,
-        output_shapes=[expr.shape for expr in exprs_op_output]
-        if len(exprs_op_output) > 1
-        else exprs_op_output[0].shape,
-    )
+    if isinstance(op, str):
+        op = getattr(backend, op)
+    elif not isinstance(op, einx.tracer.Tracer):
+        concrete_op = op
+        op = lambda *args, **kwargs: einx.tracer.apply(
+            concrete_op,
+            args=args,
+            kwargs=kwargs,
+            output=[einx.tracer.Tensor(expr.shape) for expr in exprs_op_output]
+            if len(exprs_op_output) > 1
+            else einx.tracer.Tensor(exprs_op_output[0].shape),
+        )
+
+    tensors_out = op(*tensors_in, **kwargs)
+
     if not isinstance(tensors_out, (tuple, list)):
         tensors_out = (tensors_out,)
     if len(tensors_out) != len(exprs_out_flat_without_broadcast):
@@ -214,7 +221,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(
         description, *[t(x) for x in tensors], **kwargs
     )
@@ -284,7 +291,7 @@ def vmap_with_axis(
         (16, 20)
     """
     exprs_in, exprs_out = parse(
-        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+        description, *[einx.tracer.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
     )
     tensors, exprs_out = vmap_with_axis_stage3(
         exprs_in, tensors, exprs_out, op=op, kwargs=kwargs, backend=backend

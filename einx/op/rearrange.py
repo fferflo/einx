@@ -5,16 +5,12 @@ from typing import Union, Tuple
 import numpy.typing as npt
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, backend=None: c(
         exprs_in, [t(x) for x in tensors_in], exprs_out
     )
 )
 def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    elif isinstance(backend, str):
-        backend = einx.backend.get(backend)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
     if any(
@@ -26,9 +22,10 @@ def rearrange_stage3(exprs_in, tensors_in, exprs_out, backend=None):
 
     # Call tensor factories
     tensors_in = [
-        einx.param.instantiate(tensor, expr.shape, backend, name="embedding", init="rearrange")
+        einx.tracer.call_factory(tensor, expr.shape, backend, name="embedding", init="rearrange")
         for tensor, expr in zip(tensors_in, exprs_in)
     ]
+    tensors_in = backend.all_to_tensor(tensors_in, convert_scalars=True)
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
@@ -87,7 +84,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(
         description, *[t(x) for x in tensors], **kwargs
     )
@@ -158,7 +155,7 @@ def rearrange(
         array([4, 5, 2, 3, 0, 1])
     """
     exprs_in, exprs_out = parse(
-        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+        description, *[einx.tracer.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
     )
     tensors, exprs_out = rearrange_stage3(exprs_in, tensors, exprs_out, backend=backend)
     return tensors[0] if len(exprs_out) == 1 else tensors

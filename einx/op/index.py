@@ -64,17 +64,12 @@ def _index(*tensors, update, layout, expr_update_inner, expr_common, op=None, ba
     )
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, **kwargs: c(
         exprs_in, [t(x) for x in tensors_in], expr_out, **kwargs
     )
 )
 def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=None):
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    elif isinstance(backend, str):
-        backend = einx.backend.get(backend)
-    op = backend.op(op, tracable=False)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensors, got {len(tensors_in)}")
     for expr in exprs_in[0]:
@@ -111,7 +106,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
             return s
 
     tensors_in = [
-        einx.param.instantiate(
+        einx.tracer.call_factory(
             tensor,
             expr.shape,
             backend,
@@ -120,6 +115,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         )
         for tensor, expr in zip(tensors_in, exprs_in)
     ]
+    tensors_in = backend.all_to_tensor(tensors_in)
 
     expr_tensor = exprs_in[0]
     exprs_coordinates = exprs_in[1:-1] if update else exprs_in[1:]
@@ -248,6 +244,8 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         expr_common = einx.expr.stage3.get_marked(util.flatten([expr_out])[0])
 
     # Construct vmapped indexing function
+    if isinstance(op, str):
+        op = getattr(backend, op)
     op = partial(
         _index,
         op=op,
@@ -257,7 +255,7 @@ def index_stage3(exprs_in, tensors_in, expr_out, *, update, op=None, backend=Non
         expr_update_inner=expr_update_inner,
         backend=backend,
     )
-    op = backend.op(op, tracable=True)
+    op = einx.trace(op)
 
     exprs_in = [expr_tensor] + exprs_coordinates + ([expr_update] if update else [])
     tensors_out, exprs_out = einx.vmap_stage3(
@@ -370,12 +368,12 @@ def parse(description, *tensor_shapes, update, cse=True, **parameters):
 
 
 def _has_zero_shape(tensor):
-    shape = einx.param.get_shape(tensor)
+    shape = einx.tracer.get_shape(tensor)
     return shape is not None and any(s == 0 for s in shape)
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(
         description, *[t(x) for x in tensors], **kwargs
     )
@@ -471,7 +469,7 @@ def index(
         return tensors[0]
     exprs_in, expr_out = parse(
         description,
-        *[einx.param.get_shape(tensor) for tensor in tensors],
+        *[einx.tracer.get_shape(tensor) for tensor in tensors],
         update=update,
         cse=cse,
         **parameters,

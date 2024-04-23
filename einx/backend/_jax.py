@@ -1,92 +1,123 @@
+from .base import *
+import einx.tracer as tracer
+from einx.tracer.tensor import op
+import einx, types
 from functools import partial
-from .base import Backend, associative_binary_to_nary
 
 
-def make_jax_backend():
-    import jax as jax_
+def create():
+    tjax = tracer.import_("jax")
+    tjnp = tracer.import_("jax.numpy", "jnp")
     import jax.numpy as jnp
+    import jax as jax_
 
     class jax(Backend):
-        def to_tensor(tensor):
-            return jnp.asarray(tensor)
-
-        tensor = jnp.ndarray
         name = "jax"
+        tensor_types = [jnp.ndarray]
 
+        @staticmethod
+        @einx.trace
+        def to_tensor(tensor, shape):
+            return einx.tracer.apply(
+                tjnp.asarray,
+                args=[tensor],
+                output=einx.tracer.Tensor(shape),
+            )
+
+        @staticmethod
+        @einx.trace
         def cast(tensor, dtype):
-            return tensor.astype(dtype)
+            return einx.tracer.apply(
+                tensor.astype, args=[dtype], output=einx.tracer.Tensor(tensor.shape)
+            )
 
-        reshape = jnp.reshape
-        transpose = jnp.transpose
-        broadcast_to = jnp.broadcast_to
-        einsum = partial(jnp.einsum, optimize="optimal")
-        swapaxes = jnp.swapaxes
-        arange = jnp.arange
+        reshape = op.reshape(tjnp.reshape)
+        transpose = op.transpose(tjnp.transpose)
+        broadcast_to = op.broadcast_to(tjnp.broadcast_to)
+        einsum = op.einsum(tjnp.einsum)
+        arange = op.arange(tjnp.arange)
 
-        stack = jnp.stack
-        concatenate = jnp.concatenate
+        stack = op.stack(tjnp.stack)
+        concatenate = op.concatenate(tjnp.concatenate)
 
-        zeros = jnp.zeros
-        ones = jnp.ones
+        add = associative_binary_to_nary(op.elementwise(tjnp.add))
+        subtract = op.elementwise(tjnp.subtract)
+        multiply = associative_binary_to_nary(op.elementwise(tjnp.multiply))
+        true_divide = op.elementwise(tjnp.true_divide)
+        floor_divide = op.elementwise(tjnp.floor_divide)
+        divide = op.elementwise(tjnp.divide)
+        logical_and = associative_binary_to_nary(op.elementwise(tjnp.logical_and))
+        logical_or = associative_binary_to_nary(op.elementwise(tjnp.logical_or))
+        where = op.elementwise(tjnp.where)
+        less = op.elementwise(tjnp.less)
+        less_equal = op.elementwise(tjnp.less_equal)
+        greater = op.elementwise(tjnp.greater)
+        greater_equal = op.elementwise(tjnp.greater_equal)
+        equal = op.elementwise(tjnp.equal)
+        not_equal = op.elementwise(tjnp.not_equal)
+        maximum = associative_binary_to_nary(op.elementwise(tjnp.maximum))
+        minimum = associative_binary_to_nary(op.elementwise(tjnp.minimum))
 
-        add = associative_binary_to_nary(jnp.add)
-        subtract = jnp.subtract
-        multiply = associative_binary_to_nary(jnp.multiply)
-        true_divide = jnp.true_divide
-        floor_divide = jnp.floor_divide
-        divide = jnp.divide
-        logical_and = associative_binary_to_nary(jnp.logical_and)
-        logical_or = associative_binary_to_nary(jnp.logical_or)
-        where = jnp.where
-        less = jnp.less
-        less_equal = jnp.less_equal
-        greater = jnp.greater
-        greater_equal = jnp.greater_equal
-        equal = jnp.equal
-        not_equal = jnp.not_equal
-        maximum = associative_binary_to_nary(jnp.maximum)
-        minimum = associative_binary_to_nary(jnp.minimum)
+        sum = op.reduce(tjnp.sum)
+        mean = op.reduce(tjnp.mean)
+        var = op.reduce(tjnp.var)
+        std = op.reduce(tjnp.std)
+        prod = op.reduce(tjnp.prod)
+        count_nonzero = op.reduce(tjnp.count_nonzero)
+        any = op.reduce(tjnp.any)
+        all = op.reduce(tjnp.all)
+        min = op.reduce(tjnp.min)
+        max = op.reduce(tjnp.max)
+        logsumexp = op.reduce(tjax.scipy.special.logsumexp)
 
-        sum = jnp.sum
-        mean = jnp.mean
-        var = jnp.var
-        std = jnp.std
-        prod = jnp.prod
-        count_nonzero = jnp.count_nonzero
-        any = jnp.any
-        all = jnp.all
-        min = jnp.amin
-        max = jnp.amax
-        logsumexp = jax_.scipy.special.logsumexp
+        log = op.elementwise(tjnp.log)
+        exp = op.elementwise(tjnp.exp)
+        sqrt = op.elementwise(tjnp.sqrt)
+        rsqrt = op.elementwise(tjax.lax.rsqrt)
+        square = op.elementwise(tjnp.square)
 
+        @staticmethod
+        @einx.trace
         def get_at(tensor, coordinates):
             return tensor[coordinates]
 
+        @staticmethod
+        @einx.trace
         def set_at(tensor, coordinates, updates):
-            return tensor.at[coordinates].set(updates)
+            return einx.tracer.apply(
+                tensor.at[coordinates].set, args=[updates], output=einx.tracer.Tensor(tensor.shape)
+            )
 
+        @staticmethod
+        @einx.trace
         def add_at(tensor, coordinates, updates):
-            return tensor.at[coordinates].add(updates)
+            return einx.tracer.apply(
+                tensor.at[coordinates].add, args=[updates], output=einx.tracer.Tensor(tensor.shape)
+            )
 
+        @staticmethod
+        @einx.trace
         def subtract_at(tensor, coordinates, updates):
-            return tensor.at[coordinates].add(-updates)
+            return einx.tracer.apply(
+                tensor.at[coordinates].add, args=[-updates], output=einx.tracer.Tensor(tensor.shape)
+            )
 
-        flip = jnp.flip
-        roll = jnp.roll
-        softmax = jax_.nn.softmax
-        log_softmax = jax_.nn.log_softmax
+        flip = op.keep_shape(tjnp.flip)
+        roll = op.keep_shape(tjnp.roll)
+        softmax = op.keep_shape(tjax.nn.softmax)
+        log_softmax = op.keep_shape(tjax.nn.log_softmax)
 
-        sqrt = jnp.sqrt
-        rsqrt = jax_.lax.rsqrt
-        square = jnp.square
+        stop_gradient = op.keep_shape(tjax.lax.stop_gradient)
 
-        allclose = jnp.allclose
-
-        def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
-            return jax_.vmap(op, in_axes, out_axes)
+        vmap = op.vmap(tjax.vmap)
 
         class random:
+            @einx.trace
             def bernoulli(rng, p, shape):
-                return jax_.random.bernoulli(rng, p, shape)
+                return einx.tracer.apply(
+                    tjax.random.bernoulli,
+                    args=[rng, p, shape],
+                    output=einx.tracer.Tensor(shape),
+                )
 
-    return jax
+    return jax()

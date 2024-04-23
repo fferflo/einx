@@ -13,8 +13,7 @@ def flatten(exprs, tensors=None, backend=None):
         exprs: Expressions to flatten.
         tensors: Tensors corresponding to ``exprs``. If None, flattens and returns only
             ``exprs``. Defaults to None.
-        backend: Backend to use for tensor operations. If None, determines backend from
-            ``tensors``. Defaults to None.
+        backend: Backend to use for tensor operations.
 
     Returns:
         exprs: The flattened expressions.
@@ -55,9 +54,7 @@ def flatten(exprs, tensors=None, backend=None):
         for expr, tensor in zip(exprs, tensors):
             expr = einx.expr.stage3.decompose(expr)
             expr = einx.expr.stage3.remove_unnamed_trivial_axes(expr)
-            assert tensor.shape is not None
-            if tensor.shape != expr.shape:
-                tensor = backend.reshape(tensor, expr.shape)
+            tensor = backend.reshape(tensor, expr.shape)
 
             if any(isinstance(e, einx.expr.stage3.Concatenation) for e in expr):
                 concat_index, concat_expr = [
@@ -157,8 +154,7 @@ def transpose_broadcast(expr_in, tensor, expr_out, *, backend, broadcast=True):
         raise RuntimeError("Found input axes that are not in output expression")  # TODO:
 
     perm = [in_axes.index(out_axis) for out_axis in out_axes_intersect]
-    if perm != list(range(len(perm))):
-        tensor = backend.transpose(tensor, tuple(perm))
+    tensor = backend.transpose(tensor, tuple(perm))
 
     # Expand and broadcast missing output dimensions if necessary
     if len(out_axes_broadcast) > 0:
@@ -166,10 +162,8 @@ def transpose_broadcast(expr_in, tensor, expr_out, *, backend, broadcast=True):
             1 if a.name in out_axes_broadcast else a.value
             for a in einx.expr.stage3.get_axes(expr_out)
         )
-        assert tensor.shape is not None
-        if tensor.shape != pre_broadcast_shape:
-            tensor = backend.reshape(tensor, pre_broadcast_shape)
-        if broadcast and tensor.shape != expr_out.shape:
+        tensor = backend.reshape(tensor, pre_broadcast_shape)
+        if broadcast:
             tensor = backend.broadcast_to(tensor, expr_out.shape)
 
     if not broadcast:
@@ -213,9 +207,7 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
         ) == einx.expr.stage3.remove_unnamed_trivial_axes(einx.expr.stage3.decompose(next_expr_in))
         tensor_out = next(tensors_in)
 
-    assert tensor_out.shape is not None
-    if tensor_out.shape != expr_out.shape:
-        tensor_out = backend.reshape(tensor_out, expr_out.shape)
+    tensor_out = backend.reshape(tensor_out, expr_out.shape)
 
     return tensor_out
 
@@ -223,15 +215,14 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
 def unflatten(exprs_in, tensors_in, exprs_out, *, backend):
     if len(exprs_in) != len(tensors_in):
         raise ValueError("Got different number of input expressions and tensors")
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
+    assert not backend is None
 
     iter_exprs_in = iter(exprs_in)
     iter_tensors_in = iter(tensors_in)
     tensors_out = []
     for expr_out in exprs_out:
         t = _unflatten(iter_exprs_in, iter_tensors_in, expr_out, backend)
-        assert t.shape == expr_out.shape
+        assert einx.tracer.get_shape(t) == expr_out.shape
         tensors_out.append(t)
 
     return tensors_out

@@ -1,5 +1,4 @@
 import einx
-import inspect
 import functools
 from . import util
 import numpy as np
@@ -7,7 +6,7 @@ from typing import Callable, Union, Mapping
 import numpy.typing as npt
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, tensors_in, exprs_out, **kwargs: c(
         exprs_in, [t(x) for x in tensors_in], exprs_out, **kwargs
     )
@@ -25,11 +24,6 @@ def vmap_stage3(
 ):
     if kwargs is None:
         kwargs = {}
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    elif isinstance(backend, str):
-        backend = einx.backend.get(backend)
-    op = backend.op(op, tracable=False)
     if len(exprs_in) != len(tensors_in):
         raise ValueError(f"Expected {len(exprs_in)} input tensor(s), got {len(tensors_in)}")
     for root in list(exprs_in) + list(exprs_out):
@@ -39,9 +33,10 @@ def vmap_stage3(
 
     # Call tensor factories
     tensors_in = [
-        einx.param.instantiate(tensor, expr.shape, backend=backend)
+        einx.tracer.call_factory(tensor, expr.shape, backend=backend)
         for tensor, expr in zip(tensors_in, exprs_in)
     ]
+    tensors_in = backend.all_to_tensor(tensors_in)
 
     if verbose:
         print("Expressions:")
@@ -73,9 +68,13 @@ def vmap_stage3(
         print("    IN_FLAT:", [str(e) for e in exprs_in_funcargs_flat])
         print("    OUT_FLAT:", [str(e) for e in exprs_out_funcargs_flat])
 
+    @einx.trace(args=[einx.tracer.Tensor(expr.shape) for expr in exprs_in_funcargs_flat])
     def op(*tensors_in_flat, op=op):
         if verbose:
-            print("Flat input tensors that arrived in op:", [str(a.shape) for a in tensors_in_flat])
+            print(
+                "Flat input tensors that arrived in op:",
+                [str(einx.tracer.get_shape(a)) for a in tensors_in_flat],
+            )
             print("Input types to vmapped function:", [type(t) for t in tensors_in_flat])
         assert len(tensors_in_flat) == len(exprs_in_funcargs_flat)
 
@@ -84,22 +83,41 @@ def vmap_stage3(
                 exprs_in_funcargs_flat, tensors_in_flat, exprs_in_funcargs, backend=backend
             )
             if verbose:
-                print("Unflattened input tensors in op:", [str(a.shape) for a in tensors_in])
+                print(
+                    "Unflattened input tensors in op:",
+                    [str(einx.tracer.get_shape(a)) for a in tensors_in],
+                )
             assert len(tensors_in) == len(exprs_in)
         else:
             tensors_in = tensors_in_flat
         exprs_out_expected = exprs_out_funcargs if not flat else exprs_out_funcargs_flat
 
-        output_shapes = [expr.shape for expr in exprs_out_expected]
-        if len(output_shapes) == 1:
-            output_shapes = output_shapes[0]
-        tensors_out = backend.apply(op, args=tensors_in, kwargs=kwargs, output_shapes=output_shapes)
+        if isinstance(op, str):
+            op = getattr(backend, op)
+        elif not isinstance(op, einx.tracer.Tracer):
+            concrete_op = op
+            op = lambda *args, **kwargs: einx.tracer.apply(
+                concrete_op,
+                args=args,
+                kwargs=kwargs,
+                output=[einx.tracer.Tensor(expr.shape) for expr in exprs_out_expected]
+                if len(exprs_out_expected) > 1
+                else einx.tracer.Tensor(exprs_out_expected[0].shape),
+            )
+
+        tensors_out = op(*tensors_in, **kwargs)
+
         if not isinstance(tensors_out, (tuple, list)):
             tensors_out = (tensors_out,)
         if len(tensors_out) != len(exprs_out_expected):
             raise ValueError(
                 f"Expected {len(exprs_out_expected)} output tensor(s) from vmapped "
                 f"function, but got {len(tensors_out)}"
+            )
+        if any(not isinstance(t, einx.tracer.Tensor) for t in tensors_out):
+            # TODO: might also be int, float, etc?
+            raise ValueError(
+                f"Expected tensors from vmapped function, but got {[type(t) for t in tensors_out]}"
             )
 
         if verbose:
@@ -108,10 +126,10 @@ def vmap_stage3(
                 print("    ", expr_out, tensor_out.shape)
 
         for i, (expr_out, tensor_out) in enumerate(zip(exprs_out_expected, tensors_out)):
-            if tensor_out.shape != expr_out.shape:
+            if einx.tracer.get_shape(tensor_out) != expr_out.shape:
                 raise ValueError(
                     f"Expected output shape {expr_out.shape} from {i}-th (zero-based) "
-                    f"output of vmapped function, but got {tensor_out.shape}"
+                    f"output of vmapped function, but got {einx.tracer.get_shape(tensor_out)}"
                 )
 
         if not flat:
@@ -120,7 +138,10 @@ def vmap_stage3(
             )
 
             if verbose:
-                print("Flattened output tensors in op:", [str(a.shape) for a in tensors_out])
+                print(
+                    "Flattened output tensors in op:",
+                    [str(einx.tracer.get_shape(a)) for a in tensors_out],
+                )
             assert (
                 exprs_out_funcargs_flat2 == exprs_out_funcargs_flat
             ), f"{[str(s) for s in exprs_out_funcargs_flat2]} != "
@@ -129,8 +150,6 @@ def vmap_stage3(
         if verbose:
             print("Returning types from vmapped function:", [type(t) for t in tensors_out])
         return tuple(tensors_out)
-
-    op = backend.op(op, tracable=True)
 
     axes_names_in = [[a.name for a in root] for root in exprs_in_flat]
     axes_names_in_set = {a.name for root in exprs_in_flat for a in root}
@@ -236,11 +255,10 @@ def vmap_stage3(
     # Apply op to tensors
     if verbose:
         print("\nSending shapes to backend.vmap:", [str(a.shape) for a in tensors_in])
-    tensors = backend.apply(
+    tensors = einx.tracer.apply(  # TODO: replace with tensors = op(*tensors_in)
         op,
         args=tensors_in,
-        kwargs={},
-        output_shapes=tuple(expr.shape for expr in exprs_out_flat_without_broadcast),
+        output=tuple(einx.tracer.Tensor(expr.shape) for expr in exprs_out_flat_without_broadcast),
     )
     if verbose:
         for tensor, expr in zip(tensors, exprs_out_flat_without_broadcast):
@@ -256,12 +274,14 @@ def vmap_stage3(
     if verbose:
         print("Got overall transposed+broadcasted tensors_out:")
         for tensor, expr in zip(tensors, exprs_out_flat):
-            print("    ", tensor.shape, expr)
+            print("    ", einx.tracer.get_shape(tensor), expr)
 
     # Unflatten output expressions
     tensors = util.unflatten(exprs_out_flat, tensors, exprs_out, backend=backend)
     if verbose:
-        print("Got overall unflattened tensors_out:", [str(a.shape) for a in tensors])
+        print(
+            "Got overall unflattened tensors_out:", [str(einx.tracer.get_shape(a)) for a in tensors]
+        )
 
     return tensors, exprs_out
 
@@ -303,7 +323,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, *tensors, **kwargs: c(
         description, *[t(x) for x in tensors], **kwargs
     )
@@ -385,7 +405,7 @@ def vmap(
         (5, 3)
     """
     exprs_in, exprs_out = parse(
-        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+        description, *[einx.tracer.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
     )
     tensors, exprs_out = vmap_stage3(
         exprs_in, tensors, exprs_out, flat=flat, backend=backend, op=op, kwargs=kwargs

@@ -6,7 +6,7 @@ import einx
 
 class Expression:
     def __init__(self, value):
-        if not isinstance(value, (int, np.int64, np.int32, np.int16, np.int8)):
+        if not isinstance(value, (int, np.integer)):
             raise TypeError(f"Expected int, got {type(value)}")
         self.value = int(value)
         self.parent = None
@@ -109,9 +109,6 @@ class Axis(Expression):
     def __init__(self, name, value):
         Expression.__init__(self, value)
         self.name = name if name is not None else f"unnamed.{id(self)}"
-
-    def __repr__(self):
-        return f"Axis({self.name}, {self.value})"
 
     def __str__(self):
         return self.name if not self.is_unnamed else str(self.value)

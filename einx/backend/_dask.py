@@ -1,110 +1,125 @@
+from .base import *
+import einx.tracer as tracer
+from einx.tracer.tensor import op
+import einx, types
 from functools import partial
-from .base import Backend, associative_binary_to_nary
 
 
-def make_dask_backend():
+def create():
     import dask.array as da
 
+    tda = tracer.import_("dask.array", "da")
+
     class dask(Backend):
-        def to_tensor(tensor):
-            return da.asarray(tensor)
-
-        tensor = da.Array
         name = "dask"
+        tensor_types = [da.Array]
 
+        @staticmethod
+        @einx.trace
+        def to_tensor(tensor, shape):
+            return einx.tracer.apply(
+                tda.asarray,
+                args=[tensor],
+                output=einx.tracer.Tensor(shape),
+            )
+
+        @staticmethod
+        @einx.trace
         def cast(tensor, dtype):
-            return tensor.astype(dtype)
+            return einx.tracer.apply(
+                tensor.astype, args=[dtype], output=einx.tracer.Tensor(tensor.shape)
+            )
 
-        reshape = da.reshape
-        transpose = da.transpose
-        broadcast_to = da.broadcast_to
-        einsum = partial(da.einsum, optimize="optimal")
-        swapaxes = da.swapaxes
-        arange = da.arange
+        @staticmethod
+        @einx.trace
+        def reshape(tensor, shape):
+            if einx.tracer.is_scalar(tensor):
+                tensor = tda.asarray(tensor)
+            return op.reshape(tda.reshape)(tensor, shape)
 
-        stack = da.stack
-        concatenate = da.concatenate
+        transpose = op.transpose(tda.transpose)
+        broadcast_to = op.broadcast_to(tda.broadcast_to)
+        einsum = op.einsum(tda.einsum)
+        arange = op.arange(tda.arange)
 
-        zeros = da.zeros
-        ones = da.ones
+        @staticmethod
+        @einx.trace
+        def stack(tensors, axis=0):
+            tensors = [tda.asarray(t) if einx.tracer.is_scalar(t) else t for t in tensors]
+            return op.stack(tda.stack)(tensors, axis=axis)
 
-        add = associative_binary_to_nary(da.add)
-        subtract = da.subtract
-        multiply = associative_binary_to_nary(da.multiply)
-        true_divide = da.true_divide
-        floor_divide = da.floor_divide
-        divide = da.divide
-        logical_and = associative_binary_to_nary(da.logical_and)
-        logical_or = associative_binary_to_nary(da.logical_or)
-        where = da.where
-        less = da.less
-        less_equal = da.less_equal
-        greater = da.greater
-        greater_equal = da.greater_equal
-        equal = da.equal
-        not_equal = da.not_equal
-        maximum = associative_binary_to_nary(da.maximum)
-        minimum = associative_binary_to_nary(da.minimum)
+        @staticmethod
+        @einx.trace
+        def concatenate(tensors, axis=0):
+            tensors = [tda.asarray(t) if einx.tracer.is_scalar(t) else t for t in tensors]
+            return op.concatenate(tda.concatenate)(tensors, axis=axis)
 
-        sum = da.sum
-        mean = da.mean
-        var = da.var
-        std = da.std
-        prod = da.prod
-        count_nonzero = da.count_nonzero
-        any = da.any
-        all = da.all
-        min = da.min
-        max = da.max
+        add = associative_binary_to_nary(op.elementwise(tda.add))
+        subtract = op.elementwise(tda.subtract)
+        multiply = associative_binary_to_nary(op.elementwise(tda.multiply))
+        true_divide = op.elementwise(tda.true_divide)
+        floor_divide = op.elementwise(tda.floor_divide)
+        divide = op.elementwise(tda.divide)
+        logical_and = associative_binary_to_nary(op.elementwise(tda.logical_and))
+        logical_or = associative_binary_to_nary(op.elementwise(tda.logical_or))
+        where = op.elementwise(tda.where)
+        less = op.elementwise(tda.less)
+        less_equal = op.elementwise(tda.less_equal)
+        greater = op.elementwise(tda.greater)
+        greater_equal = op.elementwise(tda.greater_equal)
+        equal = op.elementwise(tda.equal)
+        not_equal = op.elementwise(tda.not_equal)
+        maximum = associative_binary_to_nary(op.elementwise(tda.maximum))
+        minimum = associative_binary_to_nary(op.elementwise(tda.minimum))
 
-        def logsumexp(x, axis=None, keepdims=False):
-            if isinstance(axis, int):
-                axis = (axis,)
-            x_max1 = da.max(x, axis=axis, keepdims=keepdims)
-            x_max2 = x_max1
-            if not keepdims:
-                for a in sorted(axis):
-                    x_max2 = da.expand_dims(x_max2, axis=a)
-            return da.log(da.sum(da.exp(x - x_max2), axis=axis, keepdims=keepdims)) + x_max1
+        sum = op.reduce(tda.sum)
+        mean = op.reduce(tda.mean)
+        var = op.reduce(tda.var)
+        std = op.reduce(tda.std)
+        prod = op.reduce(tda.prod)
+        count_nonzero = op.reduce(tda.count_nonzero)
+        any = op.reduce(tda.any)
+        all = op.reduce(tda.all)
+        min = op.reduce(tda.min)
+        max = op.reduce(tda.max)
 
+        log = op.elementwise(tda.log)
+        exp = op.elementwise(tda.exp)
+        sqrt = op.elementwise(tda.sqrt)
+        square = op.elementwise(tda.square)
+
+        @staticmethod
+        @einx.trace
         def get_at(tensor, coordinates):
             return tensor[coordinates]
 
+        @staticmethod
+        @einx.trace
         def set_at(tensor, coordinates, updates):
-            tensor[coordinates] = updates
-            return tensor
+            return tensor.__setitem__(coordinates, updates)
 
+        @staticmethod
+        @einx.trace
         def add_at(tensor, coordinates, updates):
-            tensor[coordinates] += updates
-            return tensor
+            return tensor.__setitem__(
+                coordinates, tensor.__getitem__(coordinates).__iadd__(updates)
+            )
 
+        @staticmethod
+        @einx.trace
         def subtract_at(tensor, coordinates, updates):
-            tensor[coordinates] -= updates
-            return tensor
+            return tensor.__setitem__(
+                coordinates, tensor.__getitem__(coordinates).__isub__(updates)
+            )
 
-        flip = da.flip
-        roll = da.roll
+        flip = op.keep_shape(tda.flip)
+        roll = op.keep_shape(tda.roll)
 
-        def softmax(x, axis=None):
-            x = x - da.max(x, axis=axis, keepdims=True)
-            return da.exp(x) / da.sum(da.exp(x), axis=axis, keepdims=True)
-
-        def log_softmax(x, axis=None):
-            x = x - da.max(x, axis=axis, keepdims=True)
-            return x - da.log(da.sum(da.exp(x), axis=axis, keepdims=True))
-
-        sqrt = da.sqrt
-
-        def rsqrt(x):
-            return 1.0 / da.sqrt(x)
-
-        square = da.square
-
-        allclose = da.allclose
-
-        def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
+        @staticmethod
+        @einx.trace
+        def vmap(*args, **kwargs):
             raise NotImplementedError(
                 "Functions relying on vmap are not supported for the dask backend"
             )
 
-    return dask
+    return dask()

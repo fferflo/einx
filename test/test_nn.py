@@ -16,16 +16,13 @@ if importlib.util.find_spec("torch"):
     import torch
     import einx.nn.torch
 
-    # Tests are run with many different sets of parameters which cause torch.compile
-    # to recompile the used function and hit the cache limit.
-    # We increase the cache limit to avoid this issue.
-    try:
-        torch._dynamo.config.accumulated_cache_size_limit = 99999
-    except:
-        pass
-    torch._dynamo.config.cache_size_limit = 99999
+    if "compiler" in dir(torch):
+        compiler = torch.compiler
+    else:
+        import torch._dynamo as compiler
 
     def test_torch_linear():
+        compiler.reset()
         x = torch.zeros((4, 128, 128, 3))
 
         layer = einx.nn.torch.Linear("b... [c1->c2]", c2=32)
@@ -38,6 +35,7 @@ if importlib.util.find_spec("torch"):
     @pytest.mark.parametrize("scale", [True, False])
     @pytest.mark.parametrize("decay_rate", [None, 0.9])
     def test_torch_norm(expr_kwargs, mean, scale, decay_rate):
+        compiler.reset()
         expr, kwargs = expr_kwargs
         x = torch.zeros((4, 128, 128, 32))
 
@@ -54,6 +52,7 @@ if importlib.util.find_spec("torch"):
         assert layer.forward(x).shape == (4, 128, 128, 32)
 
     def test_torch_dropout():
+        compiler.reset()
         x = torch.zeros((4, 128, 128, 3))
 
         layer = einx.nn.torch.Dropout("[b] ... [c]", drop_rate=0.2)
@@ -247,7 +246,7 @@ if importlib.util.find_spec("keras"):
     import keras
 
     version = tuple(int(i) for i in keras.__version__.split(".")[:2])
-    if version > (3, 0):
+    if version >= (3, 0):
         import tensorflow as tf
         import einx.nn.keras
 

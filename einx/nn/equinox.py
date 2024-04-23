@@ -7,6 +7,95 @@ from typing import Optional, Callable, Any
 
 # TODO: type annotations
 
+tjax = einx.tracer.import_("jax")
+
+
+def create_or_retrieve(concrete, name, shape, dtype, init):
+    if name in vars(concrete.module) and vars(concrete.module)[name] is not None:
+        tensor = vars(concrete.module)[name]
+    else:
+        tensor = vars(concrete.module)[name] = init(concrete.rng, shape, dtype)
+    return tensor
+
+
+class ParamFactory:
+    class Concrete(einx.tracer.input.Input):
+        def __init__(self, module, name, init, dtype, rng):
+            self.module = module
+            self.name = name
+            self.init = init
+
+            if dtype is None:
+                if hasattr(module, "dtype"):
+                    dtype = module.dtype
+                else:
+                    dtype = "float32"
+            self.dtype = dtype
+
+            self.rng = rng
+
+        def to_value_and_key(self):
+            return self, ParamFactory.CacheKey(self.name, self.init, self.dtype)
+
+    class CacheKey(einx.tracer.input.CacheKey):
+        def __init__(self, name, init, dtype):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+
+        def __hash__(self):
+            return hash((self.name, self.init, self.dtype))
+
+        def __eq__(self, other):
+            return (
+                isinstance(other, ParamFactory.CacheKey)
+                and self.name == other.name
+                and self.init == other.init
+                and self.dtype == other.dtype
+            )
+
+        def to_tracer(self, backend, virtual_arg):
+            x = ParamFactory.Tracer(self.name, self.init, self.dtype)
+            return x, x
+
+    class Tracer(einx.tracer.TensorFactory):
+        def __init__(self, name, init, dtype):
+            self.name = name
+            self.init = init
+            self.dtype = dtype
+
+        def __call__(self, shape, kwargs):
+            name = self.name if not self.name is None else kwargs.get("name", None)
+            init = self.init if not self.init is None else kwargs.get("init", None)
+            dtype = self.dtype if not self.dtype is None else kwargs.get("dtype", None)
+
+            if name is None:
+                raise ValueError("Must specify name for tensor factory eqx.Module")
+
+            if init is None:
+                raise ValueError("Must specify init for tensor factory eqx.Module")
+            elif isinstance(init, str):
+                if init == "get_at" or init == "rearrange":
+                    init = tjax.nn.initializers.normal(stddev=0.02)
+                elif init == "add":
+                    init = tjax.nn.initializers.constant(0.0, dtype=dtype)
+                elif init == "multiply":
+                    init = tjax.nn.initializers.constant(1.0, dtype=dtype)
+                elif init == "dot":
+                    init = tjax.nn.initializers.lecun_normal(
+                        kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"]
+                    )
+                else:
+                    raise ValueError(f"Don't know which initializer to use for operation '{init}'")
+            elif isinstance(init, (int, float)):
+                init = tjax.nn.initializers.constant(init, dtype=dtype)
+
+            return einx.tracer.apply(
+                create_or_retrieve,  # TODO: make tracable
+                args=[self, name, shape, dtype, init],
+                output=einx.tracer.Tensor(shape),
+            )
+
 
 def param(module, name=None, init=None, dtype=None, rng=None):
     """Create a tensor factory for Equinox parameters.
@@ -23,57 +112,7 @@ def param(module, name=None, init=None, dtype=None, rng=None):
     Returns:
         A tensor factory with the given default parameters.
     """
-
-    name0 = name
-    init0 = init
-    dtype0 = dtype
-
-    def equinox_param_factory(shape, name=name, dtype=dtype, init=init, **kwargs):
-        if name0 is not None:
-            name = name0
-        if init0 is not None:
-            init = init0
-        if dtype0 is not None:
-            dtype = dtype0
-
-        if name is None:
-            raise ValueError("Must specify name for tensor factory eqx.Module")
-
-        if dtype is None:
-            if hasattr(module, "dtype"):
-                dtype = module.dtype
-            else:
-                dtype = "float32"
-
-        if init is None:
-            raise ValueError("Must specify init for tensor factory eqx.Module")
-        elif isinstance(init, str):
-            if init == "get_at" or init == "rearrange":
-                init = jax.nn.initializers.normal(stddev=0.02)
-            elif init == "add":
-                init = jax.nn.initializers.constant(0.0, dtype=dtype)
-            elif init == "multiply":
-                init = jax.nn.initializers.constant(1.0, dtype=dtype)
-            elif init == "dot":
-                init = jax.nn.initializers.lecun_normal(
-                    kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"]
-                )
-            else:
-                raise ValueError(f"Don't know which initializer to use for operation '{init}'")
-        elif isinstance(init, (int, float)):
-            init = jax.nn.initializers.constant(init, dtype=dtype)
-
-        if vars(module)[name] is not None:
-            tensor = vars(module)[name]
-        else:
-            tensor = vars(module)[name] = init(rng, shape, dtype)
-        return tensor
-
-    return equinox_param_factory
-
-
-def to_tensor_factory(x):
-    return None
+    return ParamFactory.Concrete(module, name, init, dtype, rng)
 
 
 class Norm(eqx.Module):

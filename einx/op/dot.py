@@ -5,16 +5,12 @@ from typing import Union
 import numpy.typing as npt
 
 
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda exprs_in, tensors_in, expr_out, backend=None: c(
         exprs_in, [t(x) for x in tensors_in], expr_out
     )
 )
 def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
-    if backend is None:
-        backend = einx.backend.get(tensors_in)
-    elif isinstance(backend, str):
-        backend = einx.backend.get(backend)
     if any(isinstance(expr, einx.expr.stage3.Concatenation) for expr in expr_out.all()):
         raise ValueError("Output expression cannot contain concatenations")
     for root in list(exprs_in) + [expr_out]:
@@ -59,11 +55,12 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
         }
 
     tensors_in = [
-        einx.param.instantiate(
+        einx.tracer.call_factory(
             tensor, expr.shape, backend, **get_fans(i), name="weight", init="dot"
         )
         for i, (tensor, expr) in enumerate(zip(tensors_in, exprs_in))
     ]
+    tensors_in = backend.all_to_tensor(tensors_in)
 
     # Flatten expressions
     exprs_in, tensors_in = util.flatten(exprs_in, tensors_in, backend=backend)
@@ -108,9 +105,7 @@ def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
     tensor = util.transpose_broadcast(expr, tensor, expr_out_flat, backend=backend)[0]
 
     # Unflatten output expression
-    assert tensor.shape is not None
-    if tensor.shape != expr_out.shape:
-        tensor = backend.reshape(tensor, expr_out.shape)
+    tensor = backend.reshape(tensor, expr_out.shape)
 
     return tensor, expr_out
 
@@ -194,7 +189,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
 
 
 @einx.traceback_util.filter
-@einx.lru_cache(
+@einx.jit(
     trace=lambda t, c: lambda description, *tensors, backend=None, **kwargs: c(
         description, *[t(x) for x in tensors], **kwargs
     )
@@ -289,7 +284,7 @@ def dot(
         (4, 16, 16, 32)
     """
     exprs_in, expr_out = parse(
-        description, *[einx.param.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
+        description, *[einx.tracer.get_shape(tensor) for tensor in tensors], cse=cse, **parameters
     )
     tensor, _expr = dot_stage3(exprs_in, tensors, expr_out, backend=backend)
     return tensor
