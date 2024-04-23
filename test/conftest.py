@@ -53,6 +53,22 @@ class WrappedEinx:
             return op3
 
 
+
+# numpy is always available
+import numpy as np
+
+backend = einx.backend.numpy.create()
+
+test = types.SimpleNamespace(
+    full=lambda shape, value=0.0, dtype="float32": np.full(shape, value, dtype=dtype),
+    to_tensor=np.asarray,
+    to_numpy=np.asarray,
+)
+
+tests.append((einx, backend, test))
+
+
+
 if importlib.util.find_spec("jax"):
     import jax
     import jax.numpy as jnp
