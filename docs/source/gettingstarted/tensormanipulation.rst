@@ -39,16 +39,14 @@ Using :func:`einx.rearrange` often produces more readable and concise code than 
 inspected using the just-in-time compiled function that einx creates for this expression (see :doc:`Just-in-time compilation </gettingstarted/jit>`):
 
 >>> print(einx.rearrange("b (s p) (c + 1) -> (b s) p c, (b p) s 1", x, p=8, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0):
-    x1 = backend.reshape(i0, (4, 32, 8, 17))
-    x2 = x1[:, :, :, 0:16]
-    x0 = backend.reshape(x2, (128, 8, 16))
-    x6 = x1[:, :, :, 16:17]
-    x5 = backend.reshape(x6, (4, 32, 8))
-    x4 = backend.transpose(x5, (0, 2, 1))
-    x3 = backend.reshape(x4, (32, 32, 1))
-    return [x0, x3]
+    x0 = np.reshape(i0, (4, 32, 8, 17))
+    x1 = np.reshape(x0[:, :, :, 0:16], (128, 8, 16))
+    x2 = np.reshape(x0[:, :, :, 16:17], (4, 32, 8))
+    x3 = np.transpose(x2, (0, 2, 1))
+    x4 = np.reshape(x3, (32, 32, 1))
+    return [x1, x4]
 
 Reduction ops
 -------------
@@ -350,12 +348,12 @@ not the output are reduced via a dot-product:
 The graph representation shows that the inputs and output are rearranged as required and the dot-product is forwarded to the ``einsum`` function of the backend:
 
 >>> print(einx.dot("b (g c1), c1 c2 -> b (g c2)", x, w, g=2, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0, i1):
-    x2 = backend.reshape(i0, (20, 2, 8))
-    x1 = backend.einsum("abc,cd->abd", x2, i1)
-    x0 = backend.reshape(x1, (20, 8))
-    return x0
+    x0 = np.reshape(i0, (20, 2, 8))
+    x1 = np.einsum("abc,cd->abd", x0, i1)
+    x2 = np.reshape(x1, (20, 8))
+    return x2
 
 Shorthand notation in :func:`einx.dot` is supported as follows. When given two input tensors, the expression of the second input is determined implicitly by marking
 its components in the input and output expression:
@@ -378,9 +376,9 @@ The graph representation shows that the expression forwarded to the ``einsum`` c
 >>> x = np.ones((4, 8))
 >>> y = np.ones((8, 5))
 >>> print(einx.dot("a [b->c]", x, y, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0, i1):
-    x0 = backend.einsum("ab,bc->ac", i0, i1)
+    x0 = np.einsum("ab,bc->ac", i0, i1)
     return x0
 
 .. _lazytensorconstruction:

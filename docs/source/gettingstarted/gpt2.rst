@@ -82,12 +82,12 @@ We can verify the correctness of these operations by inspecting the jit-compiled
 
 >>> graph = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=self.heads, graph=True)
 >>> print(graph)
-# backend: einx.backend.jax
+import jax.numpy as jnp
 def op0(i0, i1):
-    x1 = backend.reshape(i0, (1, 1024, 25, 64))
-    x2 = backend.reshape(i1, (1, 1024, 25, 64))
-    x0 = backend.einsum("abcd,aecd->abec", x1, x2)
-    return x0
+    x0 = jnp.reshape(i0, (1, 1024, 25, 64))
+    x1 = jnp.reshape(i1, (1, 1024, 25, 64))
+    x2 = jnp.einsum("abcd,aecd->abec", x0, x1)
+    return x2
 
 The final GPT-2 model first embeds the input tokens and adds positional embeddings. It then applies a number of main blocks and maps the output onto next token
 logits using a linear layer:

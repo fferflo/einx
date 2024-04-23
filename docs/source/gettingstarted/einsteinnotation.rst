@@ -38,9 +38,9 @@ To verify that the correct backend calls are made, the just-in-time compiled fun
 
 >>> graph = einx.rearrange("a b c -> a c b", x, graph=True)
 >>> print(graph)
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0):
-    x0 = backend.transpose(i0, (0, 2, 1))
+    x0 = np.transpose(i0, (0, 2, 1))
     return x0
 
 The function shows that einx performs the expected call to ``np.transpose``.
@@ -86,15 +86,15 @@ that it uses a `np.reshape <https://numpy.org/doc/stable/reference/generated/num
 operation with the requested shape:
 
 >>> print(einx.rearrange("(a b) c -> a b c", x, a=2, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0):
-    x0 = backend.reshape(i0, (2, 3, 4))
+    x0 = np.reshape(i0, (2, 3, 4))
     return x0
 
 >>> print(einx.rearrange("a b c -> (a b) c", x, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0):
-    x0 = backend.reshape(i0, (6, 4))
+    x0 = np.reshape(i0, (6, 4))
     return x0
 
 .. note::
@@ -136,12 +136,12 @@ This operation requires multiple backend calls in index-based notation that migh
 the intent of the operation and requires less code:
 
 >>> print(einx.rearrange("(s p)... c -> (s...) p... c", x, p=8, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0):
-    x2 = backend.reshape(i0, (32, 8, 32, 8, 3))
-    x1 = backend.transpose(x2, (0, 2, 1, 3, 4))
-    x0 = backend.reshape(x1, (1024, 8, 8, 3))
-    return x0
+    x0 = np.reshape(i0, (32, 8, 32, 8, 3))
+    x1 = np.transpose(x0, (0, 2, 1, 3, 4))
+    x2 = np.reshape(x1, (1024, 8, 8, 3))
+    return x2
 
 In einops-style notation, an ellipsis can only appear once at root level without a preceding expression. To be fully compatible with einops notation, einx implicitly
 converts anonymous ellipses by adding an axis in front:
@@ -201,11 +201,11 @@ This can be used for example to concatenate tensors that do not have compatible 
 The graph shows that einx first reshapes ``y`` by adding a channel dimension, and then concatenates the tensors along that axis:
 
 >>> print(einx.rearrange("h w c, h w -> h w (c + 1)", x, y, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0, i1):
-    x1 = backend.reshape(i1, (256, 256, 1))
-    x0 = backend.concatenate([i0, x1], 2)
-    return x0
+    x0 = np.reshape(i1, (256, 256, 1))
+    x1 = np.concatenate([i0, x0], axis=2)
+    return x1
 
 Splitting is supported analogously:
 
@@ -281,11 +281,11 @@ Bracket notation is fully compatible with expression rearranging and can therefo
 (4, 64, 64, 3)
 
 >>> print(einx.mean("b (s [ds])... c", x, ds=4, graph=True))
-# backend: einx.backend.numpy
+import numpy as np
 def op0(i0):
-    x1 = backend.reshape(i0, (4, 64, 4, 64, 4, 3))
-    x0 = backend.mean(x1, axis=(2, 4))
-    return x0
+    x0 = np.reshape(i0, (4, 64, 4, 64, 4, 3))
+    x1 = np.mean(x0, axis=(2, 4))
+    return x1
 
 .. note::
 
