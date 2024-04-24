@@ -53,7 +53,6 @@ class WrappedEinx:
             return op3
 
 
-
 # numpy is always available
 import numpy as np
 
@@ -66,7 +65,6 @@ test = types.SimpleNamespace(
 )
 
 tests.append((einx, backend, test))
-
 
 
 if importlib.util.find_spec("jax"):

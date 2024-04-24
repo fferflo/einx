@@ -92,21 +92,21 @@ for env in envs:
     if "torch" in env.name:
         x_transposed = env.ones((16 // f, 64 // f, 512 // f, 512 // f), "float32")
         x_transposed[:] = einx.rearrange("b s... c -> b c s...", x)
-    y = (env.ones((512 // f, 512 // f)))
-    z1 = (env.ones((64 // f,), "float32"))
-    z2 = (env.ones((64 // f,), "float32"))
-    w = (env.ones((64 // f, 128 // f), "float32"))
+    y = env.ones((512 // f, 512 // f))
+    z1 = env.ones((64 // f,), "float32")
+    z2 = env.ones((64 // f,), "float32")
+    w = env.ones((64 // f, 128 // f), "float32")
     if "torch" in env.name:
-        w_transposed = (env.ones((128 // f, 64 // f), "float32"))
+        w_transposed = env.ones((128 // f, 64 // f), "float32")
         w_transposed[:] = w.T
-    w1 = (env.ones((512 // f, 512 // f, 128 // f)))
-    w2 = (env.ones((128 // f, 512 // f, 512 // f)))
-    b128 = (env.ones((128 // f,), "float32"))
+    w1 = env.ones((512 // f, 512 // f, 128 // f))
+    w2 = env.ones((128 // f, 512 // f, 512 // f))
+    b128 = env.ones((128 // f,), "float32")
     epsilon = 1e-5
 
-    query = (env.ones((16 // f, 512 // f, 512 // f), "float32"))
-    key = (env.ones((16 // f, 512 // f, 512 // f), "float32"))
-    value = (env.ones((16 // f, 512 // f, 512 // f), "float32"))
+    query = env.ones((16 // f, 512 // f, 512 // f), "float32")
+    key = env.ones((16 // f, 512 // f, 512 // f), "float32")
+    value = env.ones((16 // f, 512 // f, 512 // f), "float32")
 
     def benchmark_einx(x, bias, scale):
         return einx.nn.norm(x, "b... [c]", bias=bias, scale=scale, epsilon=epsilon, fastvar=False)[
@@ -242,7 +242,11 @@ for env in envs:
     experiments.append((
         "channel_linear",
         (benchmark_einx, benchmark_native, benchmark_idx),
-        lambda m: (x, b128, w_transposed if env.native_transposed and "native" in m.__name__ else w),
+        lambda m: (
+            x,
+            b128,
+            w_transposed if env.native_transposed and "native" in m.__name__ else w,
+        ),
         1.0,
     ))
 
