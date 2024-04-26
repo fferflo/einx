@@ -56,12 +56,17 @@ def vmap_forloop(op, in_axes, out_axes, backend):
 
 
 _thread_local = threading.local()
-_thread_local.default_backend_stack = []
+
+
+def _get_backend_stack():
+    if not hasattr(_thread_local, "backend_stack"):
+        _thread_local.backend_stack = []
+    return _thread_local.backend_stack
 
 
 def get_default():
-    if len(_thread_local.default_backend_stack) > 0:
-        return _thread_local.default_backend_stack[-1]
+    if len(_get_backend_stack()) > 0:
+        return _get_backend_stack()[-1]
     else:
         return None
 
@@ -71,12 +76,12 @@ class Backend:
     decorators = []
 
     def __enter__(backend):
-        _thread_local.default_backend_stack.append(backend)
+        _get_backend_stack().append(backend)
         return backend
 
     def __exit__(backend, *args):
-        assert _thread_local.default_backend_stack[-1] is backend
-        _thread_local.default_backend_stack.pop()
+        assert _get_backend_stack()[-1] is backend
+        _get_backend_stack().pop()
 
     @staticmethod
     def _decorate_construct_graph(f):

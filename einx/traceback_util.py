@@ -12,7 +12,22 @@ def include_frame(fname):
 
 
 thread_local = threading.local()
-thread_local.in_reraise = False
+
+
+def _set_in_reraise():
+    if not hasattr(thread_local, "in_reraise"):
+        thread_local.in_reraise = False
+    assert not thread_local.in_reraise
+    thread_local.in_reraise = True
+
+
+def _unset_in_reraise():
+    assert thread_local.in_reraise
+    thread_local.in_reraise = False
+
+
+def _is_in_reraise():
+    return getattr(thread_local, "in_reraise", False)
 
 
 def _filter_tb(tb):
@@ -46,8 +61,8 @@ def filter(func):
 
         @functools.wraps(func)
         def func_with_reraise(*args, **kwargs):
-            if not thread_local.in_reraise:
-                thread_local.in_reraise = True
+            if not _is_in_reraise():
+                _set_in_reraise()
                 tb = None
                 try:
                     return func(*args, **kwargs)
@@ -56,7 +71,7 @@ def filter(func):
                     raise e.with_traceback(tb) from None
                 finally:
                     del tb
-                    thread_local.in_reraise = False
+                    _unset_in_reraise()
             else:
                 return func(*args, **kwargs)
 

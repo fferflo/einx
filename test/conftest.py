@@ -2,6 +2,8 @@ import importlib
 import numpy as np
 import types
 import einx
+import threading
+import multiprocessing
 
 tests = []
 
@@ -53,6 +55,55 @@ class WrappedEinx:
             return op3
 
 
+def in_new_thread(op):
+    def inner(*args, **kwargs):
+        result = [None, None]
+
+        def run(result):
+            try:
+                result[0] = op(*args, **kwargs)
+            except Exception as e:
+                result[1] = e
+
+        thread = threading.Thread(target=run, args=(result,))
+        thread.start()
+        thread.join()
+        if result[1] is not None:
+            raise result[1]
+        else:
+            return result[0]
+
+    return inner
+
+
+einx_multithread = WrappedEinx(in_new_thread, "multithreading", inline_args=True)
+
+
+def in_new_process(op):
+    def inner(*args, **kwargs):
+        result = multiprocessing.Queue()
+        exception = multiprocessing.Queue()
+
+        def run(result, exception):
+            try:
+                result.put(op(*args, **kwargs))
+            except Exception as e:
+                exception.put(e)
+
+        process = multiprocessing.Process(target=run, args=(result, exception))
+        process.start()
+        process.join()
+        if not exception.empty():
+            raise exception.get()
+        else:
+            return result.get()
+
+    return inner
+
+
+einx_multiprocess = WrappedEinx(in_new_process, "multiprocessing", inline_args=True)
+
+
 # numpy is always available
 import numpy as np
 
@@ -65,6 +116,8 @@ test = types.SimpleNamespace(
 )
 
 tests.append((einx, backend, test))
+tests.append((einx_multithread, backend, test))
+# tests.append((einx_multiprocess, backend, test)) # too slow
 
 
 if importlib.util.find_spec("jax"):

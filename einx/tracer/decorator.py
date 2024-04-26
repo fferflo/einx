@@ -112,7 +112,12 @@ def lru_cache(func):
 
 
 _thread_local = threading.local()
-_thread_local.stack = []
+
+
+def _get_trace_stack():
+    if not hasattr(_thread_local, "stack"):
+        _thread_local.stack = []
+    return _thread_local.stack
 
 
 class _trace_context:
@@ -120,15 +125,15 @@ class _trace_context:
         self.backend = backend
 
     def __enter__(self):
-        _thread_local.stack.append(self)
+        _get_trace_stack().append(self)
 
     def __exit__(self, *args):
-        assert id(_thread_local.stack[-1]) == id(self)
-        _thread_local.stack.pop()
+        assert id(_get_trace_stack()[-1]) == id(self)
+        _get_trace_stack().pop()
 
 
 def _is_tracing():
-    return len(_thread_local.stack) > 0
+    return len(_get_trace_stack()) > 0
 
 
 trace_all = lambda t, c: lambda *args, **kwargs: c(
@@ -187,8 +192,8 @@ def jit(func=None, trace=trace_all):
         if _is_tracing():
             assert not graph
             if backend is None:
-                backend = _thread_local.stack[-1].backend
-            elif backend != _thread_local.stack[-1].backend:
+                backend = _get_trace_stack()[-1].backend
+            elif backend != _get_trace_stack()[-1].backend:
                 raise ValueError("Cannot change backend during tracing")
 
             return func(*args, backend=backend, **kwargs)

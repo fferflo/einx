@@ -84,12 +84,17 @@ def apply(
             signature=signature,
             inplace_updates=inplace_updates,
             comment=comment,
-            depend_on=depend_on + _thread_local.depend_on,
+            depend_on=depend_on + _get_depend_on_stack(),
         ).output
 
 
 _thread_local = threading.local()
-_thread_local.depend_on = []
+
+
+def _get_depend_on_stack():
+    if not hasattr(_thread_local, "depend_on"):
+        _thread_local.depend_on = []
+    return _thread_local.depend_on
 
 
 class depend_on:
@@ -97,11 +102,11 @@ class depend_on:
         self.tracer = list(einx.tree_util.tree_flatten(tracers))
 
     def __enter__(self):
-        _thread_local.depend_on.append(self.tracer)
+        _get_depend_on_stack().append(self.tracer)
 
     def __exit__(self, *args):
-        assert _thread_local.depend_on[-1] is self.tracer
-        _thread_local.depend_on.pop()
+        assert _get_depend_on_stack()[-1] is self.tracer
+        _get_depend_on_stack().pop()
 
 
 class Tracer:
