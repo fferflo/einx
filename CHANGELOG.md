@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.2]
+
+### Added
+
+- Add [`einx.experimental.shard`](https://einx.readthedocs.io/en/latest/api.html#einx.experimental.shard).
+
+### Fixed
+
+- Fix bug when calling einx from multiple threads. (Run unit tests also in multi-threaded context.)
+
+
+
 ## [0.2.1]
 
 ### Changed
