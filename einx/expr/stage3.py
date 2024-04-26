@@ -223,16 +223,14 @@ class Marker(Expression):
         yield from self.inner.all()
 
 
-class SolveValueException(Exception):
+class SolveValueException(solver.SolveException):
     def __init__(self, exprs1, exprs2, message):
         self.exprs1 = exprs1
         self.exprs2 = exprs2
-        self.message = f"Failed to solve values of expressions. {message}\nInput:\n"
+        message = f"Failed to solve values of expressions. {message}\nInput:\n"
         for expr1, expr2 in zip(exprs1, exprs2):
-            self.message += (
-                f"    '{einx.expr.util._to_str(expr1)} = {einx.expr.util._to_str(expr2)}'\n"
-            )
-        super().__init__(self.message)
+            message += f"    '{einx.expr.util._to_str(expr1)} = {einx.expr.util._to_str(expr2)}'\n"
+        super().__init__(message)
 
 
 def solve(exprs1, exprs2):

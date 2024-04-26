@@ -4,6 +4,7 @@ import types
 import einx
 import threading
 import multiprocessing
+import os
 
 tests = []
 
@@ -121,6 +122,10 @@ tests.append((einx_multithread, backend, test))
 
 
 if importlib.util.find_spec("jax"):
+    os.environ["XLA_FLAGS"] = (
+        os.environ.get("XLA_FLAGS", "") + " --xla_force_host_platform_device_count=8"
+    )
+
     import jax
     import jax.numpy as jnp
 

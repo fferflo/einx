@@ -189,7 +189,7 @@ class Marker(Expression):
         yield from self.inner.all()
 
 
-class SolveDepthException(Exception):
+class SolveDepthException(solver.SolveException):
     def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
         assert (
             len({
@@ -208,22 +208,23 @@ class SolveDepthException(Exception):
         self.expansions2 = expansions2
         self.depths1 = depths1
         self.depths2 = depths2
-        self.message = (
+        message_in = message
+        message = (
             "Failed to solve for the depth of axes, i.e. the number of outer ellipses.\n"
             "Equations:\n"
         )
         for expr1, expr2 in zip(exprs1, exprs2):
             if expr1 is not None and expr2 is not None:
-                self.message += "    "
-                self.message += f"{einx.expr.util._to_str(expr1)}"
-                self.message += " = "
-                self.message += f"{einx.expr.util._to_str(expr2)}"
-                self.message += "\n"
-        self.message += f"Reason: {message}"
-        super().__init__(self.message)
+                message += "    "
+                message += f"{einx.expr.util._to_str(expr1)}"
+                message += " = "
+                message += f"{einx.expr.util._to_str(expr2)}"
+                message += "\n"
+        message += f"Reason: {message_in}"
+        super().__init__(message)
 
 
-class SolveExpansionException(Exception):
+class SolveExpansionException(solver.SolveException):
     def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
         assert (
             len({
@@ -242,16 +243,17 @@ class SolveExpansionException(Exception):
         self.expansions2 = expansions2
         self.depths1 = depths1
         self.depths2 = depths2
-        self.message = "Failed to solve for the number of axes in the expressions.\nEquations:\n"
+        message_in = message
+        message = "Failed to solve for the number of axes in the expressions.\nEquations:\n"
         for expr1, expr2 in zip(exprs1, exprs2):
             if expr1 is not None and expr2 is not None:
-                self.message += "    "
-                self.message += f"{einx.expr.util._to_str(expr1)}"
-                self.message += " = "
-                self.message += f"{einx.expr.util._to_str(expr2)}"
-                self.message += "\n"
-        self.message += f"Reason: {message}"
-        super().__init__(self.message)
+                message += "    "
+                message += f"{einx.expr.util._to_str(expr1)}"
+                message += " = "
+                message += f"{einx.expr.util._to_str(expr2)}"
+                message += "\n"
+        message += f"Reason: {message_in}"
+        super().__init__(message)
 
 
 def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):

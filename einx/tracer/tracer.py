@@ -131,17 +131,18 @@ class Tracer:
 
 
 class Import(Tracer):
-    def __init__(self, module, shorthand=None):
+    def __init__(self, import_, as_, from_):
         Tracer.__init__(self, origin="constant")
-        self.module = module
-        self.shorthand = shorthand
+        self.import_ = import_
+        self.as_ = as_
+        self.from_ = from_
 
     def __call__(self):  # Overwrite allowed arguments
         return apply(self)
 
 
-def import_(module, shorthand=None):
-    return Import(module, shorthand)()
+def import_(import_, as_=None, from_=None):
+    return Import(import_, as_, from_)()
 
 
 class MemberAccess(Tracer):

@@ -123,3 +123,8 @@ Keras
 .. autoclass:: einx.nn.keras.Dropout
 
 .. autofunction:: einx.nn.keras.param
+
+Experimental
+============
+
+.. autofunction:: einx.experimental.shard

@@ -213,11 +213,13 @@ class CodeObject:
 
         use_dynamic_output_check = False
         if isinstance(application.op, Import):
-            import_str = f"import {application.op.module}"
-            name = application.op.module
-            if not application.op.shorthand is None:
-                import_str += f" as {application.op.shorthand}"
-                name = application.op.shorthand
+            import_str = f"import {application.op.import_}"
+            name = application.op.import_
+            if not application.op.as_ is None:
+                import_str = f"{import_str} as {application.op.as_}"
+                name = application.op.as_
+            if not application.op.from_ is None:
+                import_str = f"from {application.op.from_} {import_str}"
 
             # Import only once
             if not any(
