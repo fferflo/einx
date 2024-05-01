@@ -233,6 +233,11 @@ def test_shape_dot(test):
     assert einx.dot("... b, ... -> b", x, y).shape == (10,)
     assert einx.dot("[...] b -> b", x, y).shape == (10,)
 
+    k = setup.full((2, 4, 100))
+    v = setup.full((2, 4, 100))
+    with pytest.raises(Exception):
+        einx.dot("b t (h ck), b t (h cv) -> b h ck cv", k, v, h=32, graph=True)
+
 
 @pytest.mark.parametrize("test", conftest.tests)
 def test_shape_reduce(test):

@@ -20,10 +20,11 @@ class Expression:
 
 
 class Variable(Expression):
-    def __init__(self, id, name):
+    def __init__(self, id, name, integer=True):
         Expression.__init__(self)
         self.id = id
         self.name = name
+        self.integer = integer
 
     def __iter__(self):
         yield self
@@ -38,7 +39,7 @@ class Variable(Expression):
         return f"{self.name}"
 
     def sympy(self):
-        return sympy.Symbol(self.id)
+        return sympy.Symbol(self.id, integer=self.integer)
 
 
 class Constant(Expression):
