@@ -144,6 +144,8 @@ def shard(
 ) -> einx.Tensor:
     """Shards a tensor over a mesh of devices.
 
+    *This function is currently experimental and will likely change in future versions.*
+
     *This function is currently only supported for Jax: A sharding is created
     based on the given expression, and applied to the tensor using* ``jax.device_put``.
 
@@ -183,8 +185,6 @@ def shard(
     >>> x = einx.experimental.shard("a ([d1] b)", x, mesh=mesh)
     >>> x.sharding
     NamedSharding(mesh=Mesh('d1': 4, 'd2': 2), spec=PartitionSpec(None, 'd1',))
-
-    **This function is currently experimental and will likely change in future versions.**
 
     Args:
         description: Description string in Einstein notation (see above).

@@ -3,7 +3,7 @@ Tutorial: Neural networks
 
 einx provides several neural network layer types for deep learning frameworks (`PyTorch <https://pytorch.org/>`_, `Flax <https://github.com/google/flax>`_,
 `Haiku <https://github.com/google-deepmind/dm-haiku>`_, `Equinox <https://github.com/patrick-kidger/equinox>`_, `Keras <https://keras.io/>`_) in the ``einx.nn.*`` namespace 
-based on the functions in ``einx.*``. These layers provide abstractions that can implement a wide variety of deep learning operations using Einstein notation.
+based on the functions in ``einx.*``. These layers provide abstractions that can implement a wide variety of deep learning operations using einx notation.
 The ``einx.nn.*`` namespace is entirely optional, and is imported as follows:
 
 ..  code::
@@ -92,7 +92,7 @@ The utility of ``einn.param`` comes from providing several useful default argume
         elif init == "dot":
             init = nn.initializers.lecun_normal(kwargs["in_axis"], kwargs["out_axis"], kwargs["batch_axis"])
 
-    :func:`einx.dot` additionally determines ``in_axis``, ``out_axis`` and ``batch_axis`` from the Einstein expression and forwards them as optional arguments
+    :func:`einx.dot` additionally determines ``in_axis``, ``out_axis`` and ``batch_axis`` from the einx expression and forwards them as optional arguments
     to tensor factories. In this case, they allow ``nn.initializers.lecun_normal`` to determine the fan-in of the layer and choose the initialization accordingly.
 
 *   **Default argument for** ``name``
@@ -267,8 +267,8 @@ Layers
 
 einx provides the layer types ``einn.{Linear|Norm|Dropout}`` that are implemented as outlined above.
 
-**einn.Norm** implements a normalization layer with optional exponential moving average (EMA) over the computed statistics. The first parameter is an Einstein expression for
-the axes along which the statistics for normalization are computed. The second parameter is an Einstein expression for the axes corresponding to the bias and scale terms, and
+**einn.Norm** implements a normalization layer with optional exponential moving average (EMA) over the computed statistics. The first parameter is an einx expression for
+the axes along which the statistics for normalization are computed. The second parameter is an einx expression for the axes corresponding to the bias and scale terms, and
 defaults to ``b... [c]``. The different sub-steps can be toggled by passing ``True`` or ``False`` for the ``mean``, ``var``, ``scale`` and ``bias`` parameters. The EMA is used only if 
 ``decay_rate`` is passed.
 
@@ -292,7 +292,7 @@ A bias is added corresponding to the marked output expressions, and is disabled 
     spatial_mix2    = einn.Linear("b [s2->s...] c", s=(64, 64))
     patch_embed     = einn.Linear("b (s [s2->])... [c1->c2]", s2=4, c2=64)
 
-**einn.Dropout** implements a stochastic dropout. The first parameter specifies the shape of the mask in Einstein notation that is applied to the input tensor.
+**einn.Dropout** implements a stochastic dropout. The first parameter specifies the shape of the mask in einx notation that is applied to the input tensor.
 
 ..  code::
 

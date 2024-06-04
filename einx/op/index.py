@@ -387,28 +387,23 @@ def index(
     cse: bool = True,
     **parameters: npt.ArrayLike,
 ) -> einx.Tensor:
-    """Updates and/ or returns values from an array at the given coordinates.
+    """Updates and/ or returns values from a tensor at the given coordinates.
 
-    The `description` argument specifies the input and output expressions and must meet one of
-    the following formats:
+    * If ``update`` is True: The first tensor receives updates, the last tensor contains the
+      updates, and all other tensors represent the coordinates. If the output expression is
+      not given, it is assumed to be equal to the first input expression.
 
-    1. ``tensor, coordinates1, coordinates2, ..., update -> output``
-       when modifying values in the tensor.
-    2. ``tensor, coordinates1, coordinates2, ... -> output``
-       when only returning values from the tensor.
+    * If ``update`` is False, values are retrieved from the first tensor and the remaining tensors
+      contain the coordinates.
 
-    Brackets in the ``tensor`` expression mark the axes that will be indexed. Brackets in the
-    ``coordinates`` expression mark the single coordinate axis. All other axes are considered
-    batch axes. Using multiple coordinate expressions will yield the same output as concatenating
+    Using multiple coordinate expressions will yield the same output as concatenating
     the coordinate expressions along the coordinate axis first.
 
     Args:
-        description: Description string in Einstein notation (see above).
-        *tensors: Tensors that the operation will be applied to. The first tensor will receive
-            updates, the last tensor contains the updates, and all other tensors represent
-            the coordinates.
-        op: The update/gather function. If `op` is a string, retrieves the attribute of `backend`
-            with the same name.
+        description: Description string for the operation in einx notation.
+        *tensors: Tensors that the operation will be applied to.
+        op: The update/gather function. If ``op`` is a string, retrieves the attribute of
+            ``backend`` with the same name.
         update: Whether to update the tensor or return values from the tensor.
         backend: Backend to use for all operations. If None, determines the backend from the
             input tensors. Defaults to None.
@@ -419,7 +414,7 @@ def index(
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the update/ gather operation if `graph=False`, otherwise the graph
+        The result of the update/ gather operation if ``graph=False``, otherwise the graph
         representation of the operation.
 
     Examples:

@@ -98,14 +98,9 @@ def rearrange(
 ) -> Union[einx.Tensor, Tuple[einx.Tensor, ...]]:
     """Rearranges the input tensors to match the output expressions.
 
-    See :doc:`How does einx handle input and output tensors? </faq/flatten>`.
-
-    The `description` argument specifies the input and output expressions. It must
-    meet the following format:
-    ``input1, input2, ... -> output1, output2, ...``
-
     Args:
-        description: Description string in Einstein notation (see above).
+        description: Description string for the operation in einx notation. Must not contain
+            brackets.
         tensors: Input tensors or tensor factories matching the description string.
         backend: Backend to use for all operations. If None, determines the backend from
             the input tensors. Defaults to None.
@@ -116,7 +111,7 @@ def rearrange(
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the elementwise operation if `graph=False`, otherwise the graph
+        The result of the rearrange operation if ``graph=False``, otherwise the graph
         representation of the operation.
 
     Examples:

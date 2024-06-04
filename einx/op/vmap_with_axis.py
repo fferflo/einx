@@ -236,24 +236,19 @@ def vmap_with_axis(
     **parameters: npt.ArrayLike,
 ):
     """Applies a function to the marked axes of the input tensors by passing the ``axis``
-    argument.
+    argument and relying on implicit broadcasting rules.
 
-    The function flattens all input tensors, applies the given operation and rearranges
-    the result to match the output expressions (see :doc:`How does einx handle input and output
-    tensors? </faq/flatten>`).
-
-    The `description` argument specifies the input and output expressions. The operation is
-    applied over all axes marked with ``[]``-brackets. All other axes are considered batch axes.
-
-    When the function is applied on scalars, the ``axis`` argument is not passed. For multiple
-    input tensors, the function must follow
+    The function ``op`` must accept input tensors and an ``axis`` argument specifying the
+    indices of the axes along which the operation is applied. When the function is applied on
+    scalars, the ``axis`` argument is not passed. For multiple input tensors, the function
+    must follow
     `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_.
 
     Args:
-        description: Description string in Einstein notation (see above).
+        description: Description string for the operation in einx notation.
         tensors: Input tensors or tensor factories matching the description string.
-        op: Backend operation. Is called with ``op(tensor, axis=...)``. If `op` is a string,
-            retrieves the attribute of `backend` with the same name.
+        op: Backend operation. Is called with ``op(tensor, axis=...)``. If ``op`` is a string,
+            retrieves the attribute of ``backend`` with the same name.
         kwargs: Additional keyword arguments that are passed to ``op``.
         backend: Backend to use for all operations. If None, determines the backend from the input
             tensors. Defaults to None.

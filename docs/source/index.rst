@@ -1,23 +1,26 @@
 Welcome to einx's documentation!
 ================================
 
-einx is a Python library that allows formulating many tensor operations as concise expressions using Einstein notation.
-It is inspired by `einops <https://github.com/arogozhnikov/einops>`_.
-
 .. toctree::
    :caption: Getting Started
    :maxdepth: 3
 
    gettingstarted/introduction.rst
    gettingstarted/installation.rst
-   gettingstarted/einsteinnotation.rst
-   gettingstarted/tensormanipulation.rst
-   gettingstarted/neuralnetworks.rst
+   gettingstarted/tutorial_overview.rst
+   gettingstarted/tutorial_notation.rst
+   gettingstarted/tutorial_ops.rst
+   gettingstarted/tutorial_neuralnetworks.rst
    gettingstarted/commonnnops.rst
    gettingstarted/gpt2.rst
-   gettingstarted/jit.rst
-   gettingstarted/gotchas.rst
-   gettingstarted/cheatsheet.rst
+
+.. toctree::
+   :caption: Further Resources
+   :maxdepth: 1
+
+   more/jit.rst
+   more/gotchas.rst
+   more/related.rst
 
 .. toctree::
    :caption: Frequently Asked Questions
@@ -27,6 +30,7 @@ It is inspired by `einops <https://github.com/arogozhnikov/einops>`_.
    faq/solver.rst
    faq/backend.rst
    faq/einops.rst
+   faq/universal.rst
 
 .. toctree::
    :caption: einx API

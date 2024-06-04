@@ -2,26 +2,15 @@
 einx API
 ########
 
-Abstractions
-============
-
 Main
 ----
 
 .. autofunction:: einx.rearrange
 .. autofunction:: einx.vmap_with_axis
 .. autofunction:: einx.vmap
-.. autofunction:: einx.dot
-
-Partial specializations
------------------------
-
 .. autofunction:: einx.reduce
 .. autofunction:: einx.elementwise
 .. autofunction:: einx.index
-
-Numpy-like functions
-====================
 
 Reduction operations
 --------------------
@@ -75,6 +64,11 @@ Miscellaneous operations
 .. autofunction:: einx.softmax
 .. autofunction:: einx.log_softmax
 .. autofunction:: einx.arange
+
+General dot-product
+-------------------
+
+.. autofunction:: einx.dot
 
 Deep Learning Modules
 =====================

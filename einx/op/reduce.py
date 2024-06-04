@@ -108,32 +108,26 @@ def reduce(
 ) -> einx.Tensor:
     """Applies a reduction operation on the given tensors.
 
-    The function flattens all input tensors, applies the given reduction operation and rearranges
-    the result to match the output expression (see :doc:`How does einx handle input and
-    output tensors? </faq/flatten>`).
+    The operation reduces all marked axes in the input to a single scalar. It supports
+    the following shorthand notation:
 
-    The `description` argument specifies the input and output expressions, as well as
-    reduced axes. It must meet one of the following formats:
+    * When no brackets are found, brackets are placed implicitly around all axes that do not
+      appear in the output.
+   
+      Example: ``a b c -> a c`` resolves to ``a [b] c -> a c``.
 
-    1. ``input -> output``
-        Input and output expressions are specified explicitly. Reduced axes are marked
-        with ``[]``-brackets in the input expression. If no axes are
-        marked, reduces all axes that do not appear in the output expression.
+    * When no output is given, it is determined implicitly by removing marked subexpressions
+      from the input.
 
-    2. ``input``
-        A single input expression is specified. Reduced axes are marked with ``[]``-brackets.
-        The output expression is determined by removing all marked expressions
-        from the input expression.
-
-        Example: ``a [b]`` resolves to ``a b -> a``.
+      Example: ``a [b] c`` resolves to ``a [b] c -> a c``.
 
     Args:
-        description: Description string in Einstein notation (see above).
+        description: Description string for the operation in einx notation.
         tensor: Input tensor or tensor factory matching the description string.
-        op: Backend reduction operation. Is called with ``op(tensor, axis=...)``. If `op` is
-            a string, retrieves the attribute of `backend` with the same name.
+        op: Backend reduction operation. Is called with ``op(tensor, axis=...)``. If ``op`` is
+            a string, retrieves the attribute of ``backend`` with the same name.
         keepdims: Whether to replace marked expressions with 1s instead of dropping them. Must
-            be None when `description` already contains an output expression. Defaults to None.
+            be None when ``description`` already contains an output expression. Defaults to None.
         backend: Backend to use for all operations. If None, determines the backend from the
             input tensors. Defaults to None.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults

@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "einx"
-copyright = "2023, Florian Fervers"
+copyright = "2024, Florian Fervers"
 author = '<a href="https://fferflo.github.io/">Florian Fervers</a>'
 
 # -- General configuration ---------------------------------------------------

@@ -1,16 +1,16 @@
-How does einx parse Einstein expressions?
-#########################################
+How does einx parse expressions?
+################################
 
 Overview
 --------
 
-einx functions accept a operation string that specifies the shapes of input and output tensors and the requested operation in Einstein notation. For example:
+einx functions accept a operation string that specifies the shapes of input and output tensors and the requested operation in einx notation. For example:
 
 ..  code::
 
     einx.mean("b (s [r])... c -> b s... c", x, r=4) # Mean-pooling with stride 4
 
-To identify the backend operations that are required to execute this statement, einx first parses the operation string and determines an *Einstein expression tree*
+To identify the backend operations that are required to execute this statement, einx first parses the operation string and determines an *expression tree*
 for each input and output tensor. The tree represents a full description of the tensor's shape and axes marked with brackets. The nodes represent different types of
 subexpressions such as axis lists, compositions, ellipses and concatenations. The leaves of the tree are the named and unnamed axes of the tensor. The expression trees
 are used to determine the required rearranging steps and axes along which backend operations are applied.
@@ -20,12 +20,12 @@ einx uses a multi-step process to convert expression strings into expression tre
 * **Stage 0**: Split the operation string into separate expression strings for each tensor.
 * **Stage 1**: Parse the expression string for each tensor and return a (stage-1) tree of nodes representing the nested subexpressions.
 * **Stage 2**: Expand all ellipses by repeating the respective subexpression, resulting in a stage-2 tree.
-* **Stage 3**: Determine a value for each axis (i.e. the axis length) using the provided constraints, resulting in a stage-3 tree, i.e. the final Einstein expression tree.
+* **Stage 3**: Determine a value for each axis (i.e. the axis length) using the provided constraints, resulting in a stage-3 tree, i.e. the final expression tree.
 
 For a given operation string and signature of input arguments, the required backend operations are traced into graph representation and just-in-time compiled using Python's
 `exec() <https://docs.python.org/3/library/functions.html#exec>`_. Every subsequent call with the same
 signature will reuse the cached function and therefore incur no additional overhead other than for cache lookup (see
-:doc:`Just-in-time compilation </gettingstarted/jit>`).
+:doc:`Just-in-time compilation </more/jit>`).
 
 Stage 0: Splitting the operation string
 ---------------------------------------
@@ -53,7 +53,7 @@ Another example of shorthand notation in :func:`einx.dot`:
     # same as
     einx.dot("a [b->c]", x, y)
 
-See :doc:`Tutorial: Tensor manipulation </gettingstarted/tensormanipulation>` and the documentation of the respective functions for allowed shorthand notation.
+See :doc:`Tutorial: Operations </gettingstarted/tutorial_ops>` and the documentation of the respective functions for allowed shorthand notation.
 
 Stage 1: Parsing the expression string
 --------------------------------------
@@ -67,7 +67,7 @@ subexpressions:
 
   Stage-1 tree for ``b (s [r])... c``.
 
-This includes several semantic checks, e.g. to ensure that axis names do not appear more than once per expression.
+This includes semantic checks, e.g. to ensure that axis names do not appear more than once per expression.
 
 Stage 2: Expanding ellipses
 ---------------------------
@@ -103,7 +103,7 @@ Stage 3: Determining axis values
 --------------------------------
 
 In the last step, the values of all axes (i.e. their lengths) are determined using the constraints provided by the input tensors and additional parameters. For example, the above
-expression with an input tensor of shape ``(2, 4, 8, 3)`` and additional constraint ``r=4`` results in the following final Einstein expression tree:
+expression with an input tensor of shape ``(2, 4, 8, 3)`` and additional constraint ``r=4`` results in the following final expression tree:
 
 .. figure:: /images/stage3-tree.png
   :height: 240

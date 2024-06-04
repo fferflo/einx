@@ -1,7 +1,7 @@
 Example: Common neural network operations
 #########################################
 
-einx allows formulating many common operations of deep learning models in a concise and elegant way. This page provides a few examples.
+einx allows formulating many common operations of deep learning models as concise expressions. This page provides a few examples.
 
 ..  code-block:: python
 
@@ -71,7 +71,7 @@ This can similarly be achieved using the ``einn.Norm`` layer:
 
 ..  code-block:: python
 
-    import einx.nn.{torch|flax|haiku} as einn
+    import einx.nn.{torch|flax|haiku|...} as einn
     x = einn.Norm("... [c]")(x)
 
 Reference: `Layer normalization explained <https://paperswithcode.com/method/layer-normalization>`_
@@ -83,9 +83,9 @@ Compute multihead attention for the queries ``q``, keys ``k`` and values ``v`` w
 
 ..  code-block:: python
 
-    attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=8)
-    attn = einx.softmax("b q [k] h", attn)
-    x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
+    a = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=8)
+    a = einx.softmax("b q [k] h", a)
+    x = einx.dot("b q k h, b k (h c) -> b q (h c)", a, v)
 
 Reference: `Multi-Head Attention <https://paperswithcode.com/method/multi-head-attention>`_
 

@@ -338,24 +338,16 @@ def vmap(
     kwargs: Mapping = {},
     **parameters: npt.ArrayLike,
 ):
-    """Applies a function to the marked axes of the input tensors using vectorization.
+    """Vectorizes and applies a function to the input tensors using automatic vectorization.
 
-    The function flattens all input tensors, applies the vectorized operation on the
-    tensors and rearranges the result to match the output expressions (see :doc:`How does
-    einx handle input and output tensors? </faq/flatten>`).
-
-    The `description` argument specifies the input and output expressions. The operation is
-    applied over all axes marked with ``[]``-brackets. All other axes are considered batch
-    axes and vectorized over.
-
-    The function ``op`` should accept input tensors and yield output tensors as specified in
+    The function ``op`` must accept input tensors and yield output tensors as specified in
     ``description`` with shapes matching the subexpressions that are marked with ``[]``-brackets.
 
     Args:
-        description: Description string in Einstein notation (see above).
+        description: Description string for the operation in einx notation.
         tensors: Input tensors or tensor factories matching the description string.
         op: Function that will be vectorized. If ``op`` is a string, retrieves the attribute
-            of `backend` with the same name.
+            of ``backend`` with the same name.
         flat: Whether to pass the tensors to ``op`` in flattened form or matching the nested
             layout in the input expressions. Defaults to False.
         kwargs: Additional keyword arguments that are passed to ``op``. Defaults to ``{}``.

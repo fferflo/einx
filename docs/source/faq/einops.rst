@@ -1,23 +1,49 @@
-How does einx compare with einops?
+How is einx different from einops?
 ##################################
 
-einx uses Einstein notation that is inspired by and compatible with the notation used in `einops <https://github.com/arogozhnikov/einops>`_,
-but follows a novel design:
+einx uses Einstein-inspired notation that is based on and compatible with the notation used in `einops <https://github.com/arogozhnikov/einops>`_,
+but introduces several novel concepts that allow using it as a universal language for tensor operations:
 
-* Full composability of Einstein expressions: Axis lists, compositions, ellipses and concatenations can be nested arbitrarily (e.g. ``(a b)...`` or
+* Introduction of ``[]``-notation to express vectorization of elementary operations (see :ref:`Bracket notation <bracketnotation>`).
+* Ellipses repeat the preceding expression rather than an anonymous axis. This allows expressing multi-dimensional operations more concisely
+  (e.g. ``(a b)...`` or ``b (s [ds])... c``)
+* Full composability of expressions: Axis lists, compositions, ellipses, brackets and concatenations can be nested arbitrarily (e.g. ``(a b)...`` or
   ``b (1 + (s...)) c``).
-* Introduction of ``[]``-notation that allows expressing vectorization in an intuitive and concise way, similar to the ``axis`` argument in Numpy functions (see :ref:`Bracket notation <bracketnotation>`).
-* Introduction of concatenations as first-class expressions in Einstein notation.
+* Introduction of concatenations as first-class expressions.
 
-When combined, these features allow for a concise and expressive formulation of a large variety of tensor operations.
+The library provides the following additional features based on the einx notation:
 
-The einx library provides the following additional features:
+* Support for many more tensor operations, for example:
+
+  .. code::
+
+     einx.flip("... (g [c])", x, c=2) # Flip pairs of values
+     einx.add("a, b -> a b", x, y) # Outer sum
+     einx.get_at("b [h w] c, b i [2] -> b i c", x, indices) # Gather values
+     einx.softmax("b q [k] h", attn) # Part of attention operation
+
+* Simpler notation for existing tensor operations:
+
+  .. code::
+
+     einx.sum("a [b]", x)
+     # same op as
+     einops.reduce(x, "a b -> a", reduction="sum")
+
+     einx.mean("b (s [ds])... c", x, ds=2)
+     # einops does not support named ellipses. Alternative for 2D case:
+     einops.reduce(x, "b (h h2) (w w2) c -> b h w c", reduction="mean", h2=2, w2=2)
 
 * Full support for rearranging expressions in all operations (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
-* ``einx.vmap`` and ``einx.vmap_with_axis`` allow applying arbitrary operations using Einstein notation.
-* Specializations provide ease-of-use for main abstractions using Numpy naming convention, e.g. ``einx.sum`` and ``einx.multiply``.
-* Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
-* Support for inspecting the backend calls made by einx in index-based notation (see :doc:`Just-in-time compilation </gettingstarted/jit>`).
+
+  .. code::
+
+     einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=16)
+     # Axis composition not supported e.g. in einops.einsum.
+
+* ``einx.vmap`` and ``einx.vmap_with_axis`` allow applying arbitrary operations using einx notation.
+* Several generalized deep learning modules in the ``einx.nn.*`` namespace (see :doc:`Tutorial: Neural networks </gettingstarted/tutorial_neuralnetworks>`).
+* Support for inspecting the backend calls made by einx in index-based notation (see :doc:`Just-in-time compilation </more/jit>`).
 
 A non-exhaustive comparison of operations expressed in einx-notation and einops-notation:
 

@@ -46,7 +46,7 @@ layer normalization at the beginning of the residual block:
 
             # Apply causal mask
             mask = jnp.tril(jnp.ones((q.shape[1], q.shape[1]), dtype=bool))
-            attn = einx.where("q k, b q k h, ", mask, attn, -jnp.inf)
+            attn = einx.where("q k, b q k h,", mask, attn, -jnp.inf)
 
             # Apply softmax and compute weighted average over the input tokens
             attn = einx.softmax("b q [k] h", attn)
@@ -118,7 +118,7 @@ logits using a linear layer:
             return x
 
 We use tensor factories with ``einn.param`` to construct the word and positional embeddings (see 
-:doc:`Tutorial: Neural networks </gettingstarted/neuralnetworks>`).
+:doc:`Tutorial: Neural networks </gettingstarted/tutorial_neuralnetworks>`).
 
 With this, we're done with the model definition. Next, we'll define some input data that the model will be applied to and encode it to token representation:
 

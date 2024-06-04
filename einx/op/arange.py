@@ -128,7 +128,9 @@ def arange(
 ) -> einx.Tensor:
     """n-dimensional ``arange`` operation.
 
-    Runs ``backend.arange`` for every axis in ``input``, and stacks the results along the single
+    *This function might be removed in a future version.*
+
+    Runs ``arange`` for every axis in ``input``, and stacks the results along the single
     marked axis in ``output``. Always uses ``start=0`` and ``step=1``.
 
     The `description` argument must meet one of the following formats:

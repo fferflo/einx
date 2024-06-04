@@ -1,7 +1,7 @@
 Just-in-time compilation
 ########################
 
-When an einx function is invoked, the required backend operations are determined from the given Einstein expressions and traced into graph representation. The graph is
+When an einx function is invoked, the required backend operations are determined from the given einx expressions and traced into graph representation. The graph is
 then just-in-time compiled into a regular Python function using Python's `exec() <https://docs.python.org/3/library/functions.html#exec>`_.
 
 As a simple example, consider the following einx call:

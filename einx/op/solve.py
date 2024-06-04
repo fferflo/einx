@@ -59,11 +59,8 @@ def solve(
 ) -> Optional[Mapping[str, npt.ArrayLike]]:
     """Solve for the axis values of the given expressions and tensors.
 
-    The `description` argument must meet the following format:
-    ``input1, input2, ...``
-
     Args:
-        description: Description string in Einstein notation.
+        description: Description string for the tensors in einx notation.
         tensors: Input tensors or tensor factories matching the description string.
         cse: Whether to apply common subexpression elimination to the expressions.
             Defaults to False.
@@ -87,11 +84,8 @@ def matches(
 ) -> bool:
     """Check whether the given expressions and tensors match.
 
-    The `description` argument must meet the following format:
-    ``input1, input2, ...``
-
     Args:
-        description: Description string in Einstein notation.
+        description: Description string for the tensors in einx notation.
         tensors: Input tensors or tensor factories matching the description string.
         cse: Whether to apply common subexpression elimination to the expressions.
             Defaults to False.
@@ -99,6 +93,13 @@ def matches(
 
     Returns:
         True if the expressions and tensors match, False otherwise.
+
+    Examples:
+        >>> x = np.zeros((10, 5))
+        >>> einx.matches("a b", x)
+        True
+        >>> einx.matches("a b c", x)
+        False
     """
     return solve(description, *tensors, cse=cse, **parameters) is not None
 
@@ -109,11 +110,8 @@ def check(
 ) -> None:
     """Check whether the given expressions and tensors match and raise an exception if they don't.
 
-    The `description` argument must meet the following format:
-    ``input1, input2, ...``
-
     Args:
-        description: Description string in Einstein notation.
+        description: Description string for the tensors in einx notation.
         tensors: Input tensors or tensor factories matching the description string.
         cse: Whether to apply common subexpression elimination to the expressions.
             Defaults to False.

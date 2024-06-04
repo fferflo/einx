@@ -1,7 +1,7 @@
 How does einx handle input and output tensors?
 ##############################################
 
-einx functions accept an operation string that specifies Einstein expressions for the input and output tensors. The expressions potentially
+einx functions accept an operation string that specifies einx expressions for the input and output tensors. The expressions potentially
 contain nested compositions and concatenations that prevent the backend functions from directly accessing the required axes. To resolve this, einx
 first flattens the input tensors in each operation such that they contain only a flat list of axes. After the backend operation is applied, the
 resulting tensors are unflattened to match the requested output expressions.
@@ -21,9 +21,6 @@ Concatenations are flattened by splitting the input tensor into multiple tensors
     einx.rearrange("(a + b) -> a, b", x, a=10, b=20)
     # same as
     np.split(x, [10], axis=0)
-
-Using a concatenated tensor as input performs the same operation as passing the split tensors as separate inputs to the operation. einx handles
-expressions with multiple nested compositions and concatenations gracefully.
 
 After the operation is applied to the flattened tensors, the results are reshaped and concatenated and missing axes are inserted and broadcasted
 to match the requested output expressions.

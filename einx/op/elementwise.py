@@ -133,38 +133,29 @@ def elementwise(
     cse: bool = True,
     **parameters: npt.ArrayLike,
 ) -> einx.Tensor:
-    """Applies an element-by-element operation over the given tensors. Specializes
-    :func:`einx.vmap_with_axis`.
+    """Applies an element-by-element operation over the given tensors.
 
-    The function flattens all input tensors, applies the given element-by-element operation
-    yielding a single output tensor, and rearranges the result to match the output expression
-    (see :doc:`How does einx handle input and output tensors? </faq/flatten>`).
+    It supports the following shorthand notation:
 
-    The `description` argument specifies the input and output expressions. It must meet one of
-    the following formats:
+    * The output is determined implicitly if one of the input expressions contains the named axes
+      of all other inputs and if this choice is unique.
 
-    1. ``input1, input2, ... -> output``
-        All input and output expressions are specified explicitly.
+      | Example: ``a b, a`` expands to ``a b, a -> a b``.
+      | Example: ``b a, b, a`` expands to ``b a, b, a -> b a``.
+      | Example: ``a b, b a`` raises an exception.
+      | Example: ``a b, a b`` expands to ``a b, a b -> a b``.
 
-    2. ``input1, input2, ...``
-        All input expressions are specified explicitly. If one of the input expressions is a
-        parent of or equal to all other input expressions, it is used as the output expression.
-        Otherwise, an exception is raised.
+    * Bracket notation can be used when passing two input tensors to indicate that the second
+      input is a subexpression of the first.
 
-        Example: ``a b, a`` resolves to ``a b, a -> a b``.
-
-    3. ``input1`` with ``[]``-brackets
-        The function accepts two input tensors. `[]`-brackets mark all subexpressions in the
-        first input that should also appear in the second input.
-
-        Example: ``a [b]`` resolves to ``a b, b``
+      Example: ``a [b]`` expands to ``a b, b``.
 
     Args:
-        description: Description string in Einstein notation (see above).
+        description: Description string for the operation in einx notation.
         tensors: Input tensors or tensor factories matching the description string.
         op: Backend elemebt-by-element operation. Must accept the same number of tensors
             as specified in the description string and comply with numpy broadcasting rules.
-            If `op` is a string, retrieves the attribute of `backend` with the same name.
+            If ``op`` is a string, retrieves the attribute of ``backend`` with the same name.
         backend: Backend to use for all operations. If None, determines the backend from
             the input tensors. Defaults to None.
         cse: Whether to apply common subexpression elimination to the expressions. Defaults
@@ -174,7 +165,7 @@ def elementwise(
         **parameters: Additional parameters that specify values for single axes, e.g. ``a=4``.
 
     Returns:
-        The result of the elementwise operation if `graph=False`, otherwise the graph
+        The result of the elementwise operation if ``graph=False``, otherwise the graph
         representation of the operation.
 
     Examples:
