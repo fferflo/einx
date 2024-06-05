@@ -48,13 +48,6 @@ def create():
 
         @staticmethod
         @einx.trace
-        def cast(tensor, dtype):
-            return einx.tracer.apply(
-                tensor.astype, args=[to_dtype(dtype)], output=einx.tracer.Tensor(tensor.shape)
-            )
-
-        @staticmethod
-        @einx.trace
         def reshape(tensor, shape):
             if einx.tracer.is_scalar(tensor):
                 tensor = tmx.array(tensor)

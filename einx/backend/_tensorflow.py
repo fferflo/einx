@@ -31,13 +31,6 @@ def create():
                 output=einx.tracer.Tensor(shape),
             )
 
-        @staticmethod
-        @einx.trace
-        def cast(tensor, dtype):
-            return einx.tracer.apply(
-                tensor.astype, args=[dtype], output=einx.tracer.Tensor(tensor.shape)
-            )
-
         reshape = op.reshape(ttnp.reshape)
         transpose = op.transpose(ttnp.transpose)
         broadcast_to = op.broadcast_to(ttnp.broadcast_to)

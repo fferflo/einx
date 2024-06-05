@@ -130,13 +130,6 @@ def create():
 
         @staticmethod
         @einx.trace
-        def cast(tensor, dtype):
-            return einx.tracer.apply(
-                tensor.type, args=[to_dtype(dtype)], output=einx.tracer.Tensor(tensor.shape)
-            )
-
-        @staticmethod
-        @einx.trace
         def reshape(tensor, shape):
             if einx.tracer.get_shape(tensor) == shape:
                 return tensor
