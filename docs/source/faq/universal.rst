@@ -50,7 +50,7 @@ The following table shows examples of universal einx functions that implement th
    * - ``einx.get_at``
      - ``torch.gather`` ``torch.index_select`` ``torch.take`` ``torch.take_along_dim`` ``tf.gather`` ``tf.gather_nd`` ``tensor[coords]``
    * - ``einx.dot`` (similar to einsum)
-     - ``np.matmul`` ``np.dot`` ``np.tensordot`` ``np.inner`` ``np.outer``
+     - ``np.matmul`` ``np.dot`` ``np.tensordot`` ``np.inner``
    * - ``einx.add``
      - ``np.add`` with ``np.newaxis``
    * - ``einx.rearrange``
