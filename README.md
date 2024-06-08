@@ -48,7 +48,7 @@ einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
 einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
 
                                                   # Apply custom operations:
-einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Global mean-pooling
+einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Spatial mean-pooling
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
 ```
 
