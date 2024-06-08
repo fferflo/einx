@@ -81,15 +81,25 @@ def create():
         rsqrt = op.elementwise(ttf.math.rsqrt)
         square = op.elementwise(ttnp.square)
 
-        @staticmethod
+        @classmethod
         @einx.trace
-        def get_at(tensor, coordinates):
-            return tensor[coordinates]
+        def get_at(backend, tensor, coordinates):
+            coordinates, _ = backend._prepare_coordinates_and_update(coordinates, None)
+            if isinstance(coordinates, tuple):
+                out_shape = coordinates[0].shape
+                coordinates = ttf.stack(coordinates, axis=-1)
+            else:
+                out_shape = coordinates.shape[:-1]
+            return einx.tracer.apply(
+                ttf.gather_nd,
+                args=[tensor, coordinates],
+                output=einx.tracer.Tensor(out_shape),
+            )
 
         @classmethod
         @einx.trace
         def _prepare_coordinates_and_update(backend, coordinates, updates):
-            assert isinstance(updates, einx.tracer.Tensor)
+            assert updates is None or isinstance(updates, einx.tracer.Tensor)
             if isinstance(coordinates, tuple):
                 assert all(isinstance(c, einx.tracer.Tensor) for c in coordinates)
                 shape = coordinates[0].shape
@@ -102,12 +112,16 @@ def create():
                 coordinates = coordinates[(slice(None),) * (coordinates.ndim - 1) + (None,)]
                 coordinates = coordinates[..., None]
 
-            assert updates.ndim + 1 == coordinates.ndim
+            assert updates is None or updates.ndim + 1 == coordinates.ndim
 
             # Broadcast to common shape
-            shape = _broadcast_static_shape(updates.shape, coordinates.shape[:-1])
+            if updates is None:
+                shape = coordinates.shape[:-1]
+            else:
+                shape = _broadcast_static_shape(updates.shape, coordinates.shape[:-1])
             coordinates = backend.broadcast_to(coordinates, shape + coordinates.shape[-1:])
-            updates = backend.broadcast_to(updates, shape)
+            if updates is not None:
+                updates = backend.broadcast_to(updates, shape)
 
             return coordinates, updates
 
