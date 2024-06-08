@@ -202,6 +202,8 @@ def unflatten(exprs_in, tensors_in, exprs_out, *, backend):
 
 
 def _clean_parameter(k, v):
+    if v == () or v == []:
+        return np.asarray(v, dtype=np.int64)
     try:
         v = np.asarray(v)
     except Exception as e:
