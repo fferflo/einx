@@ -154,7 +154,7 @@ def create():
 
         @staticmethod
         @einx.trace
-        def arange(n, dtype):
+        def arange(n, dtype="int32"):
             return op.arange(ttorch.arange)(n, dtype=to_dtype(dtype))
 
         stack = op.stack(ttorch.stack)
