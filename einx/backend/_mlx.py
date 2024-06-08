@@ -82,6 +82,7 @@ def create():
         true_divide = op.elementwise(tmx.divide)
         floor_divide = op.elementwise(tmx.floor_divide)
         divide = op.elementwise(tmx.divide)
+        mod = op.elementwise(tmx.remainder)
         logical_and = associative_binary_to_nary(op.elementwise(tmx.logical_and))
         logical_or = associative_binary_to_nary(op.elementwise(tmx.logical_or))
         where = op.elementwise(tmx.where)

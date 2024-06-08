@@ -101,6 +101,17 @@ class Backend:
 
     @classmethod
     @einx.trace
+    def stack(backend, tensors, axis=0):
+        s = (slice(None),) * axis + (None,)
+        return backend.concatenate([tensor[s] for tensor in tensors], axis=axis)
+
+    @classmethod
+    @einx.trace
+    def mod(backend, x, y):
+        return backend.subtract(x, backend.multiply(backend.floor_divide(x, y), y))
+
+    @classmethod
+    @einx.trace
     def logsumexp(backend, x, axis=None):
         if isinstance(axis, int):
             axis = (axis,)
@@ -119,6 +130,30 @@ class Backend:
     @einx.trace
     def std(backend, x, axis=None, keepdims=False):
         return backend.sqrt(backend.var(x, axis=axis, keepdims=keepdims))
+
+    @classmethod
+    @einx.trace
+    def prod(backend, tensor, axis=None):
+        tensor = backend.log(tensor)
+        tensor = backend.sum(tensor, axis=axis)
+        tensor = backend.exp(tensor)
+        return tensor
+
+    @classmethod
+    @einx.trace
+    def any(backend, tensor, axis=None):
+        return backend.count_nonzero(tensor, axis=axis) > 0
+
+    @classmethod
+    @einx.trace
+    def all(backend, tensor, axis=None):
+        if axis is None:
+            total_num = np.prod(tensor.shape)
+        elif isinstance(axis, int):
+            total_num = tensor.shape[axis]
+        else:
+            total_num = np.prod([tensor.shape[i] for i in axis])
+        return backend.count_nonzero(tensor, axis=axis) == total_num
 
     @classmethod
     @einx.trace
@@ -157,7 +192,7 @@ class Backend:
             raise ValueError(f"Got {len(shift)} shifts, expected {len(axis)}")
         for shift, axis in zip(shift, axis):
             indices = backend.arange(tensor.shape[axis])
-            indices = (indices - shift) % tensor.shape[axis]
+            indices = backend.mod(indices - shift, tensor.shape[axis])
             c = (slice(None),) * axis + (indices,)
             tensor = tensor[c]
         return tensor

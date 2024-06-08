@@ -398,7 +398,7 @@ def test_shape_elementwise(test):
 def test_shape_vmap(test):
     einx, backend, setup = test
 
-    if backend.name in {"mlx", "dask"}:
+    if backend.name in {"mlx", "dask", "tinygrad"}:
         pytest.xfail(reason="Backend does not fully support vmap")
 
     x = setup.full((13,))
@@ -529,7 +529,7 @@ def test_shape_vmap(test):
 def test_shape_index(test):
     einx, backend, setup = test
 
-    if backend.name in {"mlx", "dask"}:
+    if backend.name in {"mlx", "dask", "tinygrad"}:
         pytest.xfail(reason="Backend does not fully support vmap")
 
     coord_dtype = "int32" if backend.name != "torch" else "long"

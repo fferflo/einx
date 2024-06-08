@@ -42,6 +42,7 @@ from . import _tensorflow
 from . import _jax
 from . import _dask
 from . import _mlx
+from . import _tinygrad
 
 # Create numpy backend now
 numpy = register(_numpy.create())
@@ -52,6 +53,7 @@ register_for_module("tensorflow", _tensorflow.create)
 register_for_module("jax", _jax.create)
 register_for_module("dask.array", _dask.create)
 register_for_module("mlx", _mlx.create)
+register_for_module("tinygrad", _tinygrad.create)
 
 
 # Check if any new modules have been imported and construct backends that have been

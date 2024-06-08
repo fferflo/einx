@@ -252,3 +252,16 @@ if importlib.util.find_spec("dask"):
     )
 
     tests.append((einx, backend, test))
+
+if importlib.util.find_spec("tinygrad"):
+    from tinygrad import Tensor
+
+    backend = einx.backend.tinygrad.create()
+
+    test = types.SimpleNamespace(
+        full=lambda shape, value=0.0, dtype="float32": Tensor.full(shape, value, dtype=backend.to_dtype(dtype)),
+        to_tensor=Tensor,
+        to_numpy=lambda x: x.numpy(),
+    )
+
+    tests.append((einx, backend, test))

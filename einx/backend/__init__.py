@@ -7,3 +7,4 @@ from . import _tensorflow as tensorflow
 from . import _jax as jax
 from . import _dask as dask
 from . import _mlx as mlx
+from . import _tinygrad as tinygrad
