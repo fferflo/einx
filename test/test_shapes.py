@@ -221,7 +221,7 @@ def test_shape_dot(test):
     assert einx.dot("[->]", s, s, backend=backend).shape == ()
     assert einx.dot("a [->]", y, s).shape == (10,)
     if backend.name not in {"torch"}:
-        einx.dot("[->]", 1, 1, backend=backend).shape == ()
+        assert einx.dot("[->]", 1, 1, backend=backend).shape == ()
     assert einx.dot("a [->]", y, 1).shape == (10,)
     assert einx.dot("a [b->]", x, y).shape == (10,)
     assert einx.dot("a [->b]", y, y).shape == (10, 10)
