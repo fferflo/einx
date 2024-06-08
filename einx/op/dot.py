@@ -11,14 +11,23 @@ import numpy.typing as npt
     )
 )
 def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
-    if any(isinstance(expr, einx.expr.stage3.Concatenation) for expr in expr_out.all()):
-        raise ValueError("Output expression cannot contain concatenations")
     for root in list(exprs_in) + [expr_out]:
         for expr in root.all():
-            if isinstance(expr, einx.expr.stage3.Marker):
-                raise ValueError("Marker is not allowed")
             if isinstance(expr, einx.expr.stage3.Concatenation):
                 raise ValueError("Concatenation not allowed")
+    for expr in expr_out.all():
+        if isinstance(expr, einx.expr.stage3.Marker):
+            raise ValueError("Brackets in the output expression not allowed")
+    out_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
+    for expr_in in exprs_in:
+        for axis in expr_in.all():
+            if isinstance(axis, einx.expr.stage3.Axis):
+                is_reduced_axis = axis.name not in out_axis_names
+                is_marked = einx.expr.stage3.is_marked(axis)
+                if is_reduced_axis and not is_marked:
+                    raise ValueError(f"Reduced axis {axis} must be marked")
+                elif not is_reduced_axis and is_marked:
+                    raise ValueError(f"Marked axis {axis} cannot appear in output expression")
 
     # Call tensor factories
     output_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
@@ -184,6 +193,17 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         cse_concat=False,
     )[: len(op[0]) + 1]
     exprs_in, expr_out = exprs[:-1], exprs[-1]
+
+    # If no axes are marked, mark all axes that are not in the output
+    if not any(einx.expr.stage3.is_marked(expr) for expr_in in exprs_in for expr in expr_in.all()):
+        axes_names_out = {
+            axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)
+        }
+        exprs_in = [einx.expr.stage3.mark(
+            expr_in,
+            lambda expr: isinstance(expr, einx.expr.stage3.Axis)
+            and expr.name not in axes_names_out,
+        ) for expr_in in exprs_in]
 
     return exprs_in, expr_out
 
