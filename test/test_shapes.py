@@ -162,12 +162,14 @@ def test_shape_dot(test):
         pytest.xfail(reason="Backend does not support einsum")
     x = setup.full((10, 10))
     assert einx.dot("a..., a... -> 1", x, x).shape == (1,)
+    assert einx.dot("[a...], [a...] -> 1", x, x).shape == (1,)
     with pytest.raises(Exception):
         einx.dot("a..., [a]... -> 1", x, x)
 
     x = setup.full((10, 20, 1))
     y = setup.full((10, 24))
     assert einx.dot("a b c, a d -> 1 b c d", x, y).shape == (1, 20, 1, 24)
+    assert einx.dot("[a] b c, [a] d -> 1 b c d", x, y).shape == (1, 20, 1, 24)
     assert einx.dot("a b c, a d -> 1 b c d", x, setup.full, d=24).shape == (1, 20, 1, 24)
 
     x = setup.full((10, 20, 1))
@@ -180,6 +182,7 @@ def test_shape_dot(test):
     y = setup.full((20, 30))
     assert einx.dot("a [b] -> a [c]", x, y).shape == (10, 30)
     assert einx.dot("a b, b c -> a c", x, y).shape == (10, 30)
+    assert einx.dot("a [b], [b] c -> a c", x, y).shape == (10, 30)
     assert einx.dot("a [b->c]", x, y).shape == (10, 30)
     assert einx.dot("a [b...->c]", x, y).shape == (10, 30)
 
