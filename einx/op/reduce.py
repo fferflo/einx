@@ -113,7 +113,7 @@ def reduce(
 
     * When no brackets are found, brackets are placed implicitly around all axes that do not
       appear in the output.
-   
+
       Example: ``a b c -> a c`` resolves to ``a [b] c -> a c``.
 
     * When no output is given, it is determined implicitly by removing marked subexpressions

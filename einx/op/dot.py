@@ -199,11 +199,14 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         axes_names_out = {
             axis.name for axis in expr_out.all() if isinstance(axis, einx.expr.stage3.Axis)
         }
-        exprs_in = [einx.expr.stage3.mark(
-            expr_in,
-            lambda expr: isinstance(expr, einx.expr.stage3.Axis)
-            and expr.name not in axes_names_out,
-        ) for expr_in in exprs_in]
+        exprs_in = [
+            einx.expr.stage3.mark(
+                expr_in,
+                lambda expr: isinstance(expr, einx.expr.stage3.Axis)
+                and expr.name not in axes_names_out,
+            )
+            for expr_in in exprs_in
+        ]
 
     return exprs_in, expr_out
 
