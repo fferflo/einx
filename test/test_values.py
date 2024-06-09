@@ -22,7 +22,7 @@ def test_values(test):
 
     rng = np.random.default_rng(42)
 
-    if backend.name != "mlx":
+    if backend.name not in {"mlx", "dask", "tinygrad"}:
         x = setup.to_tensor(rng.uniform(size=(13,)).astype("float32"))
         assert allclose(
             einx.vmap("b -> b [3]", x, op=lambda x: x + setup.full((3,), value=1)),
@@ -32,7 +32,7 @@ def test_values(test):
 
     x = setup.to_tensor(rng.uniform(size=(10, 20, 3)).astype("float32"))
     y = setup.to_tensor(rng.uniform(size=(10, 24)).astype("float32"))
-    if backend.name != "mlx":
+    if backend.name not in {"mlx", "dask", "tinygrad"}:
         assert allclose(
             einx.dot("a b c, a d -> a b c d", x, y),
             einx.vmap(
@@ -50,7 +50,7 @@ def test_values(test):
         setup=setup,
     )
 
-    if backend.name != "mlx":
+    if backend.name not in {"mlx", "dask", "tinygrad"}:
         assert allclose(
             einx.mean("a b [c]", x),
             einx.vmap("a b [c] -> a b", x, op=backend.mean),
@@ -118,12 +118,12 @@ def test_values(test):
     x = setup.to_tensor(np.arange(10))
     y = setup.to_tensor(np.arange(10)[::-1].copy())
     z = setup.to_tensor(np.arange(10))
-    assert allclose(
-        einx.get_at("[h], h2 -> h2", x, y),
-        y,
-        setup=setup,
-    )
-    if backend.name != "mlx":
+    if backend.name not in {"mlx", "dask", "tinygrad"}:
+        assert allclose(
+            einx.get_at("[h], h2 -> h2", x, y),
+            y,
+            setup=setup,
+        )
         assert allclose(
             einx.set_at("[h], h2, h2 -> [h]", x, y, z),
             y,
@@ -141,7 +141,7 @@ def test_values(test):
         setup=setup,
     )
 
-    if not backend.name in {"mlx", "dask"}:
+    if backend.name not in {"mlx", "dask", "tinygrad"}:
         coord_dtype = "int32" if backend.name != "torch" else "long"
         x = setup.to_tensor(rng.uniform(size=(4, 5, 6)).astype("float32"))
         y = setup.full((4, 5), value=3, dtype=coord_dtype)

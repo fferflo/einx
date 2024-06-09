@@ -21,7 +21,7 @@ jobs:
     - name: Install optional dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest "jax[cpu]" flax torch tensorflow einops mlx dask
+        pip install pytest "jax[cpu]" flax torch tensorflow einops mlx dask tinygrad
     - uses: actions/checkout@v3
     - name: Test with pytest
       run: |
@@ -39,7 +39,7 @@ jobs:
     - name: Install optional dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest "jax[cpu]" flax dm-haiku torch tensorflow einops equinox mlx dask
+        pip install pytest "jax[cpu]" flax dm-haiku torch tensorflow einops equinox mlx dask tinygrad
         pip install --upgrade keras
     - uses: actions/checkout@v3
     - name: Test with pytest

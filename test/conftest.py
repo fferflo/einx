@@ -254,6 +254,8 @@ if importlib.util.find_spec("dask"):
     tests.append((einx, backend, test))
 
 if importlib.util.find_spec("tinygrad"):
+    import os
+    os.environ["PYTHON"] = "1"
     from tinygrad import Tensor
 
     backend = einx.backend.tinygrad.create()
