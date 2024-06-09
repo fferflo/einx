@@ -27,6 +27,7 @@ def test_shape_rearrange(test):
         2,
         2,
     )
+    assert einx.rearrange("b s... c x... -> x... b (s...) c", x, x=()).shape == (10, 400, 2)
 
     if backend.name != "torch":
         assert einx.rearrange("1 -> (x)", [1], x=10, backend=backend).shape == (10,)
