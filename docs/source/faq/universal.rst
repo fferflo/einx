@@ -34,15 +34,14 @@ einx notation
 einx provides an interface to tensor operations where vectorization is expressed entirely using einx notation, and each elementary operation
 is represented by exactly one API. The einx notation is:
 
-* **Consistent**: The same type of notation is used for all elementary operations.
-* **Unique**: Each elementary operation is represented by exactly one API.
+* **Consistent**: The same type of notation is used for all elementary operations. Each elementary operation is represented by exactly one API.
 * **Complete**: Any operation that can be expressed with existing vectorization tools such as
   `jax.vmap <https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html>`_ can also be expressed in einx notation.
 
 The following tables show examples of classical API calls that can be expressed using universal einx operations.
 
-.. list-table:: Elementary operation: ``einx.get_at``
-   :widths: 40 60
+.. list-table:: Example: ``einx.get_at``
+   :widths: 42 58
    :header-rows: 1
 
    * - Classical API
@@ -70,8 +69,8 @@ The following tables show examples of classical API calls that can be expressed 
        | ``x[y[..., 0], y[..., 1]]``
      - ``einx.get_at("a [...], a b [i] -> a b", x, y)``
 
-.. list-table:: Elementary operation: ``einx.dot`` (similar to einsum)
-   :widths: 40 60
+.. list-table:: Example: ``einx.dot`` (similar to einsum)
+   :widths: 42 58
    :header-rows: 1
 
    * - Classical API
@@ -90,8 +89,8 @@ The following tables show examples of classical API calls that can be expressed 
    * - ``np.inner(x, y)``
      - ``einx.dot("x... [a], y... [a] -> x... y...", x, y)``
 
-.. list-table:: Elementary operation: ``einx.multiply``
-   :widths: 40 60
+.. list-table:: Example: ``einx.multiply``
+   :widths: 42 58
    :header-rows: 1
 
    * - Classical API
@@ -105,8 +104,8 @@ The following tables show examples of classical API calls that can be expressed 
    * - ``np.kron(x, y)``
      - ``einx.multiply("a..., b... -> (a b)...", x, y),``
 
-.. list-table:: Elementary operation: ``einx.flip``
-   :widths: 40 60
+.. list-table:: Example: ``einx.flip``
+   :widths: 42 58
    :header-rows: 1
 
    * - Classical API
@@ -114,9 +113,9 @@ The following tables show examples of classical API calls that can be expressed 
 
    * - | ``np.flip(x, y, axis=0)``
        | ``np.flipud(x, y)``
-     - ``einx.flip("[a] b", x),``
+     - ``einx.flip("[a] b", x)``
    * - ``np.fliplr(x, y)``
-     - ``einx.flip("a [b]", x),``
+     - ``einx.flip("a [b]", x)``
 
 ..
    * - ``einx.rearrange``

@@ -2,7 +2,8 @@ How does einx support different tensor frameworks?
 ##################################################
 
 einx provides interfaces for tensor frameworks in the ``einx.backend.*`` namespace. einx functions accept a ``backend`` argument
-that defines which backend to use for the computation. For ``backend=None`` (the default case), the backend is implicitly determined from the input tensors.
+that defines which backend to use for the computation. For ``backend=None`` (the default case), the backend is implicitly determined
+from the type of the input tensors.
 
 ..  code:: python
 

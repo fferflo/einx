@@ -19,6 +19,7 @@ Welcome to einx's documentation!
    :maxdepth: 1
 
    more/jit.rst
+   more/backends.rst
    more/gotchas.rst
    more/related.rst
 
