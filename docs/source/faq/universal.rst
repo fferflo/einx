@@ -103,6 +103,8 @@ The following tables show examples of classical API calls that can be expressed 
      - ``einx.multiply("a, b -> a b", x, y)``
    * - ``np.kron(x, y)``
      - ``einx.multiply("a..., b... -> (a b)...", x, y),``
+   * - ``scipy.linalg.khatri_rao(x, y)``
+     - ``einx.multiply("a c, b c -> (a b) c", x, y)``
 
 .. list-table:: Example: ``einx.flip``
    :widths: 42 58

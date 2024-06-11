@@ -423,3 +423,23 @@ if importlib.util.find_spec("numpy"):
             np.fliplr(x),
             einx.flip("a [b]", x),
         )
+
+if importlib.util.find_spec("scipy"):
+    import numpy as np
+    import scipy.linalg
+
+    def assert_equal_numpy(a, b):
+        assert a.shape == b.shape
+        if a.dtype.kind in "f":
+            assert np.allclose(a, b)
+        else:
+            assert np.all(a == b)
+
+    def test_compare_scipy():
+        # scipy.linalg.khatri_rao
+        x = np.random.uniform(size=(2, 3))
+        y = np.random.uniform(size=(5, 3))
+        assert_equal_numpy(
+            scipy.linalg.khatri_rao(x, y),
+            einx.multiply("a c, b c -> (a b) c", x, y),
+        )
