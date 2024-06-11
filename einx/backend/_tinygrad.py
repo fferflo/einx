@@ -20,7 +20,7 @@ def create():
             )
         else:
             return x
-    
+
     def elementwise(func, convert_all_to_tensor=False):
         @einx.trace
         @functools.wraps(func)
@@ -31,6 +31,7 @@ def create():
                 args = [a for a in args]
                 args[0] = scalar_to_tensor(args[0])
             return op.elementwise(func)(*args)
+
         return outer
 
     def reduce(func):
@@ -53,6 +54,7 @@ def create():
             if "keepdims" in kwargs:
                 kwargs["keepdim"] = kwargs.pop("keepdims")
             return tracer.apply(func, args=[tensor], kwargs=kwargs, output=tracer.Tensor(shape))
+
         return reduce
 
     def to_dtype(x):
@@ -114,7 +116,7 @@ def create():
                 scalars = scalars[1:]
             for scalar in scalars:
                 x = backend.multiply(x, scalar)
-            
+
             return x
 
         @staticmethod
@@ -196,7 +198,7 @@ def create():
         @staticmethod
         @einx.trace
         def stop_gradient(tensor):
-            return tensor # TODO: set requires_grad to False?
+            return tensor  # TODO: set requires_grad to False?
 
         @staticmethod
         @einx.trace

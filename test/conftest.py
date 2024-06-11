@@ -255,13 +255,16 @@ if importlib.util.find_spec("dask"):
 
 if importlib.util.find_spec("tinygrad"):
     import os
+
     os.environ["PYTHON"] = "1"
     from tinygrad import Tensor
 
     backend = einx.backend.tinygrad.create()
 
     test = types.SimpleNamespace(
-        full=lambda shape, value=0.0, dtype="float32": Tensor.full(shape, value, dtype=backend.to_dtype(dtype)),
+        full=lambda shape, value=0.0, dtype="float32": Tensor.full(
+            shape, value, dtype=backend.to_dtype(dtype)
+        ),
         to_tensor=Tensor,
         to_numpy=lambda x: x.numpy(),
     )
