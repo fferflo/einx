@@ -7,9 +7,9 @@ with open("README.md") as f:
 
 setup(
     name="einx",
-    version="0.2.2",
+    version="0.3.0",
     python_requires=">=3.8",
-    description="Tensor Operations Expressed in Einstein-Inspired Notation",
+    description="Universal Tensor Operations in Einstein-Inspired Notation for Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Florian Fervers",

@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.3.0]
+
+### Added
+
+- Add partial support for [tinygrad](https://github.com/tinygrad/tinygrad).
+  - Supported:
+    - `einx.rearrange`
+    - `einx.{elementwise|add|multiply|where|...}`
+    - `einx.{reduce|sum|mean|...}`
+    - `einx.{vmap_with_axis|flip|softmax|...}`
+    - `einx.dot`
+  - Not supported:
+    - `einx.vmap` (no `vmap` in tinygrad)
+    - `einx.{index|get_at|set_at|...}` (due to relying on `einx.vmap`)
+
+### Changed
+
+- Use `tf.gather_nd` instead of `x[y]` to implement `einx.get_at` for Tensorflow.
+
+### Fixed
+
+- Allow empty tuples and lists as constraints for ellipsis parameters.
+- Fix shorthand notation in `einx.dot`.
+
+
+
 ## [0.2.2]
 
 ### Added
