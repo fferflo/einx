@@ -424,6 +424,14 @@ if importlib.util.find_spec("numpy"):
             einx.flip("a [b]", x),
         )
 
+        # np.flipud
+        x = np.random.uniform(size=(2, 3))
+        assert_equal_numpy(
+            np.flipud(x),
+            einx.flip("[a] b", x),
+        )
+
+
 if importlib.util.find_spec("scipy"):
     import numpy as np
     import scipy.linalg
