@@ -38,9 +38,11 @@ x = {np.asarray|torch.as_tensor|jnp.asarray|...}(...) # Create some tensor
 
 einx.sum("a [b]", x)                              # Sum-reduction along second axis
 einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
-einx.mean("b [s...] c", x)                        # Spatial mean-pooling
-einx.sum("b (s [s2])... c", x, s2=2)              # Sum-pooling with kernel_size=stride=2
+einx.mean("b [...] c", x)                         # Spatial mean-pooling
+einx.multiply("a..., b... -> (a b)...", x, y)     # Kronecker product
+einx.sum("b (s [ds])... c", x, ds=(2, 2))         # Sum-pooling with 2x2 kernel
 einx.add("a, b -> a b", x, y)                     # Outer sum
+einx.dot("a [b], [b] c -> a c", x, y)             # Matmul
 
 einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
 
@@ -51,8 +53,6 @@ einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channe
 einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Spatial mean-pooling
 einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
 ```
-
-All einx functions simply forward computation to the respective backend, e.g. by internally calling `np.reshape`, `np.transpose`, `np.sum` with the appropriate arguments.
 
 #### Common neural network operations
 

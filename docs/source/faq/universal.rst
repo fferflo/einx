@@ -65,8 +65,7 @@ The following tables show examples of classical API calls that can be expressed 
      - ``einx.get_at("[_], ... -> ...", x, y)``
    * - ``tf.gather_nd(x, y)``
      - ``einx.get_at("[...], b [i] -> b", x, y)``
-   * - | ``tf.gather_nd(x, y, batch_dims=1)``
-       | ``x[y[..., 0], y[..., 1]]``
+   * - ``tf.gather_nd(x, y, batch_dims=1)``
      - ``einx.get_at("a [...], a b [i] -> a b", x, y)``
 
 .. list-table:: Example: ``einx.dot`` (similar to einsum)
