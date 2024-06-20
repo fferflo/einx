@@ -279,7 +279,7 @@ In :func:`einx.vmap`, the input and output tensors of ``op`` match the marked ax
 
    einx.vmap("a [b c] -> a [b]", x, op=op)
 
-:func:`einx.vmap` is implemented using efficient automatic vectorization in the respective backend (e.g. 
+:func:`einx.vmap` is implemented using automatic vectorization in the respective backend (e.g. 
 `jax.vmap <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_, `torch.vmap <https://pytorch.org/docs/stable/generated/torch.vmap.html>`_). 
 einx also implements a simple ``vmap`` function for the Numpy backend for testing/ debugging purposes using a Python loop.
 
@@ -293,7 +293,7 @@ In :func:`einx.vmap_with_axis`, ``op`` is instead given an ``axis`` argument and
        # Input: x has shape "a b c", axis is (1, 2)
        x = np.sum(x, axis=axis[1])
        x = np.flip(x, axis=axis[0])
-       # Output: x has shape "b"
+       # Output: x has shape "a b"
        return x
 
    einx.vmap_with_axis("(a [b c]) -> (a [b])", x, op=op, a=2, b=3, c=4)
