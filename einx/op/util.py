@@ -188,7 +188,7 @@ def _unflatten(exprs_in, tensors_in, expr_out, backend):
 def unflatten(exprs_in, tensors_in, exprs_out, *, backend):
     if len(exprs_in) != len(tensors_in):
         raise ValueError("Got different number of input expressions and tensors")
-    assert not backend is None
+    assert backend is not None
 
     iter_exprs_in = iter(exprs_in)
     iter_tensors_in = iter(tensors_in)

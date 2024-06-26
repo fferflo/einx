@@ -1,4 +1,4 @@
-from .register import register_for_module, register, get, backends, numpy
+from .register import register_for_module, register, get, backends
 from .base import Backend, get_default
 
 from . import _numpy as numpy

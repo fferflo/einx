@@ -94,7 +94,7 @@ class Sum(Expression):
         return " + ".join(str(c) for c in self.children)
 
     def sympy(self):
-        return sum([c.sympy() for c in self.children])
+        return sum(c.sympy() for c in self.children)
 
 
 class Product(Expression):

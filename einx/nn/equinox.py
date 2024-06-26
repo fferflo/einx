@@ -65,9 +65,9 @@ class ParamFactory:
             self.dtype = dtype
 
         def __call__(self, shape, kwargs):
-            name = self.name if not self.name is None else kwargs.get("name", None)
-            init = self.init if not self.init is None else kwargs.get("init", None)
-            dtype = self.dtype if not self.dtype is None else kwargs.get("dtype", None)
+            name = self.name if self.name is not None else kwargs.get("name", None)
+            init = self.init if self.init is not None else kwargs.get("init", None)
+            dtype = self.dtype if self.dtype is not None else kwargs.get("dtype", None)
 
             if name is None:
                 raise ValueError("Must specify name for tensor factory eqx.Module")

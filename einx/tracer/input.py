@@ -90,7 +90,7 @@ def concrete_to_value_and_key(x):
     elif isinstance(x, Input):
         # Custom input
         return x.to_value_and_key()
-    elif not (x2 := apply_registered_tensor_factory(x)) is None:
+    elif (x2 := apply_registered_tensor_factory(x)) is not None:
         # Registered tensor factory
         return x2
     elif callable(x):
@@ -117,7 +117,7 @@ def key_to_tracer(x, backend, virtual_arg):
     def map(x):
         if isinstance(x, CacheKey):
             arg, x = x.to_tracer(backend, virtual_arg)
-            if not arg is None:
+            if arg is not None:
                 args.append(arg)
             return x
         else:

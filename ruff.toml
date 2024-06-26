@@ -4,7 +4,7 @@ target-version = "py38"
 
 [lint]
 select = ["B", "C", "F", "W", "YTT", "ASYNC", "E", "UP"]
-ignore = ["F401", "F403", "E722", "F821", "E402", "E741", "C901", "B017", "B023", "B020"]
+ignore = ["F401", "F403", "E722", "F821", "E402", "E741", "C901", "B017", "B023", "B020", "E731", "F405", "B011"]
 
 [format]
 preview = true

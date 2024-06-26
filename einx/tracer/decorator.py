@@ -205,7 +205,7 @@ def jit(func=None, trace=trace_all):
 
         def new_input(x):
             value, key = einx.tracer.input.concrete_to_value_and_key(x)
-            if not value is None:
+            if value is not None:
                 traced_input_values.append(value)
             return key
 

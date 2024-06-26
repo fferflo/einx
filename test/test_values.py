@@ -1,5 +1,4 @@
 import conftest
-import einx
 import pytest
 import numpy as np
 
@@ -154,7 +153,7 @@ def test_values(test):
 
 @pytest.mark.parametrize("test", conftest.tests)
 def test_compare_backends(test):
-    einx, backend, setup = test
+    einx, _, setup = test
 
     x = np.random.uniform(size=(10, 3, 10)).astype("float32")
     y = setup.to_tensor(x)

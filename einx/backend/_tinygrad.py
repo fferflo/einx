@@ -1,7 +1,8 @@
-from .base import *
+from .base import Backend, associative_binary_to_nary
 import einx.tracer as tracer
 from einx.tracer.tensor import op
-import einx, types
+import einx
+import types
 from functools import partial
 import functools
 
@@ -28,7 +29,7 @@ def create():
             if convert_all_to_tensor:
                 args = [scalar_to_tensor(a) for a in args]
             else:
-                args = [a for a in args]
+                args = list(args)
                 args[0] = scalar_to_tensor(args[0])
             return op.elementwise(func)(*args)
 
@@ -95,7 +96,7 @@ def create():
             if len(inputs) != len(tensors):
                 raise ValueError("Invalid equation")
             inputs = [x.strip().replace(" ", "") for x in inputs]
-            tensors = [t for t in tensors]
+            tensors = list(tensors)
 
             scalars = []
             for i in list(range(len(inputs)))[::-1]:

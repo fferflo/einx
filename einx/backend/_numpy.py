@@ -1,8 +1,9 @@
-from .base import *
+from .base import Backend, associative_binary_to_nary, vmap_forloop
 import einx.tracer as tracer
 from einx.tracer.tensor import op
 import numpy as np
-import einx, types
+import einx
+import types
 from functools import partial
 
 

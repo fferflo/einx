@@ -19,7 +19,7 @@ def register_for_module(module_name, backend_factory):
             register(backend_factory())
         else:
             # Module is not yet imported -> register factory
-            if not module_name in backend_factories:
+            if module_name not in backend_factories:
                 backend_factories[module_name] = []
             backend_factories[module_name].append(backend_factory)
 
@@ -68,7 +68,7 @@ def _update():
 
 def _get1(tensor):
     backend = tensortype_to_backend.get(type(tensor), None)
-    if not backend is None:
+    if backend is not None:
         return backend
 
     _update()
@@ -103,7 +103,7 @@ def get(arg):
             for tensor in tensors:
                 if tensor is not None:
                     backend2 = _get1(tensor)
-                    if not backend2 is None:
+                    if backend2 is not None:
                         if (
                             backend is not None
                             and backend != backend2
@@ -117,6 +117,6 @@ def get(arg):
                         if backend is None or backend2 != numpy:
                             backend = backend2
             if backend is None:
-                raise ValueError(f"Could not determine the backend to use in this operation")
+                raise ValueError("Could not determine the backend to use in this operation")
             else:
                 return backend

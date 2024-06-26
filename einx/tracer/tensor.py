@@ -55,7 +55,8 @@ class op:
                     if axis in values:
                         if values[axis] != value:
                             raise ValueError(
-                                f"Got conflicting values for axis {axis}: {values[axis]} and {value}"
+                                f"Got conflicting values for axis {axis}: "
+                                f"{values[axis]} and {value}"
                             )
                     else:
                         values[axis] = value
@@ -114,7 +115,7 @@ class op:
                         while len(shape2) < len(shape):
                             shape2 = (1,) + shape2
                         shape = np.maximum(shape, shape2)
-            assert not shape is None  # TODO: can this happen?
+            assert shape is not None  # TODO: can this happen?
 
             return apply(op, args=args, kwargs=kwargs, output=Tensor(shape))
 
@@ -266,7 +267,7 @@ class Tensor(Tracer):
             try:
                 self.shape = tuple(int(i) for i in shape)
             except:
-                raise ValueError(f"Invalid shape: {shape}")
+                raise ValueError(f"Invalid shape: {shape}") from None
 
     @property
     def ndim(self):
@@ -281,7 +282,7 @@ class Tensor(Tracer):
 
     def __setitem__(self, key, value):
         if (
-            not value.origin is None
+            value.origin is not None
             and isinstance(value.origin.op, AssignAt)
             and value.origin.op != "="
             and value.origin.args[0] is self
@@ -291,8 +292,8 @@ class Tensor(Tracer):
             # 1. x1 = __getitem__(tensor, key)
             # 2. x2 = __iadd__(x1, update)
             # 3. x3 = __setitem__(tensor, key, x2)
-            # The output of the second line already returns the results of the AssignAt (see below), so
-            # we can skip the third line.
+            # The output of the second line already returns the results of the AssignAt
+            # (see below), so we can skip the third line.
             return value
         return op.update_at(AssignAt("="), inplace=True)(self, key, value)
 

@@ -50,7 +50,7 @@ class ParamFactory:
             self.init = init
 
         def __call__(self, shape, kwargs):
-            init = self.init if not self.init is None else kwargs.get("init", None)
+            init = self.init if self.init is not None else kwargs.get("init", None)
 
             x = self
 

@@ -10,19 +10,19 @@ class Variables:
         self.variables = {}
         self.parent = parent
         self.children = []
-        if not self.parent is None:
+        if self.parent is not None:
             self.parent.children.append(self)
 
     def fork(self):
         return Variables(parent=self)
 
     def __contains__(self, name):
-        return name in self.variables or (not self.parent is None and name in self.parent)
+        return name in self.variables or (self.parent is not None and name in self.parent)
 
     def _is_free(self, name):
         if name in self.variables:
             return False
-        if not self.parent is None and name in self.parent:
+        if self.parent is not None and name in self.parent:
             return False
         for child in self.children:
             if name in child:
@@ -47,7 +47,7 @@ class Variables:
     def __getitem__(self, name):
         if name in self.variables:
             return self.variables[name]
-        if not self.parent is None:
+        if self.parent is not None:
             return self.parent[name]
         raise ValueError(f"Variable '{name}' is not set")
 
@@ -60,7 +60,7 @@ class Block:
 
     def is_parent_of(self, other):
         return other.parent is self or (
-            not other.parent is None and self.is_parent_of(other.parent)
+            other.parent is not None and self.is_parent_of(other.parent)
         )
 
     @property
@@ -144,7 +144,7 @@ class Definition:
     def is_variable(self):
         if self.overwritten:
             raise ValueError("Trying to access overwritten definition")
-        return not self._code is None and self._code.isidentifier()
+        return self._code is not None and self._code.isidentifier()
 
     def is_pytree(self):
         if self.overwritten:
@@ -175,7 +175,7 @@ class CodeObject:
         for definition in self.constants:
             line = f"# {definition.name}: {str(type(definition.value))}"
             value_str = str(definition.value)
-            if not "\n" in value_str:
+            if "\n" not in value_str:
                 line += f" = {value_str}"
             self.code = line + "\n" + self.code
 
@@ -205,7 +205,7 @@ class CodeObject:
     def execute_application(self, application):
         assert isinstance(application, Application)
 
-        comment = f"  # {application.comment}" if not application.comment is None else ""
+        comment = f"  # {application.comment}" if application.comment is not None else ""
 
         # Find block at which to execute the application (i.e. where all dependencies are defined)
         in_defs = [self.get_definition_of(x) for x in application.dependencies]
@@ -215,10 +215,10 @@ class CodeObject:
         if isinstance(application.op, Import):
             import_str = f"import {application.op.import_}"
             name = application.op.import_
-            if not application.op.as_ is None:
+            if application.op.as_ is not None:
                 import_str = f"{import_str} as {application.op.as_}"
                 name = application.op.as_
-            if not application.op.from_ is None:
+            if application.op.from_ is not None:
                 import_str = f"from {application.op.from_} {import_str}"
 
             # Import only once
@@ -343,14 +343,17 @@ class CodeObject:
             def check(output):
                 definition = self.get_definition_of(output)
                 if isinstance(definition.value, Tensor):
-                    line = f"assert {definition.code}.shape == {self.get_definition_of(output.shape).code}"
+                    line = (
+                        f"assert {definition.code}.shape == "
+                        f"{self.get_definition_of(output.shape).code}"
+                    )
                     block.code.append(line)
 
             einx.tree_util.tree_map(check, application.output)
 
     def _add_definition(self, definition):
         if id(definition.value) in self.definitions:
-            raise ValueError(f"Trying to add definition for existing value")
+            raise ValueError("Trying to add definition for existing value")
         self.definitions[id(definition.value)] = definition
 
         # If value is a pytree, add definition for all leaves
@@ -363,7 +366,7 @@ class CodeObject:
                     elif isinstance(k, str):
                         code += f'["{k}"]'
                     else:
-                        assert False
+                        raise AssertionError(f"Invalid key {k}")
                 self.new_value_definition(x, definition.block, code)
 
         einx.tree_util.tree_map_with_key(store, definition.value)
@@ -394,7 +397,7 @@ class CodeObject:
         if id(x) in self.definitions:
             definition = self.definitions[id(x)]
             if definition.is_overwritten():
-                raise ValueError(f"Trying to access overwritten variable")
+                raise ValueError("Trying to access overwritten variable")
             return definition
 
         if isinstance(x, TracableFunction):
@@ -415,7 +418,7 @@ class CodeObject:
             arg_defs = [
                 self.new_variable_definition(arg, function_block, prefix="i") for arg in x.args
             ]  # TODO: not using kwargs
-            virtual_arg_defs = [
+            [
                 self.new_empty_definition(virtual_arg, function_block)
                 for virtual_arg in x.virtual_args
             ]
@@ -442,7 +445,7 @@ class CodeObject:
                 assert id(x) in self.definitions
                 return self.definitions[id(x)]
             else:
-                assert False, f"{type(x.origin)}"
+                raise AssertionError(f"Invalid origin {x.origin}")
         elif isinstance(x, str):
             return Definition(x, self.root_block, f'"{x}"')
         elif isinstance(x, tuple):
@@ -461,9 +464,16 @@ class CodeObject:
             return Definition(x, self.root_block, str(x))
         elif isinstance(x, slice):
             if x.step is not None:
-                code = f"slice({self.get_definition_of(x.start).code}, {self.get_definition_of(x.stop).code}, {self.get_definition_of(x.step).code})"
+                code = (
+                    f"slice({self.get_definition_of(x.start).code}, "
+                    f"{self.get_definition_of(x.stop).code}, "
+                    f"{self.get_definition_of(x.step).code})"
+                )
             elif x.stop is not None:
-                code = f"slice({self.get_definition_of(x.start).code}, {self.get_definition_of(x.stop).code})"
+                code = (
+                    f"slice({self.get_definition_of(x.start).code}, "
+                    f"{self.get_definition_of(x.stop).code})"
+                )
             else:
                 code = f"slice({self.get_definition_of(x.start).code})"
             return Definition(x, self.root_block, code)

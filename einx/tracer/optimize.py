@@ -3,7 +3,7 @@ from .tensor import *
 
 
 def get_signature(node):
-    if not node.origin is None:
+    if node.origin is not None:
         return node.origin.signature
     else:
         return None
@@ -70,7 +70,7 @@ class Optimizer:
                     )
 
                     def store(new_node, node):
-                        assert not id(node) in self.optimized_nodes
+                        assert id(node) not in self.optimized_nodes
                         self.optimized_nodes[id(node)] = new_node
 
                     einx.tree_util.tree_map(store, new_output_nodes, node.origin.output)

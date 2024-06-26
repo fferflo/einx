@@ -106,7 +106,6 @@ einx_multiprocess = WrappedEinx(in_new_process, "multiprocessing", inline_args=T
 
 
 # numpy is always available
-import numpy as np
 
 backend = einx.backend.numpy.create()
 

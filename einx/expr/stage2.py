@@ -934,7 +934,7 @@ def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
             while i < len(expr):
                 # Check if a subexpression starts at position i
                 exprlist_found = None
-                for idx, common_expr in enumerate(common_exprs):
+                for idx, common_expr in enumerate(common_exprs):  # noqa: B007
                     for exprlist in common_expr:
                         for j in range(len(exprlist)):
                             if i + j >= len(expr) or id(exprlist[j]) != id(expr[i + j]):

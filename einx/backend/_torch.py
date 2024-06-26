@@ -1,8 +1,10 @@
-from .base import *
+from .base import Backend, associative_binary_to_nary, ErrorBackend
 import einx.tracer as tracer
 from einx.tracer.tensor import op
-import einx, types
+import einx
+import types
 from functools import partial
+import functools
 
 
 def create():
@@ -46,8 +48,6 @@ def create():
             return op(*args, **kwargs)
 
         return wrapper
-
-    MARKER_DECORATED_CONSTRUCT_GRAPH = "__einx_decorated_construct_graph"
 
     ttorch = tracer.import_("torch")
     import torch as torch_
@@ -98,7 +98,7 @@ def create():
         @staticmethod
         @einx.trace
         def to_tensor(arg, shape):
-            assert False
+            raise NotImplementedError("to_tensor is not implemented for PyTorch")
 
         @staticmethod
         @einx.trace

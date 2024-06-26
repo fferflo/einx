@@ -41,14 +41,22 @@ class Application:
 
 def apply(
     op,
-    args=[],
-    kwargs={},
+    args=None,
+    kwargs=None,
     output=None,
     signature=None,
-    inplace_updates=[],
+    inplace_updates=None,
     comment=None,
-    depend_on=[],
+    depend_on=None,
 ):
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = {}
+    if inplace_updates is None:
+        inplace_updates = []
+    if depend_on is None:
+        depend_on = []
     if isinstance(op, partial):
         return apply(
             op.func,
@@ -63,7 +71,7 @@ def apply(
     elif isinstance(op, TracableFunction):
         assert len(inplace_updates) == 0
         got_output = op(*args, **kwargs)
-        if not output is None:
+        if output is not None:
 
             def check(got_output, expected_output):
                 if type(got_output) != type(expected_output):
@@ -197,20 +205,24 @@ class Function(Tracer):
 
 
 class TracableFunction(Tracer):
-    def __init__(self, func=None, args=None, kwargs=None, virtual_args=[], output=None, name=None):
+    def __init__(
+        self, func=None, args=None, kwargs=None, virtual_args=None, output=None, name=None
+    ):
+        if virtual_args is None:
+            virtual_args = []
         Tracer.__init__(self)
 
         if isinstance(func, Tracer):
-            raise ValueError(f"func cannot be a tracer object")
-        if not output is None and args is None and kwargs is None:
-            raise ValueError(f"Cannot create a TracableFunction with an output but no input")
+            raise ValueError("func cannot be a tracer object")
+        if output is not None and args is None and kwargs is None:
+            raise ValueError("Cannot create a TracableFunction with an output but no input")
 
-        if args is None and not kwargs is None:
+        if args is None and kwargs is not None:
             args = []
-        if not args is None and kwargs is None:
+        if args is not None and kwargs is None:
             kwargs = {}
 
-        if not func is None and output is None and (not args is None or not kwargs is None):
+        if func is not None and output is None and (args is not None or kwargs is not None):
             output = func(*args, **kwargs)
 
         self.func = func
@@ -223,7 +235,7 @@ class TracableFunction(Tracer):
     def __call__(self, *args, **kwargs):
         if self.func is None:
             raise NotImplementedError(
-                f"Cannot call a TracableFunction that was created without a callable function"
+                "Cannot call a TracableFunction that was created without a callable function"
             )
         return self.func(*args, **kwargs)
 
@@ -233,7 +245,7 @@ class Usages:
         self.usages = {}  # tracer-id: [using-applications]
 
         def _capture_usages(x):
-            if not id(x) in self.usages:
+            if id(x) not in self.usages:
                 self.usages[id(x)] = []
             if isinstance(x, (list, tuple)):
                 for y in x:
@@ -245,7 +257,7 @@ class Usages:
                 for y in x.origin.dependencies:
                     if isinstance(y, Tracer):
                         # Add x.origin to y's usages
-                        if not id(y) in self.usages:
+                        if id(y) not in self.usages:
                             self.usages[id(y)] = []
                         for usage in self.usages[id(y)]:
                             if id(usage) == id(x.origin):

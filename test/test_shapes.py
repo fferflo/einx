@@ -1,4 +1,3 @@
-import einx
 import pytest
 import numpy as np
 import conftest
@@ -241,7 +240,7 @@ def test_shape_dot(test):
     v = setup.full((2, 4, 100))
     with pytest.raises(Exception):
         einx.dot("b t (h ck), b t (h cv) -> b h ck cv", k, v, h=32, graph=True)
-    
+
     x = setup.full((10, 20))
     y = setup.full((10, 24))
     z = setup.full((3, 24))
@@ -255,7 +254,8 @@ def test_shape_dot(test):
     assert einx.dot("a b c, a c, d c -> b d", x, y, z).shape == (20, 3)
     with pytest.raises(Exception):
         einx.dot("[a] b [c], a c, d [c] -> b d", x, y, z)
-    
+
+
 @pytest.mark.parametrize("test", conftest.tests)
 def test_shape_reduce(test):
     einx, backend, setup = test
@@ -778,7 +778,7 @@ def test_shape_index(test):
 
 @pytest.mark.parametrize("test", conftest.tests)
 def test_shape_vmap_with_axis(test):
-    einx, backend, setup = test
+    einx, _, setup = test
 
     x = setup.full((10, 10))
     assert einx.flip("a [b] -> a [b]", x).shape == (10, 10)
@@ -805,7 +805,7 @@ def test_shape_vmap_with_axis(test):
 
 @pytest.mark.parametrize("test", conftest.tests)
 def test_shape_solve(test):
-    einx, backend, setup = test
+    einx, _, setup = test
 
     x = setup.full((2, 3, 4))
     assert einx.matches("a b c", x)
