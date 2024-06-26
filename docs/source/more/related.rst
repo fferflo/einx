@@ -4,8 +4,8 @@ Related projects
 **Einstein-inspired notation:** Tensor operations are invoked by specifying a string of axis names. All axes are explicitly named.
 The *lifetime* of an axis name is delimited by a single operation.
 
-* `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_: General dot-product.
-* `einops <https://github.com/arogozhnikov/einops>`_: General dot-product, rearranging, reduction.
+* `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_: Dot-product, rearranging, trace/diag, sum-reduction.
+* `einops <https://github.com/arogozhnikov/einops>`_: Dot-product, rearranging, trace/diag, reduction.
 * `eindex <https://github.com/arogozhnikov/eindex>`_: Indexing.
 * `einindex <https://github.com/malmaud/einindex>`_: Indexing.
 * `einshape <https://github.com/google-deepmind/einshape>`_: Rearranging.
