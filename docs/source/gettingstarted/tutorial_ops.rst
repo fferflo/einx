@@ -12,16 +12,19 @@ This tutorial gives an overview of these operations and their usage. For a compl
 Rearranging
 -----------
 
-The function :func:`einx.rearrange` transforms tensors between einx expressions by determining and applying the required backend operations. For example:
+The function :func:`einx.rearrange` transforms tensors between einx expressions without modifying their values. Conceptually,
+:func:`einx.rearrange` applies a vectorized identity mapping. It is implemented on the backend using operations such as
+reshaping, permuting, stacking, unstacking and broadcasting.
+
+For example:
 
 >>> x = np.ones((4, 256, 17))
 >>> y, z = einx.rearrange("b (s p) (c + 1) -> (b s) p c, (b p) s 1", x, p=8)
 >>> y.shape, z.shape
 ((128, 8, 16), (32, 32, 1))
 
-Conceptually, this corresponds with a vectorized identity mapping. Using :func:`einx.rearrange` often produces more readable and concise code than
-specifying backend operations in index-based notation directly. The index-based calls can be
-inspected using the just-in-time compiled function that einx creates for this expression (see :doc:`Just-in-time compilation </more/jit>`):
+The index-based calls can be inspected using the just-in-time compiled function that einx creates for this
+expression (see :doc:`Just-in-time compilation </more/jit>`):
 
 >>> print(einx.rearrange("b (s p) (c + 1) -> (b s) p c, (b p) s 1", x, p=8, graph=True))
 import numpy as np
@@ -36,19 +39,44 @@ def op0(i0):
 Reduction
 ---------
 
-einx provides a family of elementary operations that reduce tensors along one or more axes. For example:
+einx provides a :ref:`family of elementary operations <apireductionops>` that reduce tensors along one or more axes. For example:
 
 .. code::
 
-   einx.sum("a [b]", x)
+   einx.sum("a [b] -> a", x)
    # same as
    np.sum(x, axis=1)
 
-   einx.mean("a [...]", x)
+   einx.mean("a [...] c -> a c", x)
    # same as
-   np.mean(x, axis=tuple(range(1, x.ndim)))
+   np.mean(x, axis=tuple(range(1, x.ndim - 1)))
 
-These functions are specializations of :func:`einx.reduce` and use backend operations like `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
+The elementary operations of these functions have the signature ``[...] -> []``; they take an input tensor with arbitrary shape and return a scalar.
+The operation is vectorized over all other axes in the expressions.
+
+Reduction operations support the following variants:
+
+* If no brackets are found, brackets are placed implicitly around all axes that do not appear in the output:
+
+  .. code::
+
+     einx.sum("a b c -> a c", x) # Expands to: "a [b] c -> a c"
+
+  This corresponds with `einops-notation for reduction operations <https://einops.rocks/api/reduce/>`_.
+
+* If no output expression is specified, it is determined implicitly by removing marked subexpressions from the input:
+
+  ..  code::
+
+     einx.sum("a [b] c", x) # Expands to: "a [b] c -> a c"
+
+All operations support expression rearranging:
+
+>>> x = np.ones((16, 8))
+>>> einx.prod("a (b [c]) -> b a", x, c=2).shape
+(4, 16)
+
+Reduction functions are implemented as specializations of :func:`einx.reduce` and use backend operations like `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_,
 `np.prod <https://numpy.org/doc/stable/reference/generated/numpy.prod.html>`_ or `np.any <https://numpy.org/doc/stable/reference/generated/numpy.any.html>`_ as the ``op`` argument:
 
 .. code::
@@ -56,30 +84,6 @@ These functions are specializations of :func:`einx.reduce` and use backend opera
    einx.reduce("a [b]", x, op=np.sum)
    # same as
    einx.sum("a [b]", x)
-
-In ``einx.sum``, the respective backend is determined implicitly from the input tensor (see :doc:`How does einx support different tensor frameworks? </faq/backend>`).
-
-Generally, the operation string represents both input and output expressions, and marks reduced axes using brackets:
-
->>> x = np.ones((16, 8, 4))
->>> einx.sum("a [b] c -> a c", x).shape
-(16,)
-
-Since the output of the elementary reduction operation is a scalar, no axis is marked in the output expression.
-
-The following shorthand notation is supported:
-
-* When no brackets are found, brackets are placed implicitly around all axes that do not appear in the output:
-
-  .. code::
-
-     einx.sum("a b c -> a c", x) # Expands to: "a [b] c -> a c"
-
-* When no output is given, it is determined implicitly by removing marked subexpressions from the input:
-
-  ..  code::
-
-     einx.sum("a [b] c", x) # Expands to: "a [b] c -> a c"
 
 :func:`einx.reduce` also allows custom reduction operations that accept the ``axis`` argument similar to `np.sum <https://numpy.org/doc/stable/reference/generated/numpy.sum.html>`_:
 
@@ -89,16 +93,10 @@ The following shorthand notation is supported:
        return np.sum(x, axis=axis) / x.shape[axis]
    einx.reduce("a [b] c", x, op=custom_mean)
 
-:func:`einx.reduce` fully supports expression rearranging:
-
->>> x = np.ones((16, 8))
->>> einx.prod("a (b [c]) -> b a", x, c=2).shape
-(4, 16)
-
 Element-by-element
 ------------------
 
-einx provides a family of elementary operations that apply element-by-element operations to tensors. For example:
+einx provides a :ref:`family of elementary operations <apielementwiseops>` that apply element-by-element operations to tensors. For example:
 
 .. code::
 
@@ -113,28 +111,12 @@ einx provides a family of elementary operations that apply element-by-element op
    einx.subtract("a, (a b) -> b a", x, y)
    # requires reshape and transpose in index-based notation
 
-The elementary operations accept and return scalars and no axes are marked with ``[]``-brackets.
-Internally, the inputs are rearranged such that the operation can be applied using `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_.
-These functions are specializations of :func:`einx.elementwise` and use backend operations like `np.add <https://numpy.org/doc/stable/reference/generated/numpy.add.html>`_,
-`np.logical_and <https://numpy.org/doc/stable/reference/generated/numpy.logical_and.html>`_ and `np.where <https://numpy.org/doc/stable/reference/generated/numpy.where.html>`_
-as the ``op`` argument:
+The elementary operations of these functions have the signature ``[], [], ... -> []``; they take one or more scalars as input and return a single scalar as output.
+The operation is vectorized over all axes in the expressions.
 
-.. code::
+Element-by-element operations support the following variants:
 
-   einx.elementwise("a b, b -> a b", x, y, op=np.add)
-   # same as
-   einx.add("a b, b -> a b", x, y)
-
-Generally, the operation string of :func:`einx.elementwise` represents all input and output expressions explicitly:
-
->>> x = np.ones((16, 8))
->>> y = np.ones((16,))
->>> einx.add("a b, a -> a b", x, y).shape
-(16, 8)
-
-The following shorthand notation is supported:
-
-* The output is determined implicitly if one of the input expressions contains the named axes of all other inputs and if this choice is unique:
+* If the output is left out, it is determined implicitly if one of the input expressions contains the named axes of all other inputs and if this choice is unique:
 
   .. code::
 
@@ -155,19 +137,50 @@ The following shorthand notation is supported:
   .. note::
 
      Conceptually, a different elementary operation is used in this case which is applied to tensors of equal shape rather than just scalars.
-     This variant might be removed in future versions.
+     This variant will likely be removed in future versions.
 
-:func:`einx.elementwise` fully supports expression rearranging:
+All operations support expression rearranging:
 
 >>> x = np.ones((16, 16, 32))
->>> bias = np.ones((4,))
->>> einx.add("b... (g [c])", x, bias).shape
+>>> y = np.ones((4,))
+>>> einx.add("... (g c), c -> ... (c g)", x, y).shape
 (16, 16, 32)
+
+Internally, the inputs are rearranged such that the operation can be applied using `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_.
+The functions are specializations of :func:`einx.elementwise` and use backend operations like `np.add <https://numpy.org/doc/stable/reference/generated/numpy.add.html>`_,
+`np.logical_and <https://numpy.org/doc/stable/reference/generated/numpy.logical_and.html>`_ and `np.where <https://numpy.org/doc/stable/reference/generated/numpy.where.html>`_
+as the ``op`` argument:
+
+.. code::
+
+   einx.elementwise("a b, b -> a b", x, y, op=np.add)
+   # same as
+   einx.add("a b, b -> a b", x, y)
+
+Several operations from classical tensor frameworks can be expressed using universal einx element-by-element functions:
+
+.. list-table:: Example: ``einx.multiply``
+   :widths: 42 58
+   :header-rows: 1
+
+   * - Classical API
+     - einx API
+
+   * - | ``np.multiply(x, y[:, np.newaxis])``
+       | ``x * y[:, np.newaxis]``
+     - ``einx.multiply("a b, a -> a b", x, y)``
+   * - ``np.outer(x, y)``
+     - ``einx.multiply("a, b -> a b", x, y)``
+   * - ``np.kron(x, y)``
+     - ``einx.multiply("a..., b... -> (a b)...", x, y),``
+   * - ``scipy.linalg.khatri_rao(x, y)``
+     - ``einx.multiply("a c, b c -> (a b) c", x, y)``
 
 Indexing
 --------
 
-einx provides a family of elementary operations that perform multi-dimensional indexing and update/retrieve values from tensors at specific coordinates:
+einx provides a :ref:`family of elementary operations <apiindexingops>` that perform multi-dimensional indexing and update/retrieve values from tensors
+at specified coordinates. For example:
 
 .. code::
 
@@ -175,32 +188,89 @@ einx provides a family of elementary operations that perform multi-dimensional i
    coordinates = np.ones((100, 2), dtype=np.int32)
    updates = np.ones((100, 3))
 
-   # Retrieve values at specific locations in an image
+   # Retrieve values at the given locations in an image
    y = einx.get_at("[h w] c, i [2] -> i c", image, coordinates)
    # same as
    y = image[coordinates[:, 0], coordinates[:, 1]]
 
-   # Update values at specific locations in an image
+The elementary retrieval operation has the signature ``[...], [i] -> []``; brackets in the first input indicate axes that are indexed,
+and a single bracket in the second input indicates the coordinate axis. The output is a single scalar, i.e. the value that is retrieved from the given coordinates.
+The length of the coordinate axis should equal the number of indexed axes in the first input. The operation is vectorized over all other axes in the expressions.
+
+When updating values in the tensor, the elementary operation has the signature ``[...], [i], [] -> [...]``; it includes an additional input scalar that is used
+to update the given tensor, and the output shape matches the shape of the first input. For example:
+
+.. code::
+
+   updates = np.ones((100, 3))
+
+   # Update values at the given locations in an image
    y = einx.set_at("[h w] c, i [2], i c -> [h w] c", image, coordinates, updates)
    # same as
    image[coordinates[:, 0], coordinates[:, 1]] = updates
    y = image
 
-Brackets in the first input indicate axes that are indexed, and a single bracket in the second input indicates the coordinate axis. The length of the coordinate axis should equal
-the number of indexed axes in the first input. Coordinates can also be passed in separate tensors:
+Indexing operations support the following variants:
 
-.. code::
+* For single-dimensional indexing, the elementary operation supports the signatures ``[d], [1] -> []`` and ``[d], [] -> []``:
 
-   coordinates_x = np.ones((100,), dtype=np.int32)
-   coordinates_y = np.ones((100,), dtype=np.int32)
+  .. code::
 
-   y = einx.get_at("[h w] c, i, i -> i c", image, coordinates_x, coordinates_y)
+     tensor = np.ones((256, 3))
+     coordinates_with1 = np.ones((100, 1), dtype=np.int32)
+     coordinates_without1 = coordinates_with1[:, 0] # (100,)
 
-Indexing functions are specializations of :func:`einx.index` and fully support expression rearranging:
+     y = einx.get_at("[d] c, i [1] -> i c", tensor, coordinates_with1)
+     # same as
+     y = einx.get_at("[d] c, i -> i c", tensor, coordinates_without1)
+     # same as 
+     y = einx.get_at("[d] c, i 1 -> i c", tensor, coordinates_with1)
+     # -> uses the signature [d], [] -> [] and vectorizes over the 1 axis
+
+* Coordinates can be passed in as separate tensors and are stacked to form the coordinate tensor:
+
+  .. code::
+
+     coordinates_x = np.ones((100,), dtype=np.int32)
+     coordinates_y = np.ones((100,), dtype=np.int32)
+
+     y = einx.get_at("[h w] c, i, i -> i c", image, coordinates_x, coordinates_y)
+
+All operations support expression rearranging:
 
 .. code::
 
    einx.add_at("b ([h w]) c, ([2] b) i, c i -> c [h w] b", image, coordinates, updates)
+
+Several operations from classical tensor frameworks can be expressed using universal einx indexing functions:
+
+.. list-table:: Example: ``einx.get_at``
+   :widths: 42 58
+   :header-rows: 1
+
+   * - Classical API
+     - einx API
+
+   * - | ``torch.gather(x, 0, y)``
+       | ``torch.take_along_dim(x, y, dim=0)``
+     - ``einx.get_at("[_] b c, i b c -> i b c", x, y)``
+   * - | ``torch.gather(x, 1, y)``
+       | ``torch.take_along_dim(x, y, dim=1)``
+     - ``einx.get_at("a [_] c, a i c -> a i c", x, y)``
+   * - | ``torch.index_select(x, 0, y)``
+       | ``tf.gather(x, y, axis=0)``
+     - ``einx.get_at("[_] b c, i -> i b c", x, y)``
+   * - | ``torch.index_select(x, 1, y)``
+       | ``tf.gather(x, y, axis=1)``
+     - ``einx.get_at("a [_] c, i -> a i c", x, y)``
+   * - ``tf.gather(x, y, axis=1, batch_dims=1)``
+     - ``einx.get_at("a [_] c, a i -> a i c", x, y)``
+   * - ``torch.take(x, y)``
+     - ``einx.get_at("[_], ... -> ...", x, y)``
+   * - ``tf.gather_nd(x, y)``
+     - ``einx.get_at("[...], b [i] -> b", x, y)``
+   * - ``tf.gather_nd(x, y, batch_dims=1)``
+     - ``einx.get_at("a [...], a b [i] -> a b", x, y)``
 
 Dot-product
 -----------
@@ -213,35 +283,34 @@ The function :func:`einx.dot` computes a dot-product along the marked axes:
 >>> einx.dot("a [b], [b] c -> a c", x, y).shape
 (4, 8)
 
+The elementary operation of this functions has the signature ``[...], [...], ... -> []``; it takes several tensors as input and reduces to a single scalar value.
+
 While operations such as matrix multiplications are represented conceptually as a vectorized dot-products in einx, they are still implemented using
 efficient matmul calls in the respective backend rather than a vectorized evaluation of the dot-product.
 
-The interface of :func:`einx.dot` closely resembles the existing `np.einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
-which also uses Einstein-inspired notation to express matrix multiplications. In fact, :func:`einx.dot` internally forwards computation
-to the ``einsum`` implementation of the respective backend, but additionally supports rearranging of expressions:
+The operation supports the following variants:
 
->>> # Simple grouped linear layer
->>> x = np.ones((20, 16))
->>> w = np.ones((8, 4))
->>> print(einx.dot("b (g c1), c1 c2 -> b (g c2)", x, w, g=2, graph=True))
-import numpy as np
-def op0(i0, i1):
-    x0 = np.reshape(i0, (20, 2, 8))
-    x1 = np.einsum("abc,cd->abd", x0, i1)
-    x2 = np.reshape(x1, (20, 8))
-    return x2
-
-The following shorthand notation is supported:
-
-* When no brackets are found, brackets are placed implicitly around all axes that do not appear in the output:
+* If no brackets are found, brackets are placed implicitly around all axes that do not appear in the output:
 
   .. code::
 
      einx.dot("a b, b c -> a c", x, y) # Expands to: "a [b], [b] c -> a c"
 
-  This allows using einsum-like notation with :func:`einx.dot`.
+  This allows using einsum-like notation with :func:`einx.dot`. In fact, :func:`einx.dot` internally forwards computation
+  to the ``einsum`` implementation of the respective backend, but additionally supports rearranging of expressions:
 
-* When given two input tensors, the expression of the second input is determined implicitly by marking
+  >>> # Simple grouped linear layer
+  >>> x = np.ones((20, 16))
+  >>> w = np.ones((8, 4))
+  >>> print(einx.dot("b (g c1), c1 c2 -> b (g c2)", x, w, g=2, graph=True))
+  import numpy as np
+  def op0(i0, i1):
+      x0 = np.reshape(i0, (20, 2, 8))
+      x1 = np.einsum("abc,cd->abd", x0, i1)
+      x2 = np.reshape(x1, (20, 8))
+      return x2
+
+* If given two input tensors, the expression of the second input is determined implicitly by marking
   its components in the input and output expression:
 
   .. code::
@@ -251,13 +320,35 @@ The following shorthand notation is supported:
   .. note::
 
      Conceptually, the elementary operation in this case is not a simple dot-product, but rather a linear map from
-     ``b`` to ``c`` channels, which motivates the usage of bracket notation in this manner.
+     ``b`` to ``c`` channels. This variant will likely be removed in future versions.
 
   Axes marked multiple times appear only once in the implicit second input expression:
 
   .. code::
 
      einx.dot("[a b] -> [a c]", x, y) # Expands to: "a b, a b c -> a c"
+
+Several operations from classical tensor frameworks can be expressed using the einx dot-product (and similarly using einsum):
+
+.. list-table:: Example: ``einx.dot``
+   :widths: 42 58
+   :header-rows: 1
+
+   * - Classical API
+     - einx API
+
+   * - ``np.matmul(x, y)``
+     - | ``einx.dot("... a [b], ... [b] c -> ... a c", x, y)``
+       | ``einx.dot("... [a], [a] -> ...", x, y)``
+   * - ``np.dot(x, y)``
+     - | ``einx.dot("x... [a], y... [a] b -> x... y... b", x, y)``
+       | ``einx.dot("... [a], [a] -> ...", x, y)``
+   * - ``np.tensordot(x, y, axes=1)``
+     - ``einx.dot("a [b], [b] c -> a c", x, y)``
+   * - ``np.tensordot(x, y, axes=([2], [1]))``
+     - ``einx.dot("a b [c], d [c] e -> a b d e", x, y)``
+   * - ``np.inner(x, y)``
+     - ``einx.dot("x... [a], y... [a] -> x... y...", x, y)``
 
 Other operations: ``vmap``
 --------------------------
@@ -281,7 +372,7 @@ In :func:`einx.vmap`, the input and output tensors of ``op`` match the marked ax
 
 :func:`einx.vmap` is implemented using automatic vectorization in the respective backend (e.g. 
 `jax.vmap <https://jax.readthedocs.io/en/latest/jax-101/03-vectorization.html>`_, `torch.vmap <https://pytorch.org/docs/stable/generated/torch.vmap.html>`_). 
-einx also implements a simple ``vmap`` function for the Numpy backend for testing/ debugging purposes using a Python loop.
+einx also implements a simple ``vmap`` function for the Numpy backend for testing/ debugging purposes using Python loops.
 
 In :func:`einx.vmap_with_axis`, ``op`` is instead given an ``axis`` argument and must follow
 `Numpy broadcasting rules <https://numpy.org/doc/stable/user/basics.broadcasting.html>`_:

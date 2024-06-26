@@ -12,6 +12,8 @@ Main
 .. autofunction:: einx.elementwise
 .. autofunction:: einx.index
 
+.. _apireductionops:
+
 Reduction operations
 --------------------
 
@@ -26,6 +28,8 @@ Reduction operations
 .. autofunction:: einx.max
 .. autofunction:: einx.min
 .. autofunction:: einx.logsumexp
+
+.. _apielementwiseops:
 
 Element-by-element operations
 -----------------------------
@@ -47,6 +51,8 @@ Element-by-element operations
 .. autofunction:: einx.not_equal
 .. autofunction:: einx.maximum
 .. autofunction:: einx.minimum
+
+.. _apiindexingops:
 
 Indexing operations
 -------------------
