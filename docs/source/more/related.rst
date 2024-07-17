@@ -32,6 +32,9 @@ A non-exhaustive list of projects that use Einstein-inspired notation in chronol
    * - `einshape <https://github.com/google-deepmind/einshape>`_
      - `Jun 22 2021 <https://github.com/google-deepmind/einshape/commit/69d853936d3401c711a723f938e6e20cf3811359>`_
      - Rearranging.
+   * - `jaxtyping <https://github.com/patrick-kidger/jaxtyping>`_
+     - `Jul 1 2022 <https://github.com/patrick-kidger/jaxtyping/commit/7ac6ee04a8ec2f1a6b724a1ed2414d438069f2cf>`_
+     - Typing.
    * - `eindex <https://github.com/arogozhnikov/eindex>`_
      - `Mar 11 2023 <https://github.com/arogozhnikov/eindex/commit/b787619efd868b7f5100cd69267aa80c4a6c8621>`_
      - Indexing.
