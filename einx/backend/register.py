@@ -3,7 +3,7 @@ import einx
 import threading
 import importlib
 import numpy as np
-from .base import Backend
+from .base import Backend, ErrorBackend
 
 backends = []
 backend_factories = {}  # module-name: [backend-factory]
@@ -16,7 +16,13 @@ def register_for_module(module_name, backend_factory):
     with lock:
         if module_name in sys.modules:
             # Module is already imported -> create backend now
-            register(backend_factory())
+            try:
+                backend = backend_factory()
+            except Exception as e:
+                backend = ErrorBackend(
+                    f"Failed to import backend {module_name} due to the following error:\n{e}"
+                )
+            register(backend)
         else:
             # Module is not yet imported -> register factory
             if module_name not in backend_factories:
