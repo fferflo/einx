@@ -218,10 +218,10 @@ class InvalidBackendException(Exception):
 
 
 class InvalidBackend:
-    def __init__(self, name, message):
+    def __init__(self, name, message, tensor_types=None):
         self.name = name
         self.message = message
-        self.tensor_types = []
+        self.tensor_types = tensor_types or []
 
     def __getattr__(self, name):
         raise InvalidBackendException(self.message)

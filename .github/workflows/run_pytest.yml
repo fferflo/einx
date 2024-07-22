@@ -65,3 +65,5 @@ jobs:
         pip install --upgrade "torch==2.0.0"
         EINX_FILTER_TRACEBACK=0 pytest
         EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_backend.py --noconftest
+        pip install --upgrade "torch<2"
+        EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_torch_version.py --noconftest

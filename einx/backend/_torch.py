@@ -16,6 +16,7 @@ def create():
             "torch",
             "einx with PyTorch requires PyTorch version >= 2, but found "
             f"{torch_.__version__}. einx functions are disabled for PyTorch.",
+            tensor_types=[torch_.Tensor],
         )
 
     @einx.trace

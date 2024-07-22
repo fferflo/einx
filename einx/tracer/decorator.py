@@ -213,7 +213,7 @@ def jit(func=None, trace=trace_all):
 
         # Disable torch.compile for graph construction (if torch is imported)
         nonlocal has_decorated, find_backend_and_construct_graph
-        if not has_decorated and "torch" in sys.modules:
+        if not has_decorated and "torch" in sys.modules and "_dynamo" in dir(sys.modules["torch"]):
             import torch._dynamo as _dynamo
 
             find_backend_and_construct_graph = _dynamo.disable(find_backend_and_construct_graph)
