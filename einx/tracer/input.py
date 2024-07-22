@@ -106,6 +106,8 @@ def concrete_to_value_and_key(x):
         except:
             pass
         return x, TensorFactory(params)
+    elif x is None:
+        raise ValueError("Expected tensor, but got None")
     else:
         # Tensor
         return x, Tensor(tuple(int(i) for i in x.shape), type(x))
