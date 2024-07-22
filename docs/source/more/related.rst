@@ -64,6 +64,7 @@ A non-exhaustive list of libraries that support named axes:
 * `Named axes in PyTorch <https://pytorch.org/docs/stable/named_tensor.html>`_
 * `Named axes in Penzai <https://penzai.readthedocs.io/en/stable/notebooks/named_axes.html>`_
 * `Named axes in xarray <https://docs.xarray.dev/en/stable/>`_
+* `Haliax <https://github.com/stanford-crfm/haliax>`_
 
 Other resources on named axes:
 
