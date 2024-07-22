@@ -212,9 +212,16 @@ class Backend:
     stop_gradient = op.keep_shape(einx.trace(lambda x: x))
 
 
-class ErrorBackend:
+class InvalidBackendException(Exception):
     def __init__(self, message):
         self.message = message
 
+
+class InvalidBackend:
+    def __init__(self, name, message):
+        self.name = name
+        self.message = message
+        self.tensor_types = []
+
     def __getattr__(self, name):
-        raise RuntimeError(self.message)
+        raise InvalidBackendException(self.message)

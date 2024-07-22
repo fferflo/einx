@@ -3,7 +3,7 @@ import einx
 import threading
 import importlib
 import numpy as np
-from .base import Backend, ErrorBackend
+from .base import Backend, InvalidBackend
 
 backends = []
 backend_factories = {}  # module-name: [backend-factory]
@@ -19,8 +19,9 @@ def register_for_module(module_name, backend_factory):
             try:
                 backend = backend_factory()
             except Exception as e:
-                backend = ErrorBackend(
-                    f"Failed to import backend {module_name} due to the following error:\n{e}"
+                backend = InvalidBackend(
+                    module_name,
+                    f"Failed to import backend {module_name} due to the following error:\n{e}",
                 )
             register(backend)
         else:
@@ -32,8 +33,11 @@ def register_for_module(module_name, backend_factory):
 
 def register(backend):
     with lock:
-        if not isinstance(backend, Backend):
-            raise ValueError("Backend must be an instance of einx.backend.Backend")
+        if not isinstance(backend, (Backend, InvalidBackend)):
+            raise ValueError(
+                "Backend must be an instance of einx.backend.Backend or "
+                "einx.backend.InvalidBackend"
+            )
         backends.append(backend)
         for type in backend.tensor_types:
             tensortype_to_backend[type] = backend
@@ -123,6 +127,19 @@ def get(arg):
                         if backend is None or backend2 != numpy:
                             backend = backend2
             if backend is None:
-                raise ValueError("Could not determine the backend to use in this operation")
+                message = (
+                    "einx could not determine the backend to use in this operation.\n"
+                    f"Backends that have not been initialized yet: "
+                    f"{list(backend_factories.keys())}\n"
+                    f"Backends that have been initialized successfully: "
+                    f"{[b.name for b in backends if isinstance(b, Backend)]}\n"
+                    f"Backends that have failed to initialize (reasons are listed below): "
+                    f"{[b.name for b in backends if isinstance(b, InvalidBackend)]}"
+                )
+                for b in backends:
+                    if isinstance(b, InvalidBackend):
+                        message += f"\n\n##### Reason why {b.name} failed to initialize: #####"
+                        message += f"\n{b.message}"
+                raise ValueError(message)
             else:
                 return backend

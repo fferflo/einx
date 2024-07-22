@@ -27,6 +27,7 @@ jobs:
       run: |
         pip install .
         EINX_FILTER_TRACEBACK=0 pytest
+        EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_backend.py --noconftest
 
   test_py310:
     runs-on: ubuntu-latest
@@ -46,6 +47,7 @@ jobs:
       run: |
         pip install .
         EINX_FILTER_TRACEBACK=0 pytest
+        EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_backend.py --noconftest
         pip install --upgrade "torch==2.2.0"
         EINX_FILTER_TRACEBACK=0 pytest
         pip install --upgrade "torch==2.1.0"

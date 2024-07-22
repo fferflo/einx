@@ -1,4 +1,4 @@
-from .base import Backend, associative_binary_to_nary, ErrorBackend
+from .base import Backend, associative_binary_to_nary, InvalidBackend
 import einx.tracer as tracer
 from einx.tracer.tensor import op
 import einx
@@ -12,10 +12,11 @@ def create():
 
     version = tuple(int(i) for i in torch_.__version__.split(".")[:2])
     if version < (2, 0):
-        message = "einx with PyTorch requires PyTorch version >= 2, but found "
-        f"{torch_.__version__}. einx functions are disabled for PyTorch."
-        print(f"WARNING: {message}")
-        return ErrorBackend(message)
+        return InvalidBackend(
+            "torch",
+            "einx with PyTorch requires PyTorch version >= 2, but found "
+            f"{torch_.__version__}. einx functions are disabled for PyTorch.",
+        )
 
     @einx.trace
     def move_scalars_to_device(args, scalar_indices=None):
