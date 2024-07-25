@@ -44,7 +44,7 @@ A non-exhaustive list of projects that use Einstein-inspired notation in chronol
    * - `eins <https://github.com/nicholas-miklaucic/eins>`_
      - `Mar 14 2024 <https://github.com/nicholas-miklaucic/eins/commit/dc5e9a0a3f5bf6fb9e62427b6cedf1ffab1a8873>`_
      - ?
-   * - `einshard <https://github.com/ayaka14732/einshard>`_
+   * - `einshard <https://github.com/yixiaoer/einshard>`_
      - `Mar 24 2024 <https://github.com/yixiaoer/mistral-v0.2-jax/commit/b800c054109a14fb04ce72ed1c990c7aa7bba628>`_
      - Sharding.
    * - `shardops <https://github.com/MatX-inc/seqax/tree/main>`_
