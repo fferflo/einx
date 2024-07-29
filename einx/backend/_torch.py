@@ -81,6 +81,8 @@ def create():
         tcompiler = tracer.import_("torch._dynamo", "_dynamo")
         import torch._dynamo as compiler
 
+    tpartial = tracer.import_("partial", from_="functools")
+
     import torch._dynamo as _dynamo
 
     if "capture_func_transforms" in vars(_dynamo.config):
@@ -379,6 +381,16 @@ def create():
         @staticmethod
         @einx.trace
         def vmap(op, in_axes, out_axes, input_shapes, output_shapes):
+            op = einx.tracer.apply(
+                tpartial,
+                args=[op],
+                kwargs={},
+                output=einx.tracer.Tracer(),
+                comment=(
+                    "Workaround for torch._dynamo.exc.InternalTorchDynamoError: "
+                    "cannot find module for <function ...>"
+                ),
+            )
             op = einx.tracer.apply(
                 ttorch.vmap,
                 args=[op],

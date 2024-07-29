@@ -296,6 +296,9 @@ class CodeObject:
             right_str = f"{op}({args})"
             use_dynamic_output_check = not isinstance(application.op, Tracer)
 
+        if application.comment is not None:
+            inline = False  # Never inline if there is a comment
+
         inplace = len(application.inplace_updates) > 0
 
         if inline is None:
