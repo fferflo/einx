@@ -9,6 +9,15 @@ from functools import partial
 def create():
     import mlx.core as mx
 
+    version = tuple(int(i) for i in mx.__version__.split(".")[:3])
+    if version < (0, 16, 1):
+        return InvalidBackend(
+            "mlx",
+            "einx with mlx requires mlx version >= 0.16.1, but found "
+            f"{mx.__version__}. einx functions are disabled for mlx.",
+            tensor_types=[mx.array],
+        )
+
     tmx = tracer.import_("mlx.core", "mx")
 
     def to_tuple(x):
@@ -59,10 +68,48 @@ def create():
         transpose = op.transpose(tmx.transpose)
         broadcast_to = op.broadcast_to(tmx.broadcast_to)
 
-        @staticmethod
+        @classmethod
         @einx.trace
-        def einsum(equation, *tensors):
-            raise NotImplementedError("mlx does not support einsum yet")
+        def einsum(backend, equation, *operands):
+            exprs = equation.split("->")
+            if len(exprs) != 2:
+                raise ValueError("Invalid einsum equation")
+            in_exprs = exprs[0].split(",")
+            out_expr = exprs[1]
+
+            # Remove scalars
+            scalars = []
+            for in_expr, operand in zip(in_exprs, operands):
+                if (len(in_expr) == 0) != (operand.shape == ()):
+                    raise ValueError(
+                        f"Tensor and einsum expression do not match: {in_expr} and {operand.shape}"
+                    )
+                if operand.shape == ():
+                    scalars.append(operand)
+            operands = [operand for operand in operands if operand.shape != ()]
+            in_exprs = [in_expr for in_expr in in_exprs if len(in_expr) > 0]
+            assert len(in_exprs) == len(operands)
+            equation = ",".join(in_exprs) + "->" + out_expr
+
+            # Call without scalars
+            if len(operands) == 1:
+                if in_exprs[0] != out_expr:
+                    output = op.einsum(tmx.einsum)(equation, *operands)
+                else:
+                    output = operands[0]
+            elif len(operands) > 1:
+                output = op.einsum(tmx.einsum)(equation, *operands)
+            else:
+                output = None
+
+            # Multiply scalars
+            if len(scalars) > 0:
+                if output is None:
+                    output = backend.multiply(*scalars)
+                else:
+                    output = backend.multiply(output, *scalars)
+
+            return output
 
         @staticmethod
         @einx.trace
@@ -143,10 +190,7 @@ def create():
 
         stop_gradient = op.keep_shape(tmx.stop_gradient)
 
-        # vmap = op.vmap(tmx.vmap)
-        @staticmethod
-        def vmap(op, in_axes, out_axes, input_shapes=None, output_shapes=None):
-            raise NotImplementedError("mlx does not fully support vmap yet")
+        vmap = op.vmap(tmx.vmap)
 
         sqrt = tmx.sqrt
         rsqrt = tmx.rsqrt

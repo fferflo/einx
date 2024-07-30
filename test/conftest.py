@@ -230,7 +230,7 @@ if importlib.util.find_spec("mlx"):
     backend = einx.backend.mlx.create()
 
     test = types.SimpleNamespace(
-        full=lambda shape, value=0.0, dtype="float32", backend=backend: mx.full(
+        full=lambda shape, value=0, dtype="float32", backend=backend: mx.full(
             shape, value, dtype=backend.to_dtype(dtype)
         ),
         to_tensor=mx.array,

@@ -26,6 +26,7 @@ setup(
     extras_require={
         "torch": ["torch>=2"],
         "keras": ["keras>=3"],
+        "mlx": ["mlx>=0.16.1"],
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

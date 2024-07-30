@@ -21,4 +21,4 @@ If you plan to use einx with a specific backend, you can also install it as foll
     pip install einx[torch]
 
 This will add a dependency for PyTorch and enforce the version requirements of einx (i.e. PyTorch >= 2.0.0).
-This is currently only supported for PyTorch (``einx[torch]``) and Keras (``einx[keras]``).
+This is currently only supported for PyTorch (``einx[torch]``), Keras (``einx[keras]``) and MLX (``einx[mlx]``).

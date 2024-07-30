@@ -158,8 +158,6 @@ def test_shape_rearrange(test):
 def test_shape_dot(test):
     einx, backend, setup = test
 
-    if backend.name == "mlx":
-        pytest.xfail(reason="Backend does not support einsum")
     x = setup.full((10, 10))
     assert einx.dot("a..., a... -> 1", x, x).shape == (1,)
     assert einx.dot("[a...], [a...] -> 1", x, x).shape == (1,)
