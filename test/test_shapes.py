@@ -676,7 +676,7 @@ def test_shape_index(test):
     z2 = setup.full((4, 3))
     assert einx.set_at("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 128, 128, 3)
     assert einx.set_at("b [h w] c, b p [2], b c -> b [h w] c", x, y, z2).shape == (4, 128, 128, 3)
-    assert einx.set_at("b [h w] c, b [2], b p c -> b [h w] c", x, y, z2).shape == (4, 128, 128, 3)
+    assert einx.set_at("b [h w] c, b [2], b p c -> b [h w] c", x, y2, z).shape == (4, 128, 128, 3)
 
     x = setup.full((4, 128, 16))
     y = setup.full((4, 128), dtype=coord_dtype)
