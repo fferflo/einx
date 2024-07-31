@@ -90,3 +90,36 @@ The just-in-time compiled function can also be called directly with the correct 
 >>> z = graph(x, y)
 >>> z.shape
 (10, 10, 4)
+
+Reproducing backend bugs without einx
+-------------------------------------
+
+einx forwards the computation for a given call to the respective backend. If this causes an exception from the backend, it can be reproduced
+without einx by copying and calling the jit-compiled function directly.
+
+As an example, let's assume the following call raises an exception from Numpy:
+
+>>> x = np.zeros((10, 10))
+>>> einx.sum("a [b]", x)
+# raises ...
+
+To check the cause of the error, print the compiled function
+
+>>> print(einx.sum("a [b]", x, graph=True))
+import numpy as np
+def op0(i0):
+    x0 = np.sum(i0, axis=1)
+    return x0
+
+and create a minimal reproducible example for it:
+
+.. code-block:: python
+
+    import numpy as np
+
+    def op0(i0):
+        x0 = np.sum(i0, axis=1)
+        return x0
+
+    x = np.zeros((10, 10))
+    op0(x)
