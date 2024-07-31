@@ -71,8 +71,15 @@ register_for_module("tinygrad", _tinygrad.create)
 def _update():
     for module_name in list(backend_factories.keys()):
         if module_name in sys.modules:
-            for factory in list(backend_factories[module_name]):
-                register(factory())
+            for backend_factory in list(backend_factories[module_name]):
+                try:
+                    backend = backend_factory()
+                except Exception as e:
+                    backend = InvalidBackend(
+                        module_name,
+                        f"Failed to import backend {module_name} due to the following error:\n{e}",
+                    )
+                register(backend)
             del backend_factories[module_name]
 
 
