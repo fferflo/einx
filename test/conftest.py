@@ -229,6 +229,8 @@ if importlib.util.find_spec("mlx"):
 
     backend = einx.backend.mlx.create()
 
+    einx_compile = WrappedEinx(mx.compile, "mx.compile", inline_args=True)
+
     test = types.SimpleNamespace(
         full=lambda shape, value=0, dtype="float32", backend=backend: mx.full(
             shape, value, dtype=backend.to_dtype(dtype)
@@ -238,6 +240,7 @@ if importlib.util.find_spec("mlx"):
     )
 
     tests.append((einx, backend, test))
+    tests.append((einx_compile, backend, test))
 
 if importlib.util.find_spec("dask"):
     import dask.array as da
