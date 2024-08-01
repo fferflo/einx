@@ -2,6 +2,7 @@ import pytest
 import sys
 
 
+@pytest.mark.all
 @pytest.mark.skipif("einx" in sys.modules, reason="einx is already imported")
 def test_import():
     # Create an invalid jax module

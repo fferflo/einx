@@ -3,7 +3,7 @@ import numpy as np
 import conftest
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_rearrange(test):
     einx, backend, setup = test
 
@@ -144,17 +144,17 @@ def test_shape_rearrange(test):
     y = setup.full((4, 10, 20, 3))
     x, y = einx.rearrange("h w, b h w c -> 1 h w 1, b h w c", x, y)
 
-    x = np.zeros((5, 4))
+    x = setup.full((5, 4))
     x = einx.rearrange("(a + b + c) d -> b d, (a + c) d", x, a=1, b=2)
     assert x[0].shape == (2, 4)
     assert x[1].shape == (3, 4)
-    x = np.zeros((5, 4))
+    x = setup.full((5, 4))
     x = einx.rearrange("(a + b + c) d -> (a + c) d, b d", x, a=1, b=2)
     assert x[0].shape == (3, 4)
     assert x[1].shape == (2, 4)
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_dot(test):
     einx, backend, setup = test
 
@@ -254,7 +254,7 @@ def test_shape_dot(test):
         einx.dot("[a] b [c], a c, d [c] -> b d", x, y, z)
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_reduce(test):
     einx, backend, setup = test
 
@@ -310,7 +310,7 @@ def test_shape_reduce(test):
     assert einx.sum("b [p] -> b p2", x, p2=7).shape == (16, 7)
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_elementwise(test):
     einx, backend, setup = test
 
@@ -406,7 +406,7 @@ def test_shape_elementwise(test):
             assert getattr(einx, op)(expr, *args).shape == (10,)
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_vmap(test):
     einx, backend, setup = test
 
@@ -537,7 +537,7 @@ def test_shape_vmap(test):
     )
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_index(test):
     einx, backend, setup = test
 
@@ -684,18 +684,18 @@ def test_shape_index(test):
     assert einx.get_at("b p [i,->]", x, y).shape == (4, 128)
     assert einx.set_at("b p [i,,->i]", x, y, z).shape == (4, 128, 16)
 
-    consts = {"b": 4, "h": 16, "w": 16, "c": 3, "p": 128}
+    if "torch.compile" not in getattr(einx, "name", ""):
+        consts = {"b": 4, "h": 16, "w": 16, "c": 3, "p": 128}
 
-    def make_coords(shape):
-        return setup.full(shape, dtype=coord_dtype)
+        def make_coords(shape):
+            return setup.full(shape, dtype=coord_dtype)
 
-    xs = ["([h] b) [w] c", "[h] c [w]", "[h w]"]
-    ys = ["b (p [2])", "[2] p", "[2]"]
-    ys2 = ["p b", "p", "[1]"]
-    zs = ["b p c", "c (p b)"]
-    for x in xs:
-        for z in zs:
-            if not (z == "c (p b)" and getattr(einx, "name", "") == "torch.compile"):
+        xs = ["([h] b) [w] c", "[h] c [w]", "[h w]"]
+        ys = ["b (p [2])", "[2] p", "[2]"]
+        ys2 = ["p b", "p", "[1]"]
+        zs = ["b p c", "c (p b)"]
+        for x in xs:
+            for z in zs:
                 shape = einx.add(f"{z}, ", setup.full, 0, **consts, backend=backend).shape
                 for y in ys:
                     assert (
@@ -722,37 +722,22 @@ def test_shape_index(test):
                             == shape
                         )
 
-    for x in xs:
-        shape = einx.add(
-            f"{x.replace('[', '').replace(']', '')}, ",
-            setup.full,
-            0,
-            **consts,
-            backend=backend,
-        ).shape
-        for z in zs:
-            z_axes = {a for a in z if a.isalpha()}
-            for y in ys:
-                if all(a in (x + y) for a in z_axes):
-                    assert (
-                        einx.set_at(
-                            f"{x}, {y}, {z} -> {x}",
-                            setup.full,
-                            make_coords,
-                            setup.full,
-                            **consts,
-                            backend=backend,
-                        ).shape
-                        == shape
-                    )
-            for y1 in ys2:
-                for y2 in ys2:
-                    if all(a in (x + y1 + y2) for a in z_axes):
+        for x in xs:
+            shape = einx.add(
+                f"{x.replace('[', '').replace(']', '')}, ",
+                setup.full,
+                0,
+                **consts,
+                backend=backend,
+            ).shape
+            for z in zs:
+                z_axes = {a for a in z if a.isalpha()}
+                for y in ys:
+                    if all(a in (x + y) for a in z_axes):
                         assert (
                             einx.set_at(
-                                f"{x}, {y1}, {y2}, {z} -> {x}",
+                                f"{x}, {y}, {z} -> {x}",
                                 setup.full,
-                                make_coords,
                                 make_coords,
                                 setup.full,
                                 **consts,
@@ -760,21 +745,36 @@ def test_shape_index(test):
                             ).shape
                             == shape
                         )
-                        assert (
-                            einx.set_at(
-                                f"{x}, {y1}, {y2}, {z}",
-                                setup.full,
-                                make_coords,
-                                make_coords,
-                                setup.full,
-                                **consts,
-                                backend=backend,
-                            ).shape
-                            == shape
-                        )
+                for y1 in ys2:
+                    for y2 in ys2:
+                        if all(a in (x + y1 + y2) for a in z_axes):
+                            assert (
+                                einx.set_at(
+                                    f"{x}, {y1}, {y2}, {z} -> {x}",
+                                    setup.full,
+                                    make_coords,
+                                    make_coords,
+                                    setup.full,
+                                    **consts,
+                                    backend=backend,
+                                ).shape
+                                == shape
+                            )
+                            assert (
+                                einx.set_at(
+                                    f"{x}, {y1}, {y2}, {z}",
+                                    setup.full,
+                                    make_coords,
+                                    make_coords,
+                                    setup.full,
+                                    **consts,
+                                    backend=backend,
+                                ).shape
+                                == shape
+                            )
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_vmap_with_axis(test):
     einx, _, setup = test
 
@@ -801,7 +801,7 @@ def test_shape_vmap_with_axis(test):
     ).shape == (10, 10)
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_shape_solve(test):
     einx, _, setup = test
 

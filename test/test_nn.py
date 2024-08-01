@@ -21,6 +21,7 @@ if importlib.util.find_spec("torch"):
     else:
         import torch._dynamo as compiler
 
+    @pytest.mark.torch
     def test_torch_linear():
         compiler.reset()
         x = torch.zeros((4, 128, 128, 3))
@@ -30,6 +31,7 @@ if importlib.util.find_spec("torch"):
         layer = torch.compile(layer)
         assert layer.forward(x).shape == (4, 128, 128, 32)
 
+    @pytest.mark.torch
     @pytest.mark.parametrize("expr_kwargs", norms)
     @pytest.mark.parametrize("mean", [True, False])
     @pytest.mark.parametrize("scale", [True, False])
@@ -51,6 +53,7 @@ if importlib.util.find_spec("torch"):
         layer.eval()
         assert layer.forward(x).shape == (4, 128, 128, 32)
 
+    @pytest.mark.torch
     def test_torch_dropout():
         compiler.reset()
         x = torch.zeros((4, 128, 128, 3))
@@ -74,6 +77,7 @@ if importlib.util.find_spec("haiku"):
     import jax
     import einx.nn.haiku
 
+    @pytest.mark.jax
     def test_haiku_linear():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(42)
@@ -88,6 +92,7 @@ if importlib.util.find_spec("haiku"):
         y, state = jax.jit(model.apply)(params=params, state=state, x=x, rng=rng)
         assert y.shape == (4, 128, 128, 32)
 
+    @pytest.mark.jax
     @pytest.mark.parametrize("expr_kwargs", norms)
     @pytest.mark.parametrize("mean", [True, False])
     @pytest.mark.parametrize("scale", [True, False])
@@ -115,6 +120,7 @@ if importlib.util.find_spec("haiku"):
         )
         assert y.shape == (4, 128, 128, 32)
 
+    @pytest.mark.jax
     def test_haiku_dropout():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(42)
@@ -143,6 +149,7 @@ if importlib.util.find_spec("flax"):
     import flax
     import einx.nn.flax
 
+    @pytest.mark.jax
     def test_flax_linear():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
@@ -154,6 +161,7 @@ if importlib.util.find_spec("flax"):
         y = jax.jit(model.apply)(params, x=x)
         assert y.shape == (4, 128, 128, 32)
 
+    @pytest.mark.jax
     @pytest.mark.parametrize("expr_kwargs", norms)
     @pytest.mark.parametrize("mean", [True, False])
     @pytest.mark.parametrize("scale", [True, False])
@@ -177,6 +185,7 @@ if importlib.util.find_spec("flax"):
         )
         assert y.shape == (4, 128, 128, 32)
 
+    @pytest.mark.jax
     def test_flax_dropout():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
@@ -197,6 +206,7 @@ if importlib.util.find_spec("equinox"):
     import einx.nn.equinox
     import jax
 
+    @pytest.mark.jax
     def test_equinox_linear():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
@@ -208,6 +218,7 @@ if importlib.util.find_spec("equinox"):
         assert layer(x).shape == (4, 128, 128, 32)
         assert layer(x).shape == (4, 128, 128, 32)
 
+    @pytest.mark.jax
     @pytest.mark.parametrize("expr_kwargs", norms)
     @pytest.mark.parametrize("mean", [True, False])
     @pytest.mark.parametrize("scale", [True, False])
@@ -230,6 +241,7 @@ if importlib.util.find_spec("equinox"):
                         assert layer(x).shape == (4, 128, 128, 32)
                         assert layer(x).shape == (4, 128, 128, 32)
 
+    @pytest.mark.jax
     def test_equinox_dropout():
         x = jnp.zeros((4, 128, 128, 3))
         rng = jax.random.PRNGKey(0)
@@ -250,6 +262,7 @@ if importlib.util.find_spec("keras"):
         import tensorflow as tf
         import einx.nn.keras
 
+        @pytest.mark.tensorflow
         def test_keras_linear():
             x = tf.zeros((4, 128, 128, 3))
 
@@ -260,6 +273,7 @@ if importlib.util.find_spec("keras"):
             assert model(x, training=False).shape == (4, 128, 128, 32)
             assert model(x, training=False).shape == (4, 128, 128, 32)
 
+        @pytest.mark.tensorflow
         @pytest.mark.parametrize("expr_kwargs", norms)
         @pytest.mark.parametrize("mean", [True, False])
         @pytest.mark.parametrize("scale", [True, False])
@@ -277,6 +291,7 @@ if importlib.util.find_spec("keras"):
             assert model(x, training=False).shape == (4, 128, 128, 32)
             assert model(x, training=False).shape == (4, 128, 128, 32)
 
+        @pytest.mark.tensorflow
         def test_keras_dropout():
             x = tf.zeros((4, 128, 128, 3))
 

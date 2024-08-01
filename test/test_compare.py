@@ -1,5 +1,6 @@
 import importlib
 import einx
+import pytest
 
 if importlib.util.find_spec("einops"):
     import einops
@@ -12,6 +13,7 @@ if importlib.util.find_spec("einops"):
         else:
             assert np.all(a == b)
 
+    @pytest.mark.numpy
     def test_compare_einops():
         x = np.random.uniform(size=(4, 128, 128, 3))
 
@@ -73,6 +75,7 @@ if importlib.util.find_spec("torch"):
         else:
             assert torch.all(a == b)
 
+    @pytest.mark.torch
     def test_compare_torch():
         # torch.gather torch.take_along_dim
         x = torch.rand(4, 128, 3)
@@ -166,6 +169,7 @@ if importlib.util.find_spec("tensorflow"):
         else:
             assert tf.reduce_all(a == b)
 
+    @pytest.mark.tensorflow
     def test_compare_tensorflow():
         # tf.gather
         x = tf.random.uniform((4, 128, 3))
@@ -298,6 +302,7 @@ if importlib.util.find_spec("numpy"):
         else:
             assert np.all(a == b)
 
+    @pytest.mark.numpy
     def test_compare_numpy():
         # np.matmul
         x = np.random.uniform(size=(2, 3))
@@ -443,6 +448,7 @@ if importlib.util.find_spec("scipy"):
         else:
             assert np.all(a == b)
 
+    @pytest.mark.numpy
     def test_compare_scipy():
         # scipy.linalg.khatri_rao
         x = np.random.uniform(size=(2, 3))

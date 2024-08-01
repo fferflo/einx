@@ -4,6 +4,7 @@ import importlib
 import einx
 
 
+@pytest.mark.mlx
 @pytest.mark.skipif(importlib.util.find_spec("mlx") is None, reason="mlx is not installed")
 def test_import_mlx():
     try:
@@ -24,6 +25,7 @@ def test_import_mlx():
         einx.add("a, a", x, x, backend="mlx")
 
 
+@pytest.mark.torch
 @pytest.mark.skipif(importlib.util.find_spec("torch") is None, reason="torch is not installed")
 def test_import_torch():
     import torch

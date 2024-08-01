@@ -1,4 +1,3 @@
-import conftest
 import pytest
 import numpy as np
 
@@ -15,7 +14,7 @@ def allclose(x, y, setup):
     return np.allclose(x, y)
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_values(test):
     einx, backend, setup = test
 
@@ -151,52 +150,54 @@ def test_values(test):
         )
 
 
-@pytest.mark.parametrize("test", conftest.tests)
+@pytest.mark.all
 def test_compare_backends(test):
-    einx, _, setup = test
+    import einx
+
+    einx2, _, setup = test
 
     x = np.random.uniform(size=(10, 3, 10)).astype("float32")
     y = setup.to_tensor(x)
 
     assert allclose(
         einx.sum("a [b] c", x),
-        einx.sum("a [b] c", y),
+        einx2.sum("a [b] c", y),
         setup=setup,
     )
     assert allclose(
         einx.softmax("a [b] c", x),
-        einx.softmax("a [b] c", y),
+        einx2.softmax("a [b] c", y),
         setup=setup,
     )
     assert allclose(
         einx.log_softmax("a [b] c", x),
-        einx.log_softmax("a [b] c", y),
+        einx2.log_softmax("a [b] c", y),
         setup=setup,
     )
     assert allclose(
         einx.logsumexp("a [b] c", x),
-        einx.logsumexp("a [b] c", y),
+        einx2.logsumexp("a [b] c", y),
         setup=setup,
     )
 
     assert allclose(
         einx.flip("a [b c]", x),
-        einx.flip("a [b c]", y),
+        einx2.flip("a [b c]", y),
         setup=setup,
     )
     assert allclose(
         einx.flip("a [b c]", x),
-        einx.flip("a [b c]", y),
+        einx2.flip("a [b c]", y),
         setup=setup,
     )
 
     assert allclose(
         einx.roll("a [b] c", x, shift=2),
-        einx.roll("a [b] c", y, shift=2),
+        einx2.roll("a [b] c", y, shift=2),
         setup=setup,
     )
     assert allclose(
         einx.roll("a [b c]", x, shift=(-2, -3)),
-        einx.roll("a [b c]", y, shift=(-2, -3)),
+        einx2.roll("a [b c]", y, shift=(-2, -3)),
         setup=setup,
     )
