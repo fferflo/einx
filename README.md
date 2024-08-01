@@ -10,15 +10,15 @@ einx is a Python library that provides a universal interface to formulate tensor
 1. **Provide a set of elementary tensor operations** following Numpy-like naming: `einx.{sum|max|where|add|dot|flip|get_at|...}`
 2. **Use einx notation to express vectorization of the elementary operations.** einx notation is inspired by [einops](https://github.com/arogozhnikov/einops), but introduces several novel concepts such as `[]`-bracket notation and full composability that allow using it as a universal language for tensor operations.
 
-einx can be integrated and mixed with existing code seamlessly. All operations are [just-in-time compiled](https://einx.readthedocs.io/en/latest/more/jit.html) into regular Python functions using Python's [exec()](https://docs.python.org/3/library/functions.html#exec) and invoke operations from the respective framework.
+einx can be integrated and mixed with existing code seamlessly. All operations are [just-in-time compiled](https://einx.readthedocs.io/en/stable/more/jit.html) into regular Python functions using Python's [exec()](https://docs.python.org/3/library/functions.html#exec) and invoke operations from the respective framework.
 
 **Getting started:**
 
-* [Tutorial](https://einx.readthedocs.io/en/latest/gettingstarted/tutorial_overview.html)
-* [Example: GPT-2 with einx](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html)
-* [How is einx different from einops?](https://einx.readthedocs.io/en/latest/faq/einops.html)
-* [How is einx notation universal?](https://einx.readthedocs.io/en/latest/faq/universal.html)
-* [API reference](https://einx.readthedocs.io/en/latest/api.html)
+* [Tutorial](https://einx.readthedocs.io/en/stable/gettingstarted/tutorial_overview.html)
+* [Example: GPT-2 with einx](https://einx.readthedocs.io/en/stable/gettingstarted/gpt2.html)
+* [How is einx different from einops?](https://einx.readthedocs.io/en/stable/faq/einops.html)
+* [How is einx notation universal?](https://einx.readthedocs.io/en/stable/faq/universal.html)
+* [API reference](https://einx.readthedocs.io/en/stable/api.html)
 
 ## Installation
 
@@ -26,7 +26,7 @@ einx can be integrated and mixed with existing code seamlessly. All operations a
 pip install einx
 ```
 
-See [Installation](https://einx.readthedocs.io/en/latest/gettingstarted/installation.html) for more information.
+See [Installation](https://einx.readthedocs.io/en/stable/gettingstarted/installation.html) for more information.
 
 ## What does einx look like?
 
@@ -77,7 +77,7 @@ einx.dot("b... ([g c1->g c2])", x, w)              # - Grouped: Different weight
 einx.dot("b  [s...->s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 ```
 
-See [Common neural network ops](https://einx.readthedocs.io/en/latest/gettingstarted/commonnnops.html) for more examples.
+See [Common neural network ops](https://einx.readthedocs.io/en/stable/gettingstarted/commonnnops.html) for more examples.
 
 #### Optional: Deep learning modules
 
@@ -100,7 +100,7 @@ spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
 droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 ```
 
-See `examples/train_{torch|flax|haiku|equinox|keras}.py` for example trainings on CIFAR10, [GPT-2](https://einx.readthedocs.io/en/latest/gettingstarted/gpt2.html) and [Mamba](https://github.com/fferflo/weightbridge/blob/master/examples/mamba2flax.py) for working example implementations of language models using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/latest/gettingstarted/tutorial_neuralnetworks.html) for more details.
+See `examples/train_{torch|flax|haiku|equinox|keras}.py` for example trainings on CIFAR10, [GPT-2](https://einx.readthedocs.io/en/stable/gettingstarted/gpt2.html) and [Mamba](https://github.com/fferflo/weightbridge/blob/master/examples/mamba2flax.py) for working example implementations of language models using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/stable/gettingstarted/tutorial_neuralnetworks.html) for more details.
 
 #### Just-in-time compilation
 
@@ -117,4 +117,4 @@ def op0(i0):
     return x1
 ```
 
-See [Just-in-time compilation](https://einx.readthedocs.io/en/latest/more/jit.html) for more details.
+See [Just-in-time compilation](https://einx.readthedocs.io/en/stable/more/jit.html) for more details.

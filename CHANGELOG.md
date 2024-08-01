@@ -30,7 +30,7 @@
 
 ### Added
 
-- Add [`einx.experimental.shard`](https://einx.readthedocs.io/en/latest/api.html#einx.experimental.shard).
+- Add [`einx.experimental.shard`](https://einx.readthedocs.io/en/stable/api.html#einx.experimental.shard).
 
 ### Fixed
 
