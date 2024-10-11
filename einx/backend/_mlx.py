@@ -61,7 +61,7 @@ def create():
         def reshape(tensor, shape):
             if einx.tracer.is_scalar(tensor):
                 tensor = tmx.array(tensor)
-            return op.reshape(tmx.reshape)(tensor, list(to_tuple(shape)))
+            return op.reshape(tmx.reshape)(tensor, to_tuple(shape))
 
         transpose = op.transpose(tmx.transpose)
         broadcast_to = op.broadcast_to(tmx.broadcast_to)
