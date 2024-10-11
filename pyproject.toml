@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "einx"
+version = "0.3.0"
+requires-python = ">=3.8"
+authors = [
+    { name="Florian Fervers", email="florian.fervers@gmail.com" },
+]
+description = "Universal Tensor Operations in Einstein-Inspired Notation for Python"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+license = {file = "LICENSE"}
+readme = "README.md"
+
+dependencies = [
+    "numpy",
+    "sympy",
+    "frozendict",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=2"]
+keras = ["keras>=3"]
+mlx = ["mlx>=0.16.1"]
+
+[project.urls]
+Homepage = "https://github.com/fferflo/einx"
+Source = "https://github.com/fferflo/einx"
+Documentation = "https://einx.readthedocs.io/en/stable"
