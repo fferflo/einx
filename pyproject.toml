@@ -2,8 +2,8 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["einx"]
+[tool.setuptools.packages.find]
+exclude = ["mlx"]
 
 [project]
 name = "einx"
