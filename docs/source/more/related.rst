@@ -19,10 +19,10 @@ A non-exhaustive list of projects that use Einstein-inspired notation in chronol
 
    * - `einsum <https://numpy.org/doc/stable/reference/generated/numpy.einsum.html>`_
      - `Jan 23 2011 <https://github.com/numpy/numpy/commit/a41de3adf9dbbff9d9f2f50fe0ac59d6eabd43cf>`_
-     - Dot-product, rearranging, trace/diag, sum-reduction.
+     - Dot-product, transpose, trace/diag, sum-reduction.
    * - `einops <https://github.com/arogozhnikov/einops>`_
      - `Sep 22 2018 <https://github.com/arogozhnikov/einops/commit/8e72d792ee88dae177aba3e299179ed478b9a592>`_
-     - Dot-product, rearranging, trace/diag, reduction.
+     - Dot-product, transpose, reshape, repeat, trace/diag, reduction, stack/concat/split.
    * - `einindex <https://github.com/malmaud/einindex>`_
      - `Dec 3 2018 <https://github.com/malmaud/einindex/commit/5eb212246d6dfa7061cb76545ac1cb8e41c82525>`_
      - Indexing.
@@ -43,7 +43,7 @@ A non-exhaustive list of projects that use Einstein-inspired notation in chronol
      - Indexing.
    * - `eins <https://github.com/nicholas-miklaucic/eins>`_
      - `Mar 14 2024 <https://github.com/nicholas-miklaucic/eins/commit/dc5e9a0a3f5bf6fb9e62427b6cedf1ffab1a8873>`_
-     - ?
+     - Custom.
    * - `einshard <https://github.com/yixiaoer/einshard>`_
      - `Mar 24 2024 <https://github.com/yixiaoer/mistral-v0.2-jax/commit/b800c054109a14fb04ce72ed1c990c7aa7bba628>`_
      - Sharding.
