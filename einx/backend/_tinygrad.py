@@ -140,7 +140,9 @@ def create():
         subtract = elementwise(tTensor.sub)
         multiply = associative_binary_to_nary(elementwise(tTensor.mul))
         true_divide = elementwise(tTensor.div)
-        floor_divide = elementwise(tTensor.idiv)
+        floor_divide = elementwise(
+            tTensor.idiv if "idiv" in dir(Tensor) else partial(tTensor.div, upcast=False)
+        )
         divide = elementwise(tTensor.div)
         logical_and = associative_binary_to_nary(elementwise(tTensor.mul))
         logical_or = associative_binary_to_nary(elementwise(tTensor.add))
