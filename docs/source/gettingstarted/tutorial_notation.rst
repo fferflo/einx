@@ -122,6 +122,20 @@ The number of repetitions is determined from the rank of the input tensors:
 >>> einx.matches("a b...", x) # Expands to "a b.0 b.1 b.2"
 True
 
+.. note::
+
+    Ellipses are used in programming languages such as C++ and Java to define
+    `variadic parameters <https://en.wikipedia.org/wiki/Variadic_function>`_. The ellipsis indicates that a function accepts a variable
+    number of arguments with the type preceeding the ellipsis, and expands based on the actual number of arguments that the function is called with:
+
+    .. code:: java
+
+        public static void function(String... args) {
+            // ...
+        }
+
+    The usage of ellipses in einx is analogous, and allows for compatibility with the definition of anonymous ellipses in einops (:ref:`see below <einopsellipsis>`).
+
 Using ellipses e.g. for spatial dimensions often results in simpler and more readable expressions, and allows using the same expression
 for tensors with different dimensionality:
 
@@ -146,8 +160,10 @@ def op0(i0):
     x2 = np.reshape(x1, (1024, 8, 8, 3))
     return x2
 
+.. _einopsellipsis:
+
 In einops-style notation, an ellipsis always appears at root-level and is anonymous, i.e. does not have a preceding expression.
-To be fully compatible with einops notation, einx implicitly converts anonymous ellipses by adding an axis in front:
+To be fully compatible with einops notation, einx implicitly converts anonymous ellipses by adding an axis name in front:
 
 ..  code::
 
@@ -168,7 +184,7 @@ True
 >>> einx.matches("a 1 c", x)
 False
 
-Unnamed axes is used for example as an alternative to ``np.expand_dims``, ``np.squeeze``, ``np.newaxis``, ``np.broadcast_to``:
+Unnamed axes are used for example as an alternative to ``np.expand_dims``, ``np.squeeze``, ``np.newaxis``, ``np.broadcast_to``:
 
 >>> x = np.ones((2, 1, 3))
 >>> einx.rearrange("a 1 b -> 1 1 a b 1 5 6", x).shape
