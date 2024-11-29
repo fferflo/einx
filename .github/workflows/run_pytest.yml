@@ -64,11 +64,11 @@ jobs:
         EINX_FILTER_TRACEBACK=0 pytest test --backend torch
         pip install --upgrade "torch==2.3.0"
         EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.2.0"
+        pip install --upgrade "torch==2.2.0" numpy<2
         EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.1.0"
+        pip install --upgrade "torch==2.1.0" numpy<2
         EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.0.0"
+        pip install --upgrade "torch==2.0.0" numpy<2
         EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch<2"
+        pip install --upgrade "torch<2" numpy<2
         EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_backend_version.py
