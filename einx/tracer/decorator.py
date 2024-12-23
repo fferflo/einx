@@ -1,5 +1,8 @@
 import functools
 import os
+
+import cachetools
+
 import einx
 import threading
 import frozendict
@@ -95,20 +98,39 @@ def _with_retrace_warning(func):
         return func
 
 
-def lru_cache(func):
+def _cache_impl(func, cache_provider):
     func = _with_retrace_warning(func)
 
     max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
-    if max_cache_size > 0:
-        func = functools.lru_cache(maxsize=max_cache_size if max_cache_size > 0 else None)(func)
-    elif max_cache_size < 0:
-        if "cache" in vars(functools):
-            func = functools.cache(func)
-        else:
-            func = functools.lru_cache(maxsize=None)(func)
+    func = cache_provider(func, max_cache_size)
     func = freeze(func)
 
     return func
+
+
+def _lru_cache_provider(func, max_cache_size):
+    if max_cache_size > 0:
+        return functools.lru_cache(maxsize=max_cache_size if max_cache_size > 0 else None)(func)
+    elif max_cache_size < 0:
+        if "cache" in vars(functools):
+            return functools.cache(func)
+        else:
+            return functools.lru_cache(maxsize=None)(func)
+
+
+def lru_cache(func):
+    return _cache_impl(func, _lru_cache_provider)
+
+
+def _tracing_cache_provider(func, max_cache_size):
+    return cachetools.cached(
+        cache = cachetools.LRUCache(max_cache_size) if max_cache_size > 0 else {},
+        key = lambda args, kwargs, backend: cachetools.keys.hashkey(*backend.tracing_cache_key(args, kwargs), backend),
+    )(func)
+
+
+def _tracing_cache(func):
+    return _cache_impl(func, _tracing_cache_provider)
 
 
 _thread_local = threading.local()
@@ -146,7 +168,7 @@ def jit(func=None, trace=trace_all):
     if func is None:
         return partial(jit, trace=trace)
 
-    @lru_cache
+    @_tracing_cache
     def construct_graph(args, kwargs, backend):
         with _trace_context(backend):
             # Replace input keys with tracers and retrieve list of traced arguments

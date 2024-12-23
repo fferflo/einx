@@ -4,6 +4,8 @@ from einx.tracer.tensor import op
 import einx
 import types
 from functools import partial
+import inspect
+from frozendict import frozendict
 
 
 def create():
@@ -69,6 +71,24 @@ def create():
         sqrt = op.elementwise(tjnp.sqrt)
         rsqrt = op.elementwise(tjax.lax.rsqrt)
         square = op.elementwise(tjnp.square)
+
+        @staticmethod
+        def tracing_cache_key(args, kwargs):
+            def process_arg(arg):
+                if not jax_.tree_util.treedef_is_leaf(tree := jax_.tree_util.tree_structure(arg)):
+                    # A pytree, probably an equinox module
+                    # We want to cache by the shape of any contained
+                    # arrays instead of the arrays themselves
+                    return "_EQUINOX_PYTREE", jax_.tree_util.tree_map(lambda x: x.shape if isinstance(x, jnp.ndarray) else x, tree)
+                elif inspect.ismethod(arg) and not jax_.tree_util.treedef_is_leaf(tree := jax_.tree_util.tree_structure(arg.__self__)):
+                    # Bound method of a pytree, probably an equinox module
+                    return "_EQUINOX_METHOD", arg.__func__, jax_.tree.map(lambda x: x.shape if isinstance(x, jnp.ndarray) else x, tree)
+
+                # Not a bound method of a pytree, just return the arg
+                return arg
+
+            ret = tuple(process_arg(arg) for arg in args), frozendict({k: process_arg(v) for k, v in kwargs.items()})
+            return ret
 
         @staticmethod
         @einx.trace

@@ -26,6 +26,7 @@ dependencies = [
     "numpy",
     "sympy",
     "frozendict",
+    "cachetools",
 ]
 
 [project.optional-dependencies]
