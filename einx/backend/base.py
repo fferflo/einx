@@ -87,6 +87,10 @@ class Backend:
     def _decorate_construct_graph(f):
         return f
 
+    @staticmethod
+    def tracing_cache_key(args, kwargs):
+        return args, kwargs
+
     @classmethod
     @einx.trace
     def all_to_tensor(backend, tensors, convert_scalars=False):
