@@ -240,7 +240,7 @@ All operations support expression rearranging:
 
 .. code::
 
-   einx.add_at("b ([h w]) c, ([2] b) i, c i -> c [h w] b", image, coordinates, updates)
+   einx.add_at("b ([h w]) c, ([2] b) i, c i -> c [h w] b", image, coordinates, updates, h=256)
 
 Several operations from classical tensor frameworks can be expressed using universal einx indexing functions:
 

@@ -289,8 +289,7 @@ Some other examples:
 
 ..  code::
 
-    einx.flip("a [b]", x, c=2) # Flip pairs of values
-    einx.add("... [c]", x, b) # Add bias
+    einx.flip("a [b]", x, b=2) # Flip pairs of values
     einx.get_at("b [h w] c, b i [2] -> b i c", x, indices) # Gather values
     einx.softmax("b q [k] h", attn) # Part of attention operation
 
