@@ -15,11 +15,14 @@ def test_shape_rearrange(test):
     with pytest.raises(Exception):
         einx.rearrange("a a b c -> (a b) c 1", x)
         einx.rearrange("a (a + b) c -> (a b) c 1", x)
-    
+
     x = setup.full((200,))
     assert einx.rearrange(" ( a   b  ) ->   b   a   ", x, a=10).shape == (20, 10)
 
-    x = setup.full((20, 10,))
+    x = setup.full((
+        20,
+        10,
+    ))
     assert einx.rearrange("(a) (b) -> b a", x).shape == (10, 20)
 
     x = setup.full((10, 20, 20, 2))

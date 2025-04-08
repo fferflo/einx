@@ -355,8 +355,7 @@ def create():
             if isinstance(axis, (list, tuple)):
                 if len(axis) != 1:
                     raise ValueError(
-                        "PyTorch only supports softmax along a single axis, "
-                        f"got {len(axis)} axes"
+                        f"PyTorch only supports softmax along a single axis, got {len(axis)} axes"
                     )
                 axis = axis[0]
             return op.keep_shape(ttorch.softmax)(tensor, axis)

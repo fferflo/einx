@@ -128,6 +128,7 @@ for env in envs:
             return torch.nn.functional.layer_norm(
                 x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon
             )
+
     else:
         benchmark_native = None
     experiments.append((
@@ -157,6 +158,7 @@ for env in envs:
             return torch.nn.functional.layer_norm(
                 x, (x.shape[-1],), weight=scale, bias=bias, eps=epsilon
             )
+
     else:
         benchmark_native = None
     experiments.append((
@@ -186,6 +188,7 @@ for env in envs:
             return torch.nn.functional.batch_norm(
                 x, None, None, weight=scale, bias=bias, eps=epsilon, training=True
             )
+
     else:
         benchmark_native = None
     experiments.append((
@@ -215,6 +218,7 @@ for env in envs:
             return torch.nn.functional.batch_norm(
                 x, None, None, weight=scale, bias=bias, eps=epsilon, training=True
             )
+
     else:
         benchmark_native = None
     experiments.append((
@@ -237,6 +241,7 @@ for env in envs:
 
         def benchmark_native(x, bias, weight):
             return torch.nn.functional.linear(x, weight=weight, bias=bias)
+
     else:
         benchmark_native = None
     experiments.append((

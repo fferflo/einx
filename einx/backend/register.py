@@ -35,8 +35,7 @@ def register(backend):
     with lock:
         if not isinstance(backend, (Backend, InvalidBackend)):
             raise ValueError(
-                "Backend must be an instance of einx.backend.Backend or "
-                "einx.backend.InvalidBackend"
+                "Backend must be an instance of einx.backend.Backend or einx.backend.InvalidBackend"
             )
         backends.append(backend)
         for type in backend.tensor_types:
