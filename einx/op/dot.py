@@ -211,7 +211,7 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
             if isinstance(axis, einx.expr.stage3.Axis):
                 is_reduced_axis = axis.name not in out_axis_names
                 is_marked = einx.expr.stage3.is_marked(axis)
-                if is_reduced_axis and not is_marked:
+                if is_reduced_axis and not is_marked and axis.value != 1:
                     invalid_axes.append(axis)
     if len(invalid_axes) > 0:
         pos = []

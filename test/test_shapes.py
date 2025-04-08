@@ -265,6 +265,10 @@ def test_shape_dot(test):
     with pytest.raises(Exception):
         einx.dot("[a] b [c], a c, d [c] -> b d", x, y, z)
 
+    x = setup.full((10, 5, 1))
+    y = setup.full((5,))
+    assert einx.dot("a [b] 1, [b] -> a", x, y).shape == (10,)
+
 
 @pytest.mark.all
 def test_shape_reduce(test):
@@ -318,8 +322,10 @@ def test_shape_reduce(test):
     x = setup.full((16, 15))
     assert einx.sum("[b] a []", x).shape == (15,)
     assert einx.sum("[b] a [...]", x).shape == (15,)
-
     assert einx.sum("b [p] -> b p2", x, p2=7).shape == (16, 7)
+
+    x = setup.full((10, 5, 1))
+    assert einx.sum("a [b] 1 -> a", x).shape == (10,)
 
 
 @pytest.mark.all
