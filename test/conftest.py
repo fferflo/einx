@@ -157,8 +157,11 @@ def jax_config():
             os.environ.get("XLA_FLAGS", "") + " --xla_force_host_platform_device_count=8"
         )
 
-        import jax
-        import jax.numpy as jnp
+        try:
+            import jax
+            import jax.numpy as jnp
+        except ImportError:
+            return tests
 
         einx_jit = WrappedEinx(jax.jit, "jax.jit")
 
@@ -202,7 +205,10 @@ test_configs["jax"] = jax_config
 def torch_config():
     tests = []
     if importlib.util.find_spec("torch"):
-        import torch
+        try:
+            import torch
+        except ImportError:
+            return tests
 
         version = tuple(int(i) for i in torch.__version__.split(".")[:2])
 
@@ -265,8 +271,11 @@ def tensorflow_config():
         import os
 
         os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-        import tensorflow as tf
-        import tensorflow.experimental.numpy as tnp
+        try:
+            import tensorflow as tf
+            import tensorflow.experimental.numpy as tnp
+        except ImportError:
+            return tests
 
         tnp.experimental_enable_numpy_behavior()
 
@@ -289,7 +298,10 @@ test_configs["tensorflow"] = tensorflow_config
 def mlx_config():
     tests = []
     if importlib.util.find_spec("mlx"):
-        import mlx.core as mx
+        try:
+            import mlx.core as mx
+        except ImportError:
+            return tests
 
         backend = einx.backend.mlx.create()
 
@@ -315,7 +327,10 @@ test_configs["mlx"] = mlx_config
 def dask_config():
     tests = []
     if importlib.util.find_spec("dask"):
-        import dask.array as da
+        try:
+            import dask.array as da
+        except ImportError:
+            return tests
 
         backend = einx.backend.dask.create()
 
@@ -339,7 +354,10 @@ def tinygrad_config():
         import os
 
         os.environ["PYTHON"] = "1"
-        from tinygrad import Tensor
+        try:
+            from tinygrad import Tensor
+        except ImportError:
+            return tests
 
         backend = einx.backend.tinygrad.create()
 
