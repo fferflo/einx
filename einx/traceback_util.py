@@ -54,10 +54,11 @@ def _filter_tb(tb):
     return tb
 
 
-def filter(func):
-    filter = os.environ.get("EINX_FILTER_TRACEBACK", "true").lower() in ("true", "yes", "1")
+apply_filter = os.environ.get("EINX_FILTER_TRACEBACK", "true").lower() in ("true", "yes", "1")
 
-    if filter:
+
+def filter(func):
+    if apply_filter:
 
         @functools.wraps(func)
         def func_with_reraise(*args, **kwargs):

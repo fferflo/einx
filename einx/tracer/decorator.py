@@ -40,10 +40,10 @@ traced_functions_lock = threading.Lock()
 thread_local = threading.local()
 thread_local.warn = True
 
+warn_on_retrace_num = int(os.environ.get("EINX_WARN_ON_RETRACE", 0))
+
 
 def _with_retrace_warning(func):
-    warn_on_retrace_num = int(os.environ.get("EINX_WARN_ON_RETRACE", 0))
-
     if warn_on_retrace_num > 0:
         cache_failures = defaultdict(lambda: 0)
 
@@ -95,10 +95,12 @@ def _with_retrace_warning(func):
         return func
 
 
+max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
+
+
 def lru_cache(func):
     func = _with_retrace_warning(func)
 
-    max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
     if max_cache_size > 0:
         func = functools.lru_cache(maxsize=max_cache_size if max_cache_size > 0 else None)(func)
     elif max_cache_size < 0:
