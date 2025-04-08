@@ -5,11 +5,13 @@ import einx
 
 
 class Expression:
-    def __init__(self, value):
+    def __init__(self, value, begin_pos=None, end_pos=None):
         if not isinstance(value, (int, np.integer)):
             raise TypeError(f"Expected int, got {type(value)}")
         self.value = int(value)
         self.parent = None
+        self.begin_pos = begin_pos
+        self.end_pos = end_pos
 
     @property
     def shape(self):
@@ -18,21 +20,25 @@ class Expression:
 
 class Composition(Expression):
     @staticmethod
-    def maybe(inner):
+    def maybe(inner, begin_pos=None, end_pos=None):
         if len(inner) == 0:
-            return Axis(None, 1)
+            return Axis(None, 1, begin_pos=begin_pos, end_pos=end_pos)
         elif isinstance(inner, list):
             if len(inner) == 1:
                 return inner[0]
             else:
-                return Composition(List.maybe(inner))
+                return Composition(
+                    List.maybe(inner, begin_pos=begin_pos + 1, end_pos=end_pos - 1),
+                    begin_pos=begin_pos,
+                    end_pos=end_pos,
+                )
         elif isinstance(inner, List) and len(inner) == 1:
             return inner.children[0]
         else:
-            return Composition(inner)
+            return Composition(inner, begin_pos=begin_pos, end_pos=end_pos)
 
-    def __init__(self, inner):
-        Expression.__init__(self, inner.value)
+    def __init__(self, inner, begin_pos=None, end_pos=None):
+        Expression.__init__(self, inner.value, begin_pos=begin_pos, end_pos=end_pos)
         self.inner = inner
         inner.parent = self
         assert len(inner) > 0
@@ -47,7 +53,7 @@ class Composition(Expression):
         yield self
 
     def __deepcopy__(self):
-        return Composition(self.inner.__deepcopy__())
+        return Composition(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
 
     def __eq__(self, other):
         return isinstance(other, Composition) and self.inner == other.inner
@@ -61,16 +67,21 @@ class Composition(Expression):
 
 
 class List(Expression):
-    def maybe(l, *args, **kwargs):
+    def maybe(l, begin_pos=None, end_pos=None):
         if not isinstance(l, list):
             raise TypeError(f"Expected list, got {type(l)}")
         if len(l) == 1:
             return l[0]
         else:
-            return List(l, *args, **kwargs)
+            return List(l, begin_pos=begin_pos, end_pos=end_pos)
 
-    def __init__(self, children):
-        Expression.__init__(self, np.prod([c.value for c in children]).astype(int))
+    def __init__(self, children, begin_pos=None, end_pos=None):
+        Expression.__init__(
+            self,
+            np.prod([c.value for c in children]).astype(int),
+            begin_pos=begin_pos,
+            end_pos=end_pos,
+        )
         self.children = children
         for c in children:
             if isinstance(c, List):
@@ -91,7 +102,7 @@ class List(Expression):
             yield from c
 
     def __deepcopy__(self):
-        return List([c.__deepcopy__() for c in self.children])
+        return List([c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos)
 
     def __eq__(self, other):
         return isinstance(other, List) and self.children == other.children
@@ -106,8 +117,8 @@ class List(Expression):
 
 
 class Axis(Expression):
-    def __init__(self, name, value):
-        Expression.__init__(self, value)
+    def __init__(self, name, value, begin_pos=None, end_pos=None):
+        Expression.__init__(self, value, begin_pos=begin_pos, end_pos=end_pos)
         self.name = name if name is not None else f"unnamed.{id(self)}"
 
     def __str__(self):
@@ -120,7 +131,7 @@ class Axis(Expression):
         yield self
 
     def __deepcopy__(self):
-        return Axis(self.name, self.value)
+        return Axis(self.name, self.value, self.begin_pos, self.end_pos)
 
     def __eq__(self, other):
         if not isinstance(other, Axis):
@@ -147,18 +158,23 @@ class Axis(Expression):
 
 class Concatenation(Expression):
     @staticmethod
-    def maybe(l, *args, **kwargs):
+    def maybe(l, begin_pos=None, end_pos=None):
         if not isinstance(l, list):
             raise TypeError(f"Expected list, got {type(l)}")
         if len(l) == 1:
             return l[0]
         else:
-            return Concatenation(l, *args, **kwargs)
+            return Concatenation(l, begin_pos=begin_pos, end_pos=end_pos)
 
-    def __init__(self, children):
+    def __init__(self, children, begin_pos=None, end_pos=None):
         if len(children) == 0:
             raise ValueError("Concatenation must have at least one child")
-        Expression.__init__(self, np.sum([c.value for c in children]).astype("int32"))
+        Expression.__init__(
+            self,
+            np.sum([c.value for c in children]).astype("int32"),
+            begin_pos=begin_pos,
+            end_pos=end_pos,
+        )
         self.children = children
         for c in children:
             if len(c) != 1:
@@ -178,7 +194,9 @@ class Concatenation(Expression):
         yield self
 
     def __deepcopy__(self):
-        return Concatenation([c.__deepcopy__() for c in self.children])
+        return Concatenation(
+            [c.__deepcopy__() for c in self.children], self.begin_pos, self.end_pos
+        )
 
     def __eq__(self, other):
         return isinstance(other, Concatenation) and self.children == other.children
@@ -193,10 +211,10 @@ class Concatenation(Expression):
 
 
 class Marker(Expression):
-    def __init__(self, inner):
+    def __init__(self, inner, begin_pos=None, end_pos=None):
         if len(inner) == 0:
             raise ValueError("Marker cannot have empty list as child")
-        Expression.__init__(self, inner.value)
+        Expression.__init__(self, inner.value, begin_pos=begin_pos, end_pos=end_pos)
         self.inner = inner
         inner.parent = self
 
@@ -210,7 +228,7 @@ class Marker(Expression):
         yield from self.inner
 
     def __deepcopy__(self):
-        return Marker(self.inner.__deepcopy__())
+        return Marker(self.inner.__deepcopy__(), self.begin_pos, self.end_pos)
 
     def __eq__(self, other):
         return isinstance(other, Marker) and self.inner == other.inner
@@ -223,17 +241,7 @@ class Marker(Expression):
         yield from self.inner.all()
 
 
-class SolveValueException(solver.SolveException):
-    def __init__(self, exprs1, exprs2, message):
-        self.exprs1 = exprs1
-        self.exprs2 = exprs2
-        message = f"Failed to solve values of expressions. {message}\nInput:\n"
-        for expr1, expr2 in zip(exprs1, exprs2):
-            message += f"    '{einx.expr.util._to_str(expr1)} = {einx.expr.util._to_str(expr2)}'\n"
-        super().__init__(message)
-
-
-def solve(exprs1, exprs2):
+def solve(exprs1, exprs2, descs1, descs2, signature=None):
     exprs1 = list(exprs1)
     exprs2 = list(exprs2)
     if any(
@@ -309,49 +317,94 @@ def solve(exprs1, exprs2):
                     ))
 
     # Solve
-    try:
+    def solve(equations):
         solutions = solver.solve(equations)
-    except solver.SolveException as e:
-        raise SolveValueException(exprs1, exprs2, str(e)) from e
-    axis_values = {}
-    for k, v in solutions.items():
-        if k.startswith("symbolic_expr_values["):
-            axis_values[int(k[len("symbolic_expr_values[") : -1])] = int(v)
 
-    failed_axes = set()
-    for root in exprs1 + exprs2:
-        if root is not None:
-            for expr in root.all():
-                if isinstance(expr, stage2.NamedAxis):
-                    if id(expr) not in axis_values:
-                        failed_axes.add(str(expr))
-    if len(failed_axes) > 0:
-        raise SolveValueException(exprs1, exprs2, f"Found no unique solutions for {failed_axes}")
+        axis_values = {}
+        for k, v in solutions.items():
+            if k.startswith("symbolic_expr_values["):
+                axis_values[int(k[len("symbolic_expr_values[") : -1])] = int(v)
+
+        failed_axes = set()
+        for root in exprs1 + exprs2:
+            if root is not None:
+                for expr in root.all():
+                    if isinstance(expr, stage2.NamedAxis):
+                        if id(expr) not in axis_values:
+                            failed_axes.add(expr)
+        if len(failed_axes) > 0:
+            failed_axes = sorted({str(x) for x in failed_axes})
+            raise solver.SolveExceptionTooManySolutions(", ".join(failed_axes))
+
+        # Raise exception on non-positive values
+        failed_exprs = set()
+        for root in exprs1 + exprs2:
+            if root is not None:
+                for expr in root.all():
+                    if isinstance(expr, stage2.NamedAxis) and axis_values[id(expr)] <= 0:
+                        failed_exprs.add(expr)
+        if len(failed_exprs) > 0:
+            raise solver.SolveExceptionNoSolution()
+
+        return axis_values
+
+    try:
+        axis_values = solve(equations)
+    except solver.SolveExceptionTooManySolutions as e:
+        if e.message is None:
+            raise einx.DimensionError(
+                "Failed to uniquely determine the size of all axes in the expression. Please "
+                "provide more constraints.",
+                text=signature.text,
+                constraints=[
+                    (expr1, expr2)
+                    for expr1, expr2 in zip(exprs1, exprs2)
+                    if expr1 is not None and expr2 is not None
+                ],
+            ) from e
+        else:
+            axis_names = e.message.split(", ")
+            raise einx.DimensionError(
+                f"Failed to uniquely determine the size of the axes {', '.join(axis_names)}. "
+                "Please provide more constraints.",
+                text=signature.text,
+                pos=signature.get_pos_for_axisnames(exprs1 + exprs2, axis_names),
+                constraints=[
+                    (expr1, expr2)
+                    for expr1, expr2 in zip(exprs1, exprs2)
+                    if expr1 is not None and expr2 is not None
+                ],
+            ) from e
+    except solver.SolveExceptionNoSolution as e:
+        raise einx.DimensionError(
+            "Failed to determine the size of all axes in the expression under the given "
+            "constraints.",
+            text=signature.text,
+            constraints=[
+                (expr1, expr2)
+                for expr1, expr2 in zip(exprs1, exprs2)
+                if expr1 is not None and expr2 is not None
+            ],
+        ) from e
 
     # Map stage2 expressions to stage3 expressions
     def map(expr):
         if isinstance(expr, stage2.NamedAxis):
-            assert id(expr) in axis_values
-            if axis_values[id(expr)] <= 0:
-                raise SolveValueException(
-                    exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0"
-                )
-            return Axis(expr.name, axis_values[id(expr)])
+            assert id(expr) in axis_values and axis_values[id(expr)] > 0
+            return Axis(expr.name, axis_values[id(expr)], expr.begin_pos, expr.end_pos)
         elif isinstance(expr, stage2.UnnamedAxis):
-            assert id(expr) in axis_values
-            if axis_values[id(expr)] <= 0:
-                raise SolveValueException(
-                    exprs1, exprs2, f"Axis '{expr}' has value {axis_values[id(expr)]} <= 0"
-                )
-            return Axis(None, axis_values[id(expr)])
+            assert id(expr) in axis_values and axis_values[id(expr)] > 0
+            return Axis(None, axis_values[id(expr)], expr.begin_pos, expr.end_pos)
         elif isinstance(expr, stage2.List):
-            return List([map(child) for child in expr.children])
+            return List([map(child) for child in expr.children], expr.begin_pos, expr.end_pos)
         elif isinstance(expr, stage2.Concatenation):
-            return Concatenation([map(child) for child in expr.children])
+            return Concatenation(
+                [map(child) for child in expr.children], expr.begin_pos, expr.end_pos
+            )
         elif isinstance(expr, stage2.Marker):
-            return Marker(map(expr.inner))
+            return Marker(map(expr.inner), expr.begin_pos, expr.end_pos)
         elif isinstance(expr, stage2.Composition):
-            return Composition.maybe(map(expr.inner))
+            return Composition.maybe(map(expr.inner), expr.begin_pos, expr.end_pos)
         else:
             raise AssertionError(type(expr))
 

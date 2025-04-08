@@ -6,9 +6,11 @@ from collections import defaultdict
 
 
 class Expression:
-    def __init__(self, ellipsis_indices):
+    def __init__(self, ellipsis_indices, begin_pos=None, end_pos=None):
         self.ellipsis_indices = ellipsis_indices
         self.parent = None
+        self.begin_pos = begin_pos
+        self.end_pos = end_pos
 
     @property
     def depth(self):
@@ -20,8 +22,8 @@ class Expression:
 
 
 class Composition(Expression):
-    def __init__(self, inner, ellipsis_indices):
-        Expression.__init__(self, ellipsis_indices)
+    def __init__(self, inner, ellipsis_indices, begin_pos=None, end_pos=None):
+        Expression.__init__(self, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
         self.inner = inner
         inner.parent = self
 
@@ -35,7 +37,12 @@ class Composition(Expression):
         yield self
 
     def __deepcopy__(self):
-        return Composition(self.inner.__deepcopy__(), ellipsis_indices=self.ellipsis_indices)
+        return Composition(
+            self.inner.__deepcopy__(),
+            ellipsis_indices=self.ellipsis_indices,
+            begin_pos=self.begin_pos,
+            end_pos=self.end_pos,
+        )
 
     def all(self):
         yield self
@@ -44,14 +51,14 @@ class Composition(Expression):
 
 class List(Expression):
     @staticmethod
-    def maybe(l, *args, **kwargs):
+    def maybe(l, ellipsis_indices, begin_pos=None, end_pos=None):
         if len(l) == 1:
             return l[0]
         else:
-            return List(l, *args, **kwargs)
+            return List(l, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
 
-    def __init__(self, children, ellipsis_indices):
-        Expression.__init__(self, ellipsis_indices)
+    def __init__(self, children, ellipsis_indices, begin_pos=None, end_pos=None):
+        Expression.__init__(self, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
         self.children = children
         for c in children:
             c.parent = self
@@ -68,7 +75,10 @@ class List(Expression):
 
     def __deepcopy__(self):
         return List(
-            [c.__deepcopy__() for c in self.children], ellipsis_indices=self.ellipsis_indices
+            [c.__deepcopy__() for c in self.children],
+            ellipsis_indices=self.ellipsis_indices,
+            begin_pos=self.begin_pos,
+            end_pos=self.end_pos,
         )
 
     def all(self):
@@ -78,8 +88,8 @@ class List(Expression):
 
 
 class NamedAxis(Expression):
-    def __init__(self, name, ellipsis_indices):
-        Expression.__init__(self, ellipsis_indices)
+    def __init__(self, name, ellipsis_indices, begin_pos=None, end_pos=None):
+        Expression.__init__(self, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
         self.name = name
 
         postfix = ""
@@ -98,15 +108,20 @@ class NamedAxis(Expression):
         yield self
 
     def __deepcopy__(self):
-        return NamedAxis(self.name, ellipsis_indices=self.ellipsis_indices)
+        return NamedAxis(
+            self.name,
+            ellipsis_indices=self.ellipsis_indices,
+            begin_pos=self.begin_pos,
+            end_pos=self.end_pos,
+        )
 
     def all(self):
         yield self
 
 
 class UnnamedAxis(Expression):
-    def __init__(self, value, ellipsis_indices):
-        Expression.__init__(self, ellipsis_indices)
+    def __init__(self, value, ellipsis_indices, begin_pos=None, end_pos=None):
+        Expression.__init__(self, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
         self.value = value
 
     def __str__(self):
@@ -119,15 +134,20 @@ class UnnamedAxis(Expression):
         yield self
 
     def __deepcopy__(self):
-        return UnnamedAxis(self.value, ellipsis_indices=self.ellipsis_indices)
+        return UnnamedAxis(
+            self.value,
+            ellipsis_indices=self.ellipsis_indices,
+            begin_pos=self.begin_pos,
+            end_pos=self.end_pos,
+        )
 
     def all(self):
         yield self
 
 
 class Concatenation(Expression):
-    def __init__(self, children, ellipsis_indices):
-        Expression.__init__(self, ellipsis_indices)
+    def __init__(self, children, ellipsis_indices, begin_pos=None, end_pos=None):
+        Expression.__init__(self, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
         for c in children:
             if len(c) != 1:
                 raise ValueError(
@@ -149,7 +169,10 @@ class Concatenation(Expression):
 
     def __deepcopy__(self):
         return Concatenation(
-            [c.__deepcopy__() for c in self.children], ellipsis_indices=self.ellipsis_indices
+            [c.__deepcopy__() for c in self.children],
+            ellipsis_indices=self.ellipsis_indices,
+            begin_pos=self.begin_pos,
+            end_pos=self.end_pos,
         )
 
     def all(self):
@@ -160,14 +183,14 @@ class Concatenation(Expression):
 
 class Marker(Expression):
     @staticmethod
-    def maybe(inner, *args, **kwargs):
+    def maybe(inner, ellipsis_indices, begin_pos=None, end_pos=None):
         if len(inner) == 0:
             return inner
         else:
-            return Marker(inner, *args, **kwargs)
+            return Marker(inner, ellipsis_indices, begin_pos=None, end_pos=None)
 
-    def __init__(self, inner, ellipsis_indices):
-        Expression.__init__(self, ellipsis_indices)
+    def __init__(self, inner, ellipsis_indices, begin_pos=None, end_pos=None):
+        Expression.__init__(self, ellipsis_indices, begin_pos=begin_pos, end_pos=end_pos)
         self.inner = inner
         inner.parent = self
         assert len(inner) > 0
@@ -182,87 +205,29 @@ class Marker(Expression):
         yield from self.inner
 
     def __deepcopy__(self):
-        return Marker(self.inner.__deepcopy__(), ellipsis_indices=self.ellipsis_indices)
+        return Marker(
+            self.inner.__deepcopy__(),
+            ellipsis_indices=self.ellipsis_indices,
+            begin_pos=self.begin_pos,
+            end_pos=self.end_pos,
+        )
 
     def all(self):
         yield self
         yield from self.inner.all()
 
 
-class SolveDepthException(solver.SolveException):
-    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
-        assert (
-            len({
-                len(exprs1),
-                len(exprs2),
-                len(expansions1),
-                len(expansions2),
-                len(depths1),
-                len(depths2),
-            })
-            == 1
-        )
-        self.exprs1 = exprs1
-        self.exprs2 = exprs2
-        self.expansions1 = expansions1
-        self.expansions2 = expansions2
-        self.depths1 = depths1
-        self.depths2 = depths2
-        message_in = message
-        message = (
-            "Failed to solve for the depth of axes, i.e. the number of outer ellipses.\n"
-            "Equations:\n"
-        )
-        for expr1, expr2 in zip(exprs1, exprs2):
-            if expr1 is not None and expr2 is not None:
-                message += "    "
-                message += f"{einx.expr.util._to_str(expr1)}"
-                message += " = "
-                message += f"{einx.expr.util._to_str(expr2)}"
-                message += "\n"
-        message += f"Reason: {message_in}"
-        super().__init__(message)
-
-
-class SolveExpansionException(solver.SolveException):
-    def __init__(self, exprs1, exprs2, expansions1, expansions2, depths1, depths2, message):
-        assert (
-            len({
-                len(exprs1),
-                len(exprs2),
-                len(expansions1),
-                len(expansions2),
-                len(depths1),
-                len(depths2),
-            })
-            == 1
-        )
-        self.exprs1 = exprs1
-        self.exprs2 = exprs2
-        self.expansions1 = expansions1
-        self.expansions2 = expansions2
-        self.depths1 = depths1
-        self.depths2 = depths2
-        message_in = message
-        message = "Failed to solve for the number of axes in the expressions.\nEquations:\n"
-        for expr1, expr2 in zip(exprs1, exprs2):
-            if expr1 is not None and expr2 is not None:
-                message += "    "
-                message += f"{einx.expr.util._to_str(expr1)}"
-                message += " = "
-                message += f"{einx.expr.util._to_str(expr2)}"
-                message += "\n"
-        message += f"Reason: {message_in}"
-        super().__init__(message)
-
-
-def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
+def solve(
+    exprs1, exprs2, expansions1, expansions2, depths1, depths2, descs1, descs2, signature=None
+):
     exprs1 = list(exprs1)
     exprs2 = list(exprs2)
     expansions1 = list(expansions1)
     expansions2 = list(expansions2)
     depths1 = list(depths1)
     depths2 = list(depths2)
+    descs1 = list(descs1)
+    descs2 = list(descs2)
     if any(
         expr is not None and not isinstance(expr, stage1.Expression) for expr in exprs1 + exprs2
     ):
@@ -275,10 +240,24 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             len(expansions2),
             len(depths1),
             len(depths2),
+            len(descs1),
+            len(descs2),
         })
         != 1
     ):
         raise ValueError("Number of expressions, expansions and depths must be equal")
+
+    expr_id_to_expr = {}
+    ellipsis_id_to_exprs = defaultdict(list)
+    axis_name_to_exprs = defaultdict(list)
+    for root in exprs1 + exprs2:
+        if root is not None:
+            for expr in root.all():
+                expr_id_to_expr[id(expr)] = expr
+                if isinstance(expr, stage1.Ellipsis):
+                    ellipsis_id_to_exprs[expr.ellipsis_id].append(expr)
+                elif isinstance(expr, stage1.NamedAxis):
+                    axis_name_to_exprs[expr.name].append(expr)
 
     # ##### 1. Find expression depths #####
     equations = []
@@ -358,53 +337,129 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                     ))
 
     # Solve
-    try:
+    def solve(equations):
         solutions = solver.solve(equations)
-    except solver.SolveException as e:
-        raise SolveDepthException(
-            exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e)
+
+        expr_depths = {}
+        for k, v in solutions.items():
+            if k.startswith("symbolic_expr_depths["):
+                expr_depths[int(k[len("symbolic_expr_depths[") : -1])] = int(v)
+
+        # Raise exception on negative depths
+        failed_exprs = set()
+        for root in exprs1 + exprs2:
+            if root is not None:
+                for expr in root.all():
+                    if id(expr) in expr_depths and expr_depths[id(expr)] < 0:
+                        failed_exprs.add(str(expr))
+        if len(failed_exprs) > 0:
+            raise solver.SolveExceptionNoSolution()
+
+        # Raise exception on missing depths
+        failed_exprs = set()
+        for root in exprs1 + exprs2:
+            if root is not None:
+                for expr in root.all():
+                    if id(expr) not in expr_depths:
+                        failed_exprs.add(str(expr))
+        if len(failed_exprs) > 0:
+            raise solver.SolveExceptionTooManySolutions()
+
+        return expr_depths
+
+    illegal_depth_message = (
+        "Please check the following:\n"
+        " - Each axis name may be used either with or without an ellipsis, "
+        "but not both.\n - The rank of a constraint "
+        "must be equal to or less than the number of ellipses around the corresponding axis."
+    )
+    try:
+        expr_depths = solve(equations)
+    except solver.SolveExceptionTooManySolutions as e:
+        raise DimensionError(
+            f"Found an invalid usage of ellipses and/or constraints.\n{illegal_depth_message}",
+            text=signature.text,
+            constraints=[
+                (expr1, expr2)
+                for expr1, expr2 in zip(exprs1, exprs2)
+                if expr1 is not None and expr2 is not None
+            ],
         ) from e
-    expr_depths = {}
-    for k, v in solutions.items():
-        if k.startswith("symbolic_expr_depths["):
-            expr_depths[int(k[len("symbolic_expr_depths[") : -1])] = int(v)
+    except solver.SolveExceptionNoSolution as e:
+        # Check which axes are leading to contradiction
+        def axisnames_in_equation(eq):
+            axisnames = set()
+            for term in eq:
+                if isinstance(term, solver.Expression):
+                    for var in term:
+                        if isinstance(var, solver.Variable):
+                            if var.id.startswith("symbolic_axis_depths["):
+                                axisnames.add(var.id[len("symbolic_axis_depths[") : -1])
+                            elif var.id.startswith("symbolic_expr_depths["):
+                                expr_id = var.id[len("symbolic_expr_depths[") : -1]
+                                expr = expr_id_to_expr.get(int(expr_id), None)
+                                for expr in expr.all():
+                                    if isinstance(expr, stage1.NamedAxis):
+                                        axisnames.add(expr.name)
+            return list(axisnames)
 
-    # Raise exception on missing depths
-    failed_exprs = set()
-    for root in exprs1 + exprs2:
-        if root is not None:
-            for expr in root.all():
-                if id(expr) not in expr_depths:
-                    failed_exprs.add(str(expr))
-    if len(failed_exprs) > 0:
-        raise SolveDepthException(
-            exprs1,
-            exprs2,
-            expansions1,
-            expansions2,
-            depths1,
-            depths2,
-            f"Found no unique solutions for {failed_exprs}",
-        )
+        def equation_contains_axisconsistency(eq, axis_name):
+            for term in eq:
+                if isinstance(term, solver.Expression):
+                    for var in term:
+                        if isinstance(var, solver.Variable):
+                            if var.id == f"symbolic_axis_depths[{axis_name}]":
+                                return True
+            return False
 
-    # Raise exception on negative depths
-    failed_exprs = set()
-    for root in exprs1 + exprs2:
-        if root is not None:
-            for expr in root.all():
-                if expr_depths[id(expr)] < 0:
-                    failed_exprs.add(str(expr))
-    if len(failed_exprs) > 0:
-        raise SolveDepthException(
-            exprs1,
-            exprs2,
-            expansions1,
-            expansions2,
-            depths1,
-            depths2,
-            f"Got negative depths for {failed_exprs}",
-        )
+        contradicting_axis_names = []
+        for axis_name in axis_name_to_exprs.keys():
+            try_equations = [
+                eq
+                for eq in equations
+                if [axis_name] != axisnames_in_equation(eq)
+                and not equation_contains_axisconsistency(eq, axis_name)
+            ]
+            try:
+                solve(try_equations)
+                still_contradicts = False
+            except solver.SolveExceptionNoSolution:
+                still_contradicts = True
+            except solver.SolveExceptionTooManySolutions:
+                still_contradicts = False
+            if not still_contradicts:
+                contradicting_axis_names.append(axis_name)
 
+        if len(contradicting_axis_names) > 0:
+            contradicting_axis_names = sorted(contradicting_axis_names)
+            if len(contradicting_axis_names) == 1:
+                axis = f"axis {contradicting_axis_names[0]}"
+            else:
+                axis = f"axes {', '.join(contradicting_axis_names)}"
+            raise einx.DimensionError(
+                f"Found an invalid usage of ellipses and/or constraints for the {axis}:",
+                postfix=illegal_depth_message,
+                text=signature.text,
+                pos=signature.get_pos_for_axisnames(exprs1 + exprs2, contradicting_axis_names),
+                constraints=[
+                    (expr1, expr2)
+                    for expr1, expr2 in zip(exprs1, exprs2)
+                    if expr1 is not None and expr2 is not None
+                ],
+            ) from e
+        else:
+            raise einx.DimensionError(
+                "Found an invalid usage of ellipses and/or constraints.",
+                postfix=illegal_depth_message,
+                text=signature.text,
+                constraints=[
+                    (expr1, expr2)
+                    for expr1, expr2 in zip(exprs1, exprs2)
+                    if expr1 is not None and expr2 is not None
+                ],
+            ) from e
+
+    # Expand ellipses and add missing dimensions to expansions
     for exprs, expansions, _depths in zip(
         [exprs1, exprs2], [expansions1, expansions2], [depths1, depths2]
     ):
@@ -422,7 +477,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                 # Add missing ellipses around root expressions
                 if missing_depth > 0:
                     for _ in range(missing_depth):
-                        exprs[i] = stage1.Ellipsis(exprs[i], exprs[i].begin_pos, exprs[i].end_pos)
+                        exprs[i] = stage1.Ellipsis(exprs[i], -1, -1)
                         expr_depths[id(exprs[i])] = expr_depths[id(exprs[i].inner)] - 1
 
     # ##### 2. Find ellipsis expansions #####
@@ -474,21 +529,23 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                 equations.append((symbolic_expr_expansions[(id(expr), depth)], v))
 
     # Add equations: Expansions stored in "expansions"
-    for expansion1, expansion2, expr1, expr2 in zip(expansions1, expansions2, exprs1, exprs2):
+    for expansion1, expansion2, expr1, expr2, desc1, desc2 in zip(
+        expansions1, expansions2, exprs1, exprs2, descs1, descs2
+    ):
         if expansion1 is not None and expansion2 is not None:
             if len(expansion1) != len(expansion2) or any(
                 e1 is not None and e2 is not None and e1 != e2
                 for e1, e2 in zip(expansion1, expansion2)
             ):
-                raise SolveExpansionException(
-                    exprs1,
-                    exprs2,
-                    expansions1,
-                    expansions2,
-                    depths1,
-                    depths2,
-                    f"Expansion '{expansion1}' of expression '{expr1}' does not match expansion "
-                    f"'{expansion2}' of expression '{expr2}'",
+                raise einx.DimensionError(
+                    f"The number of dimensions of the {desc1} does not match the number of "
+                    f"dimensions of the {desc2}",
+                    text=signature.text,
+                    constraints=[
+                        (expr1, expr2)
+                        for expr1, expr2 in zip(exprs1, exprs2)
+                        if expr1 is not None and expr2 is not None
+                    ],
                 )
 
         if expansion1 is not None and expansion2 is not None:
@@ -555,55 +612,85 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                 ))
 
     # Solve
-    try:
+    def solve(equations):
         solutions = solver.solve(equations)
-    except solver.SolveException as e:
-        raise SolveExpansionException(
-            exprs1, exprs2, expansions1, expansions2, depths1, depths2, str(e)
+
+        expansion_values = {}
+        for k, v in solutions.items():
+            if k.startswith("symbolic_expr_expansions["):
+                k = k[len("symbolic_expr_expansions[") : -1]
+                id_expr, depth = str(k).split(",")
+                try:
+                    id_expr = int(id_expr)
+                except ValueError:
+                    continue
+                depth = int(depth)
+                expansion_values[(id_expr, depth)] = int(v)
+
+        # Raise exception on negative expansions
+        failed_exprs = set()
+        for root in exprs1 + exprs2:
+            if root is not None:
+                for expr in root.all():
+                    depth = expr_depths[id(expr)]
+                    key = (id(expr), depth)
+                    if key in expansion_values and expansion_values[key] < 0:
+                        failed_exprs.add(expr)
+        if len(failed_exprs) > 0:
+            raise solver.SolveExceptionNoSolution()
+
+        # Raise exception on missing expansions for expressions not wrapped in composition
+        def is_at_root(expr):
+            parent = expr.parent
+            while parent is not None:
+                if isinstance(parent, stage1.Composition):
+                    return False
+                parent = parent.parent
+            return True
+
+        failed_exprs = set()
+        for root in exprs1 + exprs2:
+            if root is not None:
+                for expr in root.all():
+                    if not is_at_root(expr):
+                        continue
+                    depth = expr_depths[id(expr)]
+                    key = (id(expr), depth)
+                    if key not in expansion_values:
+                        failed_exprs.add(expr)
+        if len(failed_exprs) > 0:
+            raise solver.SolveExceptionTooManySolutions()
+
+        return expansion_values
+
+    try:
+        expansion_values = solve(equations)
+    except solver.SolveExceptionTooManySolutions as e:
+        raise einx.DimensionError(
+            "Failed to uniquely determine the expansion of ellipses in the expression. Please "
+            "provide more constraints.",
+            text=signature.text,
+            pos=signature.get_pos_for_ellipses(exprs1 + exprs2),
+            constraints=[
+                (expr1, expr2)
+                for expr1, expr2 in zip(exprs1, exprs2)
+                if expr1 is not None and expr2 is not None
+            ],
+        ) from e
+    except solver.SolveExceptionNoSolution as e:
+        raise einx.DimensionError(
+            "Failed to find an expansion of ellipses in the expression such that the number of "
+            "dimensions matches all given constraints.",
+            text=signature.text,
+            pos=signature.get_pos_for_ellipses(exprs1 + exprs2),
+            constraints=[
+                (expr1, expr2)
+                for expr1, expr2 in zip(exprs1, exprs2)
+                if expr1 is not None and expr2 is not None
+            ],
         ) from e
 
-    def to_key(k):
-        return int(id_expr), int(depth)
-
-    expansion_values = {}
-    for k, v in solutions.items():
-        if k.startswith("symbolic_expr_expansions["):
-            k = k[len("symbolic_expr_expansions[") : -1]
-            id_expr, depth = str(k).split(",")
-            try:
-                id_expr = int(id_expr)
-            except ValueError:
-                continue
-            depth = int(depth)
-            expansion_values[(id_expr, depth)] = int(v)
-
-    failed_exprs = set()
-    for root in exprs1 + exprs2:
-        if root is not None:
-            for expr in root.all():
-                if (id(root), expr_depths[id(root)]) not in expansion_values:
-                    failed_exprs.add(str(expr))
-    if len(failed_exprs) == 1:
-        raise SolveExpansionException(
-            exprs1,
-            exprs2,
-            expansions1,
-            expansions2,
-            depths1,
-            depths2,
-            f"Found no unique solution for '{failed_exprs.pop()}'",
-        )
-    elif len(failed_exprs) > 1:
-        raise SolveExpansionException(
-            exprs1,
-            exprs2,
-            expansions1,
-            expansions2,
-            depths1,
-            depths2,
-            f"Found no unique solutions for {failed_exprs}",
-        )
-
+    # Expand ellipses and map stage1 expressions to stage2 expressions
     def is_unnamed(expr):
         for expr in expr.all():
             if isinstance(expr, stage1.NamedAxis):
@@ -636,14 +723,27 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
         else:
             raise AssertionError(f"{expr}")
 
-    # Expand ellipses and map stage1 expressions to stage2 expressions
     def map(expr, ellipsis_indices):
         if isinstance(expr, list):
             return [c for expr in expr for c in map(expr, ellipsis_indices=ellipsis_indices)]
         elif isinstance(expr, stage1.NamedAxis):
-            return [NamedAxis(expr.name, ellipsis_indices=ellipsis_indices)]
+            return [
+                NamedAxis(
+                    expr.name,
+                    ellipsis_indices=ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
+                )
+            ]
         elif isinstance(expr, stage1.UnnamedAxis):
-            return [UnnamedAxis(expr.value, ellipsis_indices=ellipsis_indices)]
+            return [
+                UnnamedAxis(
+                    expr.value,
+                    ellipsis_indices=ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
+                )
+            ]
         elif isinstance(expr, stage1.List):
             return map(expr.children, ellipsis_indices=ellipsis_indices)
         elif isinstance(expr, stage1.Concatenation):
@@ -657,6 +757,8 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                         for c in expr.children
                     ],
                     ellipsis_indices=ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
                 )
             ]
         elif isinstance(expr, stage1.Composition):
@@ -667,6 +769,8 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                         ellipsis_indices=ellipsis_indices,
                     ),
                     ellipsis_indices=ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
                 )
             ]
         elif isinstance(expr, stage1.Marker):
@@ -677,6 +781,8 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                         ellipsis_indices=ellipsis_indices,
                     ),
                     ellipsis_indices=ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
                 )
             ]
         elif isinstance(expr, stage1.Ellipsis):
@@ -684,16 +790,7 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
             if key in expansion_values:
                 # Ellipsis is expanded
                 expansion = expansion_values[key]
-                if expansion < 0:
-                    raise SolveExpansionException(
-                        exprs1,
-                        exprs2,
-                        expansions1,
-                        expansions2,
-                        depths1,
-                        depths2,
-                        f"Ellipsis '{expr}' has negative expansion {expansion}",
-                    )
+                assert expansion >= 0
                 return [
                     c
                     for i in range(expansion)
@@ -703,10 +800,24 @@ def solve(exprs1, exprs2, expansions1, expansions2, depths1, depths2):
                 # Ellipsis is not expanded
                 if is_unnamed(expr):
                     # Contains no named axes -> convert to unnamed axis
-                    return [UnnamedAxis(get_unnamed_value(expr), ellipsis_indices=ellipsis_indices)]
+                    return [
+                        UnnamedAxis(
+                            get_unnamed_value(expr),
+                            ellipsis_indices=ellipsis_indices,
+                            begin_pos=expr.begin_pos,
+                            end_pos=expr.end_pos,
+                        )
+                    ]
                 else:
                     # Contains named axes -> convert to named axis
-                    return [NamedAxis(str(expr), ellipsis_indices=ellipsis_indices)]
+                    return [
+                        NamedAxis(
+                            str(expr),
+                            ellipsis_indices=ellipsis_indices,
+                            begin_pos=expr.begin_pos,
+                            end_pos=expr.end_pos,
+                        )
+                    ]
         else:
             raise AssertionError(f"{expr}")
 
@@ -926,7 +1037,14 @@ def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
             for idx, common_expr in enumerate(common_exprs):
                 for exprlist in common_expr:
                     if len(exprlist) == 1 and id(expr) == id(exprlist[0]):
-                        return [NamedAxis(f"cse.{idx}", expr.ellipsis_indices)]
+                        return [
+                            NamedAxis(
+                                f"cse.{idx}",
+                                expr.ellipsis_indices,
+                                begin_pos=expr.begin_pos,
+                                end_pos=expr.end_pos,
+                            )
+                        ]
 
         if isinstance(expr, list):
             result = []
@@ -947,7 +1065,14 @@ def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
 
                 if exprlist is not None:
                     assert len(exprlist) > 0
-                    result.append(NamedAxis(f"cse.{idx}", exprlist[0].ellipsis_indices))
+                    result.append(
+                        NamedAxis(
+                            f"cse.{idx}",
+                            exprlist[0].ellipsis_indices,
+                            begin_pos=exprlist[0].begin_pos,
+                            end_pos=exprlist[-1].end_pos,
+                        )
+                    )
                     i += len(exprlist)
                 else:
                     result.extend(replace(expr[i]))
@@ -963,19 +1088,28 @@ def cse(expressions, cse_concat=True, cse_in_markers=False, verbose=False):
         elif isinstance(expr, Concatenation):
             return [
                 Concatenation(
-                    [c2 for c1 in expr.children for c2 in replace(c1)], expr.ellipsis_indices
+                    [c2 for c1 in expr.children for c2 in replace(c1)],
+                    expr.ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
                 )
             ]
         elif isinstance(expr, Marker):
             return [
                 Marker.maybe(
-                    List.maybe(replace(expr.inner), expr.ellipsis_indices), expr.ellipsis_indices
+                    List.maybe(replace(expr.inner), expr.ellipsis_indices),
+                    expr.ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
                 )
             ]
         elif isinstance(expr, Composition):
             return [
                 Composition(
-                    List.maybe(replace(expr.inner), expr.ellipsis_indices), expr.ellipsis_indices
+                    List.maybe(replace(expr.inner), expr.ellipsis_indices),
+                    expr.ellipsis_indices,
+                    begin_pos=expr.begin_pos,
+                    end_pos=expr.end_pos,
                 )
             ]
         else:

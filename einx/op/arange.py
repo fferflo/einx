@@ -103,14 +103,12 @@ def parse(description, cse=True, **parameters):
         return [einx.expr.Equation(marked_expr_out, np.asarray([ndim]))]
 
     expr_in, expr_out = einx.expr.solve(
-        [einx.expr.Equation(op[0][0])]
-        + [einx.expr.Equation(op[1][0])]
-        + [
-            einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-            for k, v in parameters.items()
-        ],
+        einx.expr.input_equations(op[0])
+        + einx.expr.output_equations(op[1])
+        + einx.expr.constraint_equations(parameters),
         cse=cse,
         after_stage2=after_stage2,
+        signature=einx.expr.CallSignature(text=description, parameters=parameters),
     )[:2]
 
     return expr_in, expr_out

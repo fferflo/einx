@@ -432,13 +432,13 @@ def _get_list_shape(x):
     if isinstance(x, (tuple, list)):
         subshapes = {_get_list_shape(y) for y in x}
         if len(subshapes) != 1:
-            raise ValueError("Failed to determine shape of input tensor")
+            raise ValueError("Failed to determine the shape of an input tensor")
         subshape = subshapes.pop()
         return (len(x),) + subshape
     elif is_scalar(x):
         return ()
     else:
-        raise ValueError("Failed to determine shape of input tensor")
+        raise ValueError("Failed to determine the shape of an input tensor")
 
 
 def get_shape(x):

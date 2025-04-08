@@ -142,9 +142,9 @@ def vmap_stage3(
                     "Flattened output tensors in op:",
                     [str(einx.tracer.get_shape(a)) for a in tensors_out],
                 )
-            assert (
-                exprs_out_funcargs_flat2 == exprs_out_funcargs_flat
-            ), f"{[str(s) for s in exprs_out_funcargs_flat2]} != "
+            assert exprs_out_funcargs_flat2 == exprs_out_funcargs_flat, (
+                f"{[str(s) for s in exprs_out_funcargs_flat2]} != "
+            )
             f"{[str(s) for s in exprs_out_funcargs_flat]}"
 
         if verbose:
@@ -291,8 +291,16 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(
         description, parameters
     )
+    signature = einx.expr.CallSignature(text=description, parameters=parameters)
 
     op = einx.expr.stage1.parse_op(description)
+    for expr in op.all():
+        if isinstance(expr, einx.expr.stage1.Concatenation):
+            raise einx.SyntaxError(
+                description,
+                signature.get_pos_for_concatenations(list(op.all())),
+                "Concatenations are not allowed in this function.",
+            )
 
     # Implicitly determine output expression
     if len(op) == 1:
@@ -305,17 +313,12 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         raise ValueError(f"Expected {len(op[0])} input tensors, but got {len(tensor_shapes)}")
 
     exprs = einx.expr.solve(
-        [
-            einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
-        ]
-        + [einx.expr.Equation(expr_out) for expr_out in op[1]]
-        + [
-            einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-            for k, v in parameters.items()
-        ],
+        einx.expr.input_equations(op[0], tensor_shapes)
+        + einx.expr.output_equations(op[1])
+        + einx.expr.constraint_equations(parameters),
         cse=cse,
         cse_concat=False,
+        signature=signature,
     )[: len(op[0]) + len(op[1])]
     exprs_in, exprs_out = exprs[: len(op[0])], exprs[len(op[0]) :]
 

@@ -15,6 +15,12 @@ def test_shape_rearrange(test):
     with pytest.raises(Exception):
         einx.rearrange("a a b c -> (a b) c 1", x)
         einx.rearrange("a (a + b) c -> (a b) c 1", x)
+    
+    x = setup.full((200,))
+    assert einx.rearrange(" ( a   b  ) ->   b   a   ", x, a=10).shape == (20, 10)
+
+    x = setup.full((20, 10,))
+    assert einx.rearrange("(a) (b) -> b a", x).shape == (10, 20)
 
     x = setup.full((10, 20, 20, 2))
     assert einx.rearrange("b s... c -> b (s...) c", x).shape == (10, 400, 2)
@@ -114,6 +120,9 @@ def test_shape_rearrange(test):
     x = setup.full((10,))
     y = setup.full((20,))
     assert einx.rearrange("a, b -> a + b", x, y).shape == (30,)
+    assert einx.rearrange("a, b -> a+ b", x, y).shape == (30,)
+    assert einx.rearrange("a, b -> a +b", x, y).shape == (30,)
+    assert einx.rearrange("a, b ->a+b", x, y).shape == (30,)
     assert einx.rearrange("a, b -> b + a", x, y).shape == (30,)
     assert einx.rearrange("a, b -> a b (1 + 1)", x, y).shape == (10, 20, 2)
     assert [x.shape for x in einx.rearrange("(a + b) -> a, b 1", x, a=4)] == [(4,), (6, 1)]
@@ -609,10 +618,10 @@ def test_shape_index(test):
             "b [h w] c, b p, p b, c -> b [h w] c", x, y[..., 0], y2[..., 1], z[0, 0]
         ).shape == (4, 16, 16, 3)
         assert op("b [h w] c, p [2], p c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
-        assert op("b [h w] c, b p [2], b p c -> b h w c", x, y, z).shape == (4, 16, 16, 3)
-        assert op("b [h w] c, b p [2], p c -> b h w c", x, y, z[0]).shape == (4, 16, 16, 3)
-        assert op("b [h w] c, p [2], b p c -> b h w c", x, y[0], z).shape == (4, 16, 16, 3)
-        assert op("b [h w] c, p [2], p c -> b h w c", x, y[0], z[0]).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p [2], b p c -> b [h w] c", x, y, z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, b p [2], p c -> b [h w] c", x, y, z[0]).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, p [2], b p c -> b [h w] c", x, y[0], z).shape == (4, 16, 16, 3)
+        assert op("b [h w] c, p [2], p c -> b [h w] c", x, y[0], z[0]).shape == (4, 16, 16, 3)
 
     x = setup.full((16, 4, 3, 16))
     y = setup.full((2, 4, 128), dtype=coord_dtype, value=0)

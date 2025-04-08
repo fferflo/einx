@@ -26,11 +26,11 @@ def _solve(description, *tensor_shapes, cse=True, **parameters):
                 for k, v in parameters.items()
             ],
             cse=cse,
+            signature=einx.expr.CallSignature(text=description, parameters=parameters),
         )
     except (
-        einx.expr.stage2.SolveDepthException,
-        einx.expr.stage2.SolveExpansionException,
-        einx.expr.stage3.SolveValueException,
+        einx.SyntaxError,
+        einx.DimensionError,
     ):
         return None
 
@@ -134,4 +134,5 @@ def check(
             for k, v in parameters.items()
         ],
         cse=cse,
+        signature=einx.expr.CallSignature(text=description, parameters=parameters),
     )  # Raises an exception if no solution is found

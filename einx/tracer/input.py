@@ -85,7 +85,7 @@ def concrete_to_value_and_key(x):
         # Nested list/ tuple of scalars
         shape = einx.tracer.get_shape(x)
         if shape is None:
-            raise ValueError("Failed to determine shape of input tensor")
+            raise ValueError("Failed to determine the shape of an input tensor")
         return x, Tensor(shape, type(x))
     elif isinstance(x, Input):
         # Custom input

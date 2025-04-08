@@ -29,18 +29,24 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
     description, parameters = einx.op.util._clean_description_and_parameters(
         description, parameters
     )
+    signature = einx.expr.CallSignature(text=description, parameters=parameters)
 
     op = einx.expr.stage1.parse_op(description)
+    for expr in op.all():
+        if isinstance(expr, einx.expr.stage1.Concatenation):
+            raise einx.SyntaxError(
+                description,
+                signature.get_pos_for_concatenations(list(op.all())),
+                "Concatenations are not allowed in this function.",
+            )
 
     if len(op) == 1:
         expr_in = einx.expr.solve(
-            [einx.expr.Equation(op[0][0], tensor_shape)]
-            + [
-                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-                for k, v in parameters.items()
-            ],
+            einx.expr.input_equations(op[0], [tensor_shape])
+            + einx.expr.constraint_equations(parameters),
             cse=cse,
             cse_in_markers=True,
+            signature=signature,
         )[0]
 
         if not _any(isinstance(expr, einx.expr.stage3.Marker) for expr in expr_in.all()):
@@ -66,14 +72,12 @@ def parse(description, tensor_shape, keepdims=None, cse=True, **parameters):
             raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
 
         expr_in, expr_out = einx.expr.solve(
-            [einx.expr.Equation(op[0][0], tensor_shape)]
-            + [einx.expr.Equation(op[1][0])]
-            + [
-                einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-                for k, v in parameters.items()
-            ],
+            einx.expr.input_equations(op[0], [tensor_shape])
+            + einx.expr.output_equations(op[1])
+            + einx.expr.constraint_equations(parameters),
             cse=cse,
             cse_in_markers=True,
+            signature=signature,
         )[:2]
 
         # If no axes are marked for reduction in expr_in, mark all axes that

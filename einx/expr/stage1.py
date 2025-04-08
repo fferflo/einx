@@ -1,6 +1,7 @@
 from collections import defaultdict
 import re
 import uuid
+import einx
 
 
 class Expression:
@@ -377,53 +378,79 @@ class Token:
         return f'Token("{self.text}")'
 
 
-class ParseError(Exception):
-    def __init__(self, expression, pos, message):
-        self.expression = expression
-        self.pos = pos
-        self.message = message
-        assert self.pos >= 0 and self.pos < len(self.expression)
+class TokenList:
+    def __init__(self, tokens, pos):
+        if isinstance(tokens, TokenList) and len(tokens) == 1 and isinstance(tokens[0], TokenList):
+            tokens = tokens[0].tokens
+        self.tokens = tokens
+        self.text = "".join([t.text for t in self.tokens])
+        self.begin_pos = pos
+        if len(self.tokens) > 0:
+            assert self.tokens[0].begin_pos == pos
+            self.end_pos = self.tokens[-1].end_pos
+        else:
+            self.end_pos = pos
 
     def __str__(self):
-        return self.message + "\nHere: " + self.expression + "\n" + " " * (self.pos + 6) + "^"
+        return "".join([str(t) for t in self.tokens])
+
+    def __repr__(self):
+        return f'TokenList("{self}")'
 
 
 _parentheses = {
     "(": ")",
     "[": "]",
 }
-_parentheses_front = set(_parentheses.keys())
-_parentheses_back = set(_parentheses.values())
-_disallowed_literals = ["\t", "\n", "\r"]
-_nary_ops = ["->", "|", ",", " ", "+"]
+_delimiters_front = set(_parentheses.keys())
+_delimiters_back = set(_parentheses.values())
+_nary_ops = ["->", "|", ",", "+", " "]
 _ellipsis = "..."
-_axis_name = r"[a-zA-Z_][a-zA-Z0-9_]*"
-_literals = _nary_ops + list(_parentheses_front) + list(_parentheses_back) + [_ellipsis]
+_axis_name = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
+_literals = _nary_ops + list(_delimiters_front) + list(_delimiters_back) + [_ellipsis]
+
+
+def _delimiter_to_name(delimiter):
+    if delimiter in ["(", ")"]:
+        return "parenthesis"
+    elif delimiter in ["[", "]"]:
+        return "bracket"
+    else:
+        raise ValueError(f"Invalid delimiter: {delimiter}")
 
 
 def parse_op(text):
-    text = text.strip()
-    for x in _nary_ops:
-        while f" {x}" in text:
-            text = text.replace(f" {x}", x)
-        while f"{x} " in text:
-            text = text.replace(f"{x} ", x)
+    signature = einx.expr.CallSignature(text)
 
-    # Lexer
+    # ##### Lexer: Convert string into list of (string-)tokens #####
     tokens = []
     start_pos = 0
 
     def next_token(end_pos):
         nonlocal start_pos
         if start_pos != end_pos:
-            tokens.append(Token(start_pos, text[start_pos:end_pos]))
+            token_text = text[start_pos:end_pos]
+            if (
+                token_text not in _literals
+                and token_text not in _nary_ops
+                and not _axis_name.fullmatch(token_text)
+                and not token_text.isdigit()
+            ):
+                raise einx.SyntaxError(
+                    text,
+                    range(start_pos, end_pos),
+                    f"The expression '{token_text}' is not allowed:",
+                    """The following expressions are allowed:
+- Literals: -> + , [ ] ( ) ... whitespace
+- Named axes: Must match the regex [a-zA-Z_][a-zA-Z0-9_]*
+- Unnamed axes: Must match the regex [0-9]+
+""",
+                )
+            tokens.append(Token(start_pos, token_text))
             start_pos = end_pos
 
     pos = 0
     while pos < len(text):
-        for d in _disallowed_literals:
-            if text[pos:].startswith(d):
-                raise ParseError(text, pos, f"Found disallowed literal '{d}'")
         for l in _literals:
             if text[pos:].startswith(l):
                 next_token(pos)
@@ -434,132 +461,189 @@ def parse_op(text):
             pos += 1
     next_token(pos)
 
-    # Parser
-    def parse(in_tokens, begin_pos):
-        assert isinstance(in_tokens, list)
+    # ##### Parser: Remove duplicate whitespaces #####
+    tokens2 = []
+    last_was_whitespace = False
+    for token in tokens:
+        if token.text == " ":
+            if last_was_whitespace:
+                continue
+            last_was_whitespace = True
+        else:
+            last_was_whitespace = False
+        tokens2.append(token)
+    tokens = tokens2
+
+    # ##### Parser: Convert list of tokens to tree of tokens #####
+    stack = [[]]
+    for token in tokens:
+        if token.text in _delimiters_front:
+            stack.append([])
+            stack[-1].append(token)
+        elif token.text in _delimiters_back:
+            if len(stack) == 1 or _parentheses[stack[-1][0].text] != token.text:
+                raise einx.SyntaxError(
+                    text,
+                    range(token.begin_pos, token.end_pos),
+                    f"Found a closing {_delimiter_to_name(token.text)} that is not opened:",
+                )
+            stack[-1].append(token)
+            begin_pos = stack[-1][0].begin_pos
+            group = stack.pop()
+            stack[-1].append(TokenList(group, begin_pos))
+        else:
+            stack[-1].append(token)
+    if len(stack) > 1:
+        raise einx.SyntaxError(
+            text,
+            range(stack[-1][0].begin_pos, stack[-1][0].end_pos),
+            f"Found an opening {_delimiter_to_name(stack[-1][0].text)} that is not closed:",
+        )
+    expression = TokenList(stack[0], 0)
+
+    # ##### Parser: Convert tokens to expressions #####
+    def parse(in_tokens):
+        assert isinstance(in_tokens, TokenList)
+        begin_pos = in_tokens.begin_pos
+        end_pos = in_tokens.end_pos
+        in_tokens = in_tokens.tokens
+
+        # Ignore starting and trailing whitespace
+        while len(in_tokens) > 0 and in_tokens[0].text == " ":
+            in_tokens.pop(0)
+        while len(in_tokens) > 0 and in_tokens[-1].text == " ":
+            in_tokens.pop(-1)
+
+        # Empty expression
         if len(in_tokens) == 0:
-            return List([], begin_pos, begin_pos)
+            return List([], begin_pos, end_pos)
+        elif len(in_tokens) == 1 and isinstance(in_tokens[0], TokenList):
+            return parse(in_tokens[0])
+
+        begin_pos = in_tokens[0].begin_pos
+        end_pos = in_tokens[-1].end_pos
 
         # Parentheses
-        if isinstance(in_tokens[0], Token) and in_tokens[0].text in _parentheses_front:
-            assert (
-                len(in_tokens) >= 2
-                and isinstance(in_tokens[-1], Token)
-                and in_tokens[-1].text in _parentheses_back
-            )
+        if in_tokens[0].text in _delimiters_front:
+            assert len(in_tokens) >= 2 and in_tokens[-1].text in _delimiters_back
             if in_tokens[0].text == "(":
                 op = Composition
             elif in_tokens[0].text == "[":
                 op = Marker.maybe
             else:
                 raise AssertionError()
+            inner = parse(TokenList(in_tokens[1:-1], in_tokens[1].begin_pos))
             return op(
-                parse(in_tokens[1:-1], in_tokens[1].begin_pos),
-                in_tokens[0].begin_pos,
-                in_tokens[-1].end_pos,
+                inner,
+                begin_pos,
+                end_pos,
             )
 
         # N-ary operators
         for nary_op in _nary_ops:
-            if any(isinstance(t, Token) and t.text == nary_op for t in in_tokens):
-                out_tokens = []
-                current_tokens = []
-                allow_empty_operands = nary_op != " "
+            if any(t.text == nary_op for t in in_tokens):
+                # Split expression into operands
+                operands = []
+                current_operand_tokens = []
                 for token in in_tokens:
-                    if isinstance(token, Token) and token.text == nary_op:
-                        if allow_empty_operands or len(current_tokens) > 0:
-                            out_tokens.append(
-                                parse(
-                                    current_tokens,
-                                    current_tokens[0].begin_pos
-                                    if len(current_tokens) > 0
-                                    else token.begin_pos,
-                                )
+                    if token.text == nary_op:
+                        operands.append(
+                            TokenList(
+                                current_operand_tokens,
+                                current_operand_tokens[0].begin_pos
+                                if len(current_operand_tokens) > 0
+                                else token.begin_pos,
                             )
-                        current_tokens = []
-                    else:
-                        current_tokens.append(token)
-                if allow_empty_operands or len(current_tokens) > 0:
-                    out_tokens.append(
-                        parse(
-                            current_tokens,
-                            current_tokens[0].begin_pos
-                            if len(current_tokens) > 0
-                            else token.begin_pos,
                         )
+                        current_operand_tokens = []
+                    else:
+                        current_operand_tokens.append(token)
+                operands.append(
+                    TokenList(
+                        current_operand_tokens,
+                        current_operand_tokens[0].begin_pos
+                        if len(current_operand_tokens) > 0
+                        else token.end_pos,
                     )
-
+                )
                 if nary_op == " ":
-                    op = List
+                    # Ignore empty operands
+                    operands = [t for t in operands if len(t.tokens) > 0]
+
+                # Create operands
+                operands = [parse(operand) for operand in operands]
+
+                # Create expression
+                if nary_op == " ":
+                    op = List.maybe
                 elif nary_op in {"->", "|"}:
                     op = Op
                 elif nary_op == ",":
                     op = Args
                 elif nary_op == "+":
                     op = Concatenation
+                    invalid_operands = [
+                        o
+                        for o in operands
+                        if not isinstance(o, (NamedAxis, UnnamedAxis, Composition))
+                    ]
+                    if len(invalid_operands) > 0:
+                        pos = []
+                        for operand in invalid_operands:
+                            pos.extend(range(operand.begin_pos, operand.end_pos))
+                        for t in in_tokens:
+                            if t.text == "+":
+                                pos.extend(range(t.begin_pos, t.end_pos))
+                        raise einx.SyntaxError(
+                            text,
+                            pos,
+                            "Only named axes, unnamed axes, and compositions are allowed as "
+                            "operands of a concatenation operator ('+').",
+                        )
                 else:
                     raise AssertionError()
-                return op(out_tokens, in_tokens[0].begin_pos, in_tokens[-1].end_pos)
+                return op(operands, begin_pos, end_pos)
 
         # Ellipsis
-        if isinstance(in_tokens[-1], Token) and in_tokens[-1].text == _ellipsis:
+        if in_tokens[-1].text == _ellipsis and len(in_tokens) <= 2:
             if len(in_tokens) == 1:
-                return Ellipsis(
-                    NamedAxis(
-                        Ellipsis.anonymous_variable_name,
-                        in_tokens[0].begin_pos,
-                        in_tokens[0].begin_pos,
-                    ),
+                operand = NamedAxis(
+                    Ellipsis.anonymous_variable_name,
                     in_tokens[0].begin_pos,
-                    in_tokens[0].end_pos,
+                    in_tokens[0].begin_pos,
                 )
             else:
                 assert len(in_tokens) == 2
-                return Ellipsis(
-                    parse(in_tokens[:-1], in_tokens[0].begin_pos),
-                    in_tokens[0].begin_pos,
-                    in_tokens[1].end_pos,
-                )
+                operand = parse(TokenList(in_tokens[:1], in_tokens[0].begin_pos))
+            return Ellipsis(
+                operand,
+                in_tokens[0].begin_pos,
+                in_tokens[-1].end_pos,
+            )
 
         # Axis
-        if len(in_tokens) == 1 and isinstance(in_tokens[0], Token):
+        if len(in_tokens) == 1:
             value = in_tokens[0].text.strip()
             if value.isdigit():
                 return UnnamedAxis(int(value), in_tokens[0].begin_pos, in_tokens[0].end_pos)
             else:
-                if not re.fullmatch(_axis_name, in_tokens[0].text):
-                    raise ParseError(
-                        text, in_tokens[0].begin_pos, f"Invalid axis name '{in_tokens[0].text}'"
-                    )
+                assert _axis_name.fullmatch(in_tokens[0].text), (
+                    f"Invalid axis name: {in_tokens[0].text}"
+                )
                 return NamedAxis(value, in_tokens[0].begin_pos, in_tokens[0].end_pos)
 
-        if len(in_tokens) == 1:
-            return in_tokens[0]
+        message = (
+            f"The expression '{text[in_tokens[0].begin_pos : in_tokens[-1].end_pos]}' is not valid."
+        )
+        if len(in_tokens) > 1:
+            message += " Are you maybe missing a whitespace?"
+        raise einx.SyntaxError(text, range(in_tokens[0].begin_pos, in_tokens[-1].end_pos), message)
 
         raise AssertionError()
 
-    stack = [[]]
-    for token in tokens:
-        if token.text in _parentheses_front:
-            stack.append([])
-            stack[-1].append(token)
-        elif token.text in _parentheses_back:
-            if len(stack) == 1 or _parentheses[stack[-1][0].text] != token.text:
-                raise ParseError(
-                    text, token.begin_pos, f"Unexpected closing parenthesis '{token.text}'"
-                )
-            stack[-1].append(token)
-            group = stack.pop()
-            stack[-1].append(parse(group, group[0].begin_pos))
-        else:
-            stack[-1].append(token)
-    if len(stack) > 1:
-        raise ParseError(
-            text, stack[-1][0].begin_pos, f"Unclosed parenthesis '{stack[-1][0].text}'"
-        )
-    expression = parse(stack[0], 0)
+    expression = parse(expression)
 
-    # Move up and merge Op
+    # ##### Move up and merge Op #####
     def move_up(expr):
         if isinstance(expr, (NamedAxis, UnnamedAxis)):
             return Op([expr.__deepcopy__()])
@@ -595,10 +679,10 @@ def parse_op(text):
 
             nums = {len(c) for c in children if len(c) != 1}
             if len(nums) > 1:
-                raise ParseError(
+                raise einx.SyntaxError(
                     text,
-                    expr.begin_pos,
-                    "Inconsistent usage of '->' operator",
+                    signature.get_pos_for_literal("->"),
+                    "All '->' operators must appear at the same level of the expression tree.",
                 )
             num = nums.pop() if len(nums) > 0 else 1
 
@@ -622,11 +706,11 @@ def parse_op(text):
             )
 
         else:
-            raise AssertionError()
+            raise AssertionError(f"Invalid expression type {type(expr)}")
 
     expression = move_up(expression)
 
-    # Move up and merge Args
+    # ##### Move up and merge Args #####
     def move_up(expr):
         if isinstance(expr, (NamedAxis, UnnamedAxis)):
             return Args([expr.__deepcopy__()])
@@ -662,10 +746,10 @@ def parse_op(text):
 
             nums = {len(c) for c in children if len(c) != 1}
             if len(nums) > 1:
-                raise ParseError(
+                raise einx.SyntaxError(
                     text,
-                    expr.begin_pos,
-                    "Inconsistent usage of ',' operator",
+                    signature.get_pos_for_literal("->"),
+                    "All ',' operators must appear at the same level of the expression tree.",
                 )
             num = nums.pop() if len(nums) > 0 else 1
 
@@ -696,9 +780,15 @@ def parse_op(text):
         [move_up(c) for c in expression.children], expression.begin_pos, expression.end_pos
     )
 
-    # Semantic check: Op cannot have more than two children # TODO:
+    # ##### Semantic checks #####
+
+    # Op cannot have more than two children
     if len(expression.children) > 2:
-        raise ParseError(text, expression.begin_pos, "Cannot have more than one '->' operator")
+        raise einx.SyntaxError(
+            text,
+            signature.get_pos_for_literal("->"),
+            "The expression must not contain more than one '->' operator.",
+        )
 
     # Semantic check: Axis names can only be used once per expression
     def traverse(expr, key, axes_by_key):
@@ -731,23 +821,59 @@ def parse_op(text):
             for i in range(len(key) + 1):
                 exprs.extend(axes_by_key[key[:i]])
             if len(exprs) > 1:
-                raise ParseError(
+                raise einx.SyntaxError(
                     text,
-                    exprs[1].begin_pos,
-                    f"Axis name '{exprs[0].name}' is used more than once in expression '{root}'",
+                    signature.get_pos_for_exprs(exprs),
+                    "Each axis name must only be used once per operand, but the axis "
+                    f"'{exprs[0].name}' is used multiple times in '{root}'.",
                 )
 
     for arglist in expression.children:
         for arg in arglist.children:
             check(arg)
 
+    # Axes may only appear with brackets or without brackets, but not both.
+    axis_names = {expr.name for expr in expression.all() if isinstance(expr, NamedAxis)}
+    for axis_name in axis_names:
+        marked = 0
+        unmarked = 0
+        for expr in expression.all():
+            if isinstance(expr, NamedAxis) and expr.name == axis_name:
+                if is_marked(expr):
+                    marked += 1
+                else:
+                    unmarked += 1
+        if marked > 0 and unmarked > 0:
+            pos = []
+            for expr in expression.all():
+                if isinstance(expr, NamedAxis) and expr.name == axis_name:
+                    pos.extend(range(expr.begin_pos, expr.end_pos))
+                    parent = expr.parent
+                    while parent is not None:
+                        if isinstance(parent, Marker):
+                            pos.extend([parent.begin_pos, parent.end_pos - 1])
+                        parent = parent.parent
+            raise einx.SyntaxError(
+                text,
+                pos,
+                f"There are multiple occurrences of axis {axis_name} with inconsistent bracket "
+                "usage:",
+                post_message="An axis may only appear with brackets or without brackets, but not "
+                "both.",
+            )
+
     return expression
 
 
 def parse_args(text):
     op = parse_op(text)
+    signature = einx.expr.CallSignature(text)
     if len(op.children) != 1:
-        raise ParseError(text, op.begin_pos, "Expression cannot contain '->'")
+        raise einx.SyntaxError(
+            text,
+            signature.get_pos_for_literal("->"),
+            "The expression must not contain an '->' operator.",
+        )
     assert isinstance(op.children[0], Args)
     return op.children[0]
 
@@ -756,8 +882,13 @@ def parse_arg(text):
     if isinstance(text, Expression):
         return text
     args = parse_args(text)
+    signature = einx.expr.CallSignature(text)
     if len(args.children) != 1:
-        raise ParseError(text, args.begin_pos, "Expression cannot contain ','")
+        raise einx.SyntaxError(
+            text,
+            signature.get_pos_for_literal(","),
+            "The expression must not contain a ',' operator.",
+        )
     return args.children[0]
 
 

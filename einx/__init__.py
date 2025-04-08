@@ -8,3 +8,6 @@ from . import expr
 from .op import *
 from . import nn
 from . import experimental
+
+SyntaxError = einx.expr.SyntaxError
+DimensionError = einx.expr.DimensionError

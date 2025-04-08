@@ -114,9 +114,9 @@ def assignment(exprs_in, exprs_out):
 
 
 def transpose_broadcast(expr_in, tensor, expr_out, *, backend, broadcast=True):
-    assert einx.expr.stage3.is_flat(expr_in) and einx.expr.stage3.is_flat(
-        expr_out
-    ), f"'{expr_in}' and '{expr_out}' must be flat"
+    assert einx.expr.stage3.is_flat(expr_in) and einx.expr.stage3.is_flat(expr_out), (
+        f"'{expr_in}' and '{expr_out}' must be flat"
+    )
 
     # Transpose axes if necessary
     in_axes = [a.name for a in einx.expr.stage3.get_axes(expr_in)]
@@ -124,7 +124,14 @@ def transpose_broadcast(expr_in, tensor, expr_out, *, backend, broadcast=True):
     out_axes_intersect = [a for a in out_axes if a in in_axes]
     out_axes_broadcast = [a for a in out_axes if a not in in_axes]
     if set(out_axes_intersect) != set(in_axes):
-        raise RuntimeError("Found input axes that are not in output expression")  # TODO:
+        invalid_axes = set(in_axes) - set(out_axes_intersect)
+        if len(invalid_axes) == 1:
+            invalid_axes = f"axis {invalid_axes.pop()}"
+        else:
+            invalid_axes = f"axes {', '.join(invalid_axes)}"
+        raise einx.DimensionError(
+            f"The input {invalid_axes} does not appear in the output expression."
+        )
 
     perm = [in_axes.index(out_axis) for out_axis in out_axes_intersect]
     tensor = backend.transpose(tensor, tuple(perm))

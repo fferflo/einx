@@ -11,24 +11,6 @@ import numpy.typing as npt
     )
 )
 def dot_stage3(exprs_in, tensors_in, expr_out, backend=None):
-    for root in list(exprs_in) + [expr_out]:
-        for expr in root.all():
-            if isinstance(expr, einx.expr.stage3.Concatenation):
-                raise ValueError("Concatenation not allowed")
-    for expr in expr_out.all():
-        if isinstance(expr, einx.expr.stage3.Marker):
-            raise ValueError("Brackets in the output expression not allowed")
-    out_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
-    for expr_in in exprs_in:
-        for axis in expr_in.all():
-            if isinstance(axis, einx.expr.stage3.Axis):
-                is_reduced_axis = axis.name not in out_axis_names
-                is_marked = einx.expr.stage3.is_marked(axis)
-                if is_reduced_axis and not is_marked:
-                    raise ValueError(f"Reduced axis {axis} must be marked")
-                elif not is_reduced_axis and is_marked:
-                    raise ValueError(f"Marked axis {axis} cannot appear in output expression")
-
     # Call tensor factories
     output_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
 
@@ -125,10 +107,12 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         description, parameters
     )
 
+    signature = einx.expr.CallSignature(text=description, parameters=parameters)
     op = einx.expr.stage1.parse_op(description)
 
     # Implicitly determine second input expression
     if len(op[0]) == 1 and len(tensor_shapes) == 2:
+        # TODO: deprecate this
         for root in [op[0][0], op[1][0]]:
             for expr in root.all():
                 if (
@@ -175,22 +159,33 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
         ])
 
     if len(op[0]) != len(tensor_shapes):
-        raise ValueError(f"Expected {len(op[0])} input tensor(s), got {len(tensor_shapes)}")
+        raise ValueError(f"Expected {len(op[0])} input tensor(s), but got {len(tensor_shapes)}.")
     if len(op[1]) != 1:
-        raise ValueError(f"Expected 1 output expression, but got {len(op[1])}")
+        raise ValueError(f"Expected 1 output expression, but got {len(op[1])}.")
+
+    # Check for invalid expressions
+    for expr in op.all():
+        if isinstance(expr, einx.expr.stage1.Concatenation):
+            raise einx.SyntaxError(
+                description,
+                signature.get_pos_for_concatenations(list(op.all())),
+                "Concatenations are not allowed in this function.",
+            )
+    for expr in op[1].all():
+        if isinstance(expr, einx.expr.stage1.Marker):
+            raise einx.SyntaxError(
+                description,
+                signature.get_pos_for_brackets(list(op[1].all())),
+                "Brackets are not allowed in the output expression of this function.",
+            )
 
     exprs = einx.expr.solve(
-        [
-            einx.expr.Equation(expr_in, tensor_shape)
-            for expr_in, tensor_shape in zip(op[0], tensor_shapes)
-        ]
-        + [einx.expr.Equation(op[1][0])]
-        + [
-            einx.expr.Equation(k, np.asarray(v)[..., np.newaxis], depth1=None, depth2=None)
-            for k, v in parameters.items()
-        ],
+        einx.expr.input_equations(op[0], tensor_shapes)
+        + einx.expr.output_equations(op[1])
+        + einx.expr.constraint_equations(parameters),
         cse=cse,
         cse_concat=False,
+        signature=signature,
     )[: len(op[0]) + 1]
     exprs_in, expr_out = exprs[:-1], exprs[-1]
 
@@ -207,6 +202,27 @@ def parse(description, *tensor_shapes, cse=True, **parameters):
             )
             for expr_in in exprs_in
         ]
+
+    # Check for invalid expressions
+    out_axis_names = {a.name for a in expr_out.all() if isinstance(a, einx.expr.stage3.Axis)}
+    invalid_axes = []
+    for expr_in in exprs_in:
+        for axis in expr_in.all():
+            if isinstance(axis, einx.expr.stage3.Axis):
+                is_reduced_axis = axis.name not in out_axis_names
+                is_marked = einx.expr.stage3.is_marked(axis)
+                if is_reduced_axis and not is_marked:
+                    invalid_axes.append(axis)
+    if len(invalid_axes) > 0:
+        pos = []
+        for axis in invalid_axes:
+            pos.extend(range(axis.begin_pos, axis.end_pos))
+        raise einx.SyntaxError(
+            description,
+            pos,
+            f"Axis {axis} does not appear in the output expression of einx.dot and must "
+            "therefore be marked with brackets.",
+        )
 
     return exprs_in, expr_out
 
