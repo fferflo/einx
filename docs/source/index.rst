@@ -1,40 +1,37 @@
-Welcome to einx's documentation!
-================================
+einx documentation
+##################
 
 .. toctree::
-   :caption: Getting Started
-   :maxdepth: 3
+   :caption: Getting started
+   :maxdepth: 1
 
-   gettingstarted/introduction.rst
    gettingstarted/installation.rst
-   gettingstarted/tutorial_overview.rst
-   gettingstarted/tutorial_notation.rst
-   gettingstarted/tutorial_ops.rst
-   gettingstarted/tutorial_neuralnetworks.rst
-   gettingstarted/commonnnops.rst
-   gettingstarted/gpt2.rst
+   gettingstarted/basics.rst
+   gettingstarted/advanced.rst
+   gettingstarted/backends.rst
 
 .. toctree::
-   :caption: Further Resources
+   :caption: More resources
    :maxdepth: 1
 
-   more/jit.rst
-   more/backends.rst
-   more/gotchas.rst
-   more/related.rst
+   more/whyeinx.rst
+   more/isthiseinsteinnotation.rst
+   more/operations.rst
+   more/compiledcode.rst
 
 .. toctree::
-   :caption: Frequently Asked Questions
+   :caption: Other tensor notations
    :maxdepth: 1
 
-   faq/flatten.rst
-   faq/solver.rst
-   faq/backend.rst
-   faq/einops.rst
-   faq/universal.rst
+   comparison/numpylike.rst
+   comparison/ein.rst
+   comparison/vmap.rst
+   comparison/namedtensor.rst
 
 .. toctree::
-   :caption: einx API
+   :caption: API
    :maxdepth: 2
 
-   api
+   api/operations.rst
+   api/adapters.rst
+   api/others.rst

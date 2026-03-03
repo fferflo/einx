@@ -1,63 +1,33 @@
+import conftest
+import numpy as np
 import importlib
 import einx
-import numpy as np
+import pytest
 
-if importlib.util.find_spec("jax"):
-    import jax
-    import jax.numpy as jnp
-    from jax.sharding import Mesh
 
-    def assert_sharding(x, mesh=None, partition=None):
-        assert {**x.sharding.mesh.shape} == mesh
-        assert tuple(x.sharding.spec) == partition
+if importlib.util.find_spec("functorch"):
+    try:
+        import functorch
+        import torch
+        import functorch.dim as ftdim
 
-    def test_sharding():
-        mesh24 = Mesh(np.asarray(jax.devices("cpu")).reshape(2, 4), axis_names=("d1", "d2"))
-        mesh42 = Mesh(np.asarray(jax.devices("cpu")).reshape(4, 2), axis_names=("d1", "d2"))
-        mesh4 = Mesh(np.asarray(jax.devices("cpu"))[:4], axis_names=("d1",))
+        x = torch.zeros(2, 3)
+        a = ftdim.Dim("a", 2)
+        b = ftdim.Dim("b", 3)
+        x = x[a, b]
+        available = True
+    except:
+        available = False
+    if available:
 
-        # Pass mesh=jax.devices("cpu") instead of mesh=None since we cannot set
-        # global device to cpu here
-        x = jnp.ones((128, 64))
-        assert_sharding(
-            einx.experimental.shard("([d1] a) b", x, mesh=jax.devices("cpu")), {"d1": 8}, ("d1",)
-        )
-        assert_sharding(
-            einx.experimental.shard("([d1] a) ([d2] b)", x, d2=2, mesh=jax.devices("cpu")),
-            {"d1": 4, "d2": 2},
-            ("d1", "d2"),
-        )
-        assert_sharding(
-            einx.experimental.shard("([batch] _) ...", x, d2=2, mesh=jax.devices("cpu")),
-            {"batch": 8},
-            ("batch",),
-        )
-        assert_sharding(
-            einx.experimental.shard("([d1] a) ([d2] b)", x, mesh=mesh24),
-            {"d1": 2, "d2": 4},
-            ("d1", "d2"),
-        )
-        assert_sharding(einx.experimental.shard("([d1] a) b", x, mesh=mesh4), {"d1": 4}, ("d1",))
-        assert_sharding(
-            einx.experimental.shard("b ([d1] a)", x, mesh=mesh4),
-            {"d1": 4},
-            (
-                None,
-                "d1",
-            ),
-        )
-        assert_sharding(
-            einx.experimental.shard("a ([d1] b)", x, mesh=mesh42),
-            {"d1": 4, "d2": 2},
-            (
-                None,
-                "d1",
-            ),
-        )
+        def test_functorchdim():
+            @einx.experimental.functorchdim.adapt
+            def einfunc(x, y, *, axes):
+                return (x + y).sum(axes[1])
 
-        x = jnp.ones((4, 1024, 1024))
-        assert_sharding(
-            einx.experimental.shard("a ([d2] b) ([d1] c)", x, mesh=mesh42),
-            {"d1": 4, "d2": 2},
-            (None, "d2", "d1"),
-        )
+            x = np.zeros((2, 3, 4))
+            y = np.zeros((2, 6))
+            assert einfunc("a [b c], a ([b] d) -> d [c] a", x, y).shape == (2, 4, 2)
+
+            with pytest.raises(einx.errors.EinxError):
+                einfunc("(a + 1) [b c], a ([b] d) -> d [c] a", x, y)

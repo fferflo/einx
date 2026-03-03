@@ -6,55 +6,43 @@ on:
   pull_request:
     branches: [ "master" ]
 
+env:
+  PIP_ROOT_USER_ACTION: ignore
+
 permissions:
   contents: read
-
+# pytest --setup-show -vv
 jobs:
-  test_py312:
+  test_py313:
     runs-on: ubuntu-latest
     steps:
-    - name: Set up python 3.12
-      uses: actions/setup-python@v3
+    - name: Set up python 3.13
+      uses: actions/setup-python@v6
       with:
-        python-version: "3.12"
-    - name: Set up OS
-      run: |
-        sudo rm -rf /usr/share/dotnet || true
-        sudo rm -rf /opt/ghc || true
-        sudo rm -rf /usr/local/.ghcup || true
-        sudo apt-get autoremove -y
-        sudo apt-get clean -y
-        sudo apt update -y
-        sudo apt install cmake liblapacke-dev libopenblas-dev liblapack-dev git -y
-    - uses: actions/checkout@v3
+        python-version: "3.13"
+    - uses: actions/checkout@v5
     - name: Install python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install --upgrade pytest "jax[cpu]" flax dm-haiku tensorflow einops equinox dask tinygrad scipy
-        pip install --upgrade keras
-
-        pip install git+https://github.com/wjakob/nanobind.git@2f04eac452a6d9142dedb957701bdb20125561e4
-        git clone https://github.com/ml-explore/mlx
-        cd mlx && CMAKE_BUILD_PARALLEL_LEVEL="1" pip install --verbose . && cd ..
+        pip install --upgrade pytest mlx[cpu] jax[cpu] torch tensorflow dask tinygrad array-api-compat eindex einops scipy flax
     - name: Run tests
       run: |
         pip install .
-        EINX_FILTER_TRACEBACK=0 pytest test --backend numpy
-        EINX_FILTER_TRACEBACK=0 pytest test --backend jax
-        EINX_FILTER_TRACEBACK=0 pytest test --backend tensorflow
-        EINX_FILTER_TRACEBACK=0 pytest test --backend dask
-        EINX_FILTER_TRACEBACK=0 pytest test --backend tinygrad
-        EINX_FILTER_TRACEBACK=0 pytest test --backend mlx
-        EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_backend.py --noconftest
+        pytest test --disable-mlx-compile-values
+        pytest test/test_invalid_backend.py --noconftest
 
-  test_py310_torch:
+
+
+  # https://github.com/pytorch/pytorch/blob/main/RELEASE.md#release-compatibility-matrix
+
+  test_py310_torch_xx_to_25:
     runs-on: ubuntu-latest
     steps:
     - name: Set up python 3.10
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v6
       with:
         python-version: "3.10"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
     - name: Install python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -65,52 +53,28 @@ jobs:
         pip install .
 
         pip install --upgrade "torch==2.5"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
+        pytest test
         pip install --upgrade "torch==2.4"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
+        pytest test
         pip install --upgrade "torch==2.3"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
+        pytest test
         pip install --upgrade "torch==2.2" "numpy<2"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
+        pytest test
         pip install --upgrade "torch==2.1" "numpy<2"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
+        pytest test/test_invalid_backend_version.py
+        pip install --upgrade "torch==2.0" "numpy<2"
+        pytest test/test_invalid_backend_version.py
         pip install --upgrade "torch<2" "numpy<2"
-        EINX_FILTER_TRACEBACK=0 pytest test/test_invalid_backend_version.py
+        pytest test/test_invalid_backend_version.py
 
-  test_py311_torch:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set up python 3.11
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.11"
-    - uses: actions/checkout@v3
-    - name: Install python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade pytest
-
-    - name: Run tests
-      run: |
-        pip install .
-
-        pip install --upgrade "torch==2.5"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.4"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.3"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.2" "numpy<2"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-
-  test_py312_torch:
+  test_py312_torch_26_to_210:
     runs-on: ubuntu-latest
     steps:
     - name: Set up python 3.12
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v6
       with:
         python-version: "3.12"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
     - name: Install python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -120,7 +84,13 @@ jobs:
       run: |
         pip install .
 
-        pip install --upgrade "torch==2.5"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
-        pip install --upgrade "torch==2.4"
-        EINX_FILTER_TRACEBACK=0 pytest test --backend torch
+        pip install --upgrade "torch==2.10"
+        pytest test
+        pip install --upgrade "torch==2.9"
+        pytest test
+        pip install --upgrade "torch==2.8"
+        pytest test
+        pip install --upgrade "torch==2.7"
+        pytest test
+        pip install --upgrade "torch==2.6"
+        pytest test

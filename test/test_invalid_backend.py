@@ -2,7 +2,6 @@ import pytest
 import sys
 
 
-@pytest.mark.all
 @pytest.mark.skipif("einx" in sys.modules, reason="einx is already imported")
 def test_import():
     # Create an invalid jax module
@@ -18,8 +17,8 @@ def test_import():
     import numpy as np
 
     x = np.zeros((10,))
-    einx.add("a, a", x, x, backend="numpy")
+    einx.id("a -> a", x, backend="numpy")
 
     # The error should only be raised when the backend is actually used
-    with pytest.raises(einx.backend.InvalidBackendException):
-        einx.add("a, a", x, x, backend="jax")
+    with pytest.raises(einx.errors.ImportBackendError):
+        einx.id("a -> a", x, backend="jax")

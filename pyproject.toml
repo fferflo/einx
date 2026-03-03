@@ -2,17 +2,14 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-exclude = ["mlx"]
-
 [project]
 name = "einx"
 version = "0.3.0"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
     { name="Florian Fervers", email="florian.fervers@gmail.com" },
 ]
-description = "Universal Tensor Operations in Einstein-Inspired Notation for Python"
+description = "Universal Notation for Tensor Operations in Python"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -29,9 +26,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-torch = ["torch>=2"]
-keras = ["keras>=3"]
-mlx = ["mlx>=0.16.1"]
+torch = ["torch>=2.2"]
+mlx = ["mlx"]
 
 [project.urls]
 Homepage = "https://github.com/fferflo/einx"

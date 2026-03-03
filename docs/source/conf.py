@@ -6,8 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
+import subprocess
+import sys
+
 project = "einx"
-copyright = "2024, Florian Fervers"
+copyright = "Florian Fervers"
 author = '<a href="https://fferflo.github.io/">Florian Fervers</a>'
 
 # -- General configuration ---------------------------------------------------
@@ -26,16 +30,23 @@ extensions = [
 templates_path = []
 exclude_patterns = []
 
+autosummary_generate = True
+
+# TODO:
+autodoc_type_aliases = {"ArrayLike": "numpy.typing.ArrayLike"}
+autodoc_typehints_format = "fully-qualified"
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_book_theme"
 
-html_theme_options = {
-    "show_toc_level": 2,
-    "repository_url": "https://github.com/fferflo/einx",
-    "use_repository_button": True,
-}
+html_theme_options = {"show_toc_level": 1, "repository_url": "https://github.com/fferflo/einx", "use_repository_button": True}
 
-html_static_path = []
+
+def run(app):
+    subprocess.check_call([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "generate_compiled_code.py")])
+
+
+def setup(app):
+    app.connect("builder-inited", run)
