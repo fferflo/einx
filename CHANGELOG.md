@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] Fully embrace vectorization!
+## [0.4.0] Fully embrace vectorization!
 
 ### Summary
 
