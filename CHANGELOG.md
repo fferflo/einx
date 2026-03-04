@@ -45,11 +45,11 @@ and choosing [different backend implementations for operations](https://einx.rea
 
 ### Added
 
-- **Allow adapting arbitrary functions to einx notation.** einx provides different adapters based on the signature of the wrapped function in the namespace ``einx.{framework}.adapt_*``. The simplest is ``einx.{framework}.adapt_with_vmap`` which uses a framework's ``vmap`` transformation internally, but is only supported for frameworks that provide ``vmap`` (e.g., Jax, PyTorch, MLX, but not Numpy). Other adapters are provided for functions that follow Numpy-like signatures (e.g. reduction operation with ``axis`` parameter). See [the documentation](https://einx.readthedocs.io/en/stable/api/adapters.html) for more information.
+- **Allow adapting arbitrary functions to einx notation.** einx provides different adapters based on the signature of the wrapped function in the namespace ``einx.{framework}.adapt_*``. The simplest is ``einx.{framework}.adapt_with_vmap`` which uses a framework's ``vmap`` transformation internally, but is only supported for frameworks that provide ``vmap`` (e.g., Jax, PyTorch, MLX, but not Numpy). Other adapters are provided for functions that follow Numpy-like signatures (e.g. reduction operation with ``axis`` parameter). See [the documentation](https://einx.readthedocs.io/en/latest/api/adapters.html) for more information.
 
   The functions ``einx.{reduce|elementwise|vmap|vmap_with_axis}`` that partially provided this functionality in previous versions have been removed in favor of the new adapters.
 
-- **Add different backend implementations for operations.** Each einx operation can now be invoked using different backend implementations by specifying the ``backend`` argument. For example, passing ``backend="torch.numpylike"`` uses only Numpy-like operations from PyTorch, while ``backend="torch.vmap"`` uses [torch.vmap](https://docs.pytorch.org/docs/stable/generated/torch.vmap.html), and ``backend="torch.einsum"`` uses [torch.einsum](https://docs.pytorch.org/docs/stable/generated/torch.einsum.html) internally (if the operation is expressible using ``torch.einsum``). The default backend ``backend="torch"`` uses a combination of the above. See [the documentation](https://einx.readthedocs.io/en/latest/gettingstarted/backends.html) for more information and examples of the compiled code with different backends.
+- **Add different backend implementations for operations.** Each einx operation can now be invoked using different backend implementations by specifying the ``backend`` argument. For example, passing ``backend="torch.numpylike"`` uses only Numpy-like operations from PyTorch, while ``backend="torch.vmap"`` uses [torch.vmap](https://docs.pytorch.org/docs/latest/generated/torch.vmap.html), and ``backend="torch.einsum"`` uses [torch.einsum](https://docs.pytorch.org/docs/latest/generated/torch.einsum.html) internally (if the operation is expressible using ``torch.einsum``). The default backend ``backend="torch"`` uses a combination of the above. See [the documentation](https://einx.readthedocs.io/en/latest/gettingstarted/backends.html) for more information and examples of the compiled code with different backends.
 
   Indexing functions (``einx.{get_at|set_at|...}``) were previously implemented only using ``vmap`` which lead to some problems with frameworks that have limited support for ``vmap`` (e.g., PyTorch) or no support for ``vmap`` (e.g., Numpy). The default backend for all frameworks now uses a purely Numpy-like implementation of indexing functions which avoids these issues.
 
@@ -192,7 +192,7 @@ and choosing [different backend implementations for operations](https://einx.rea
 
 ### Added
 
-- Add [`einx.experimental.shard`](https://einx.readthedocs.io/en/stable/api.html#einx.experimental.shard).
+- Add `einx.experimental.shard`.
 
 ### Fixed
 

@@ -32,4 +32,4 @@ mlx = ["mlx"]
 [project.urls]
 Homepage = "https://github.com/fferflo/einx"
 Source = "https://github.com/fferflo/einx"
-Documentation = "https://einx.readthedocs.io/en/stable"
+Documentation = "https://einx.readthedocs.io"

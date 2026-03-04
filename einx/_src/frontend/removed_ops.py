@@ -12,25 +12,25 @@ class RemovedOperationError(Exception):
 
 def vmap(*args, **kwargs):
     raise RemovedOperationError(
-        "einx.vmap has been removed since version 0.4.0. Please use 'einx.{framework}.adapt_with_vmap' instead. See https://einx.readthedocs.io/en/stable/api/adapters.html"
+        "einx.vmap has been removed since version 0.4.0. Please use 'einx.{framework}.adapt_with_vmap' instead. See https://einx.readthedocs.io/en/latest/api/adapters.html"
     )
 
 
 def vmap_with_axis(*args, **kwargs):
     raise RemovedOperationError(
-        "einx.vmap_with_axis has been removed since version 0.4.0. Please use one of the new adapters instead. See https://einx.readthedocs.io/en/stable/api/adapters.html"
+        "einx.vmap_with_axis has been removed since version 0.4.0. Please use one of the new adapters instead. See https://einx.readthedocs.io/en/latest/api/adapters.html"
     )
 
 
 def reduce(*args, **kwargs):
     raise RemovedOperationError(
-        "einx.reduce has been removed since version 0.4.0. Please use 'einx.{framework}.adapt_numpylike_reduce' instead. See https://einx.readthedocs.io/en/stable/api/adapters.html"
+        "einx.reduce has been removed since version 0.4.0. Please use 'einx.{framework}.adapt_numpylike_reduce' instead. See https://einx.readthedocs.io/en/latest/api/adapters.html"
     )
 
 
 def elementwise(*args, **kwargs):
     raise RemovedOperationError(
-        "einx.elementwise has been removed since version 0.4.0. Please use 'einx.{framework}.adapt_numpylike_elementwise' instead. See https://einx.readthedocs.io/en/stable/api/adapters.html"
+        "einx.elementwise has been removed since version 0.4.0. Please use 'einx.{framework}.adapt_numpylike_elementwise' instead. See https://einx.readthedocs.io/en/latest/api/adapters.html"
     )
 
 
