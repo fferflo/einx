@@ -154,7 +154,7 @@ class ops:
             lambda x, indices, updates: torch.index_put_(x, indices, torch.neg(updates), accumulate=True), to_tensor=to_tensor_all, broadcast=self.broadcast_to
         )
 
-        self.arange = adapter.classical_from_numpy.arange(torch.arange, to_dtype=_to_dtype)
+        self.arange = adapter.classical_from_numpy.arange(lambda x, dtype: torch.arange(x, dtype=dtype, device=get_device()), to_dtype=_to_dtype)
         self.split = adapter.classical_from_numpy.split(torch.split, to_tensor=to_tensor_all, argname_axis="dim", cumulative=False)
         self.concatenate = adapter.classical_from_numpy.concatenate(lambda xs, *, axis=0: torch.cat(xs, dim=axis), to_tensor=to_tensor_all)
         self.dot = adapter.classical_from_numpy.dot(torch.dot, to_tensor=to_tensor_all)
