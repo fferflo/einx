@@ -294,7 +294,7 @@ if torch_is_available():
         return types.SimpleNamespace(
             full=lambda shape, value=1.0, dtype="float32": torch.full(tuple(shape), value, dtype=torch_dtypes[dtype], device=torch.device(device)),
             to_tensor=lambda tensor: torch.asarray(tensor, device=torch.device(device)),
-            to_numpy=lambda tensor: tensor.numpy(),
+            to_numpy=lambda tensor: tensor.cpu().numpy(),
             exceptions=tuple(exceptions),
             classical=adapter.classical_from_torch.ops(torch, get_device=lambda: torch.device(device)),
             dtypes=types.SimpleNamespace(int="int64", float="float32"),

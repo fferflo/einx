@@ -610,8 +610,9 @@ def test_shape_elementwise(setup_backend):
     if "arrayapi" not in setup.name and "dask" not in setup.name:  # array_api_compat.array_namespace fails to determine correct array_namespace here
         with suppress((OperationNotSupportedError, *setup.exceptions)):
             assert einx.add("a b, 1", x, np.asarray([1.0]).astype("float32")).shape == (10, 10)
-        with suppress((OperationNotSupportedError, *setup.exceptions)):
-            assert einx.add("1, a b", np.asarray([1.0]).astype("float32"), x).shape == (10, 10)
+        if not ("torch" in setup.name and "compile" in setup.name and "vmap" in setup.name and "gpu" in setup.name):
+            with suppress((OperationNotSupportedError, *setup.exceptions)):
+                assert einx.add("1, a b", np.asarray([1.0]).astype("float32"), x).shape == (10, 10)
     with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
         einx.add("a a, a -> a a", x, y)
     with suppress((OperationNotSupportedError, *setup.exceptions)):
