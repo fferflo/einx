@@ -1,7 +1,6 @@
 import einx
 import numpy as np
 import os
-import markdown
 import jax.numpy as jnp
 import torch
 import array_api_compat
