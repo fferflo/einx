@@ -1,150 +1,120 @@
-# *einx* - Universal Notation for Tensor Operations
+# *einx* - Universal Tensor Operations in Einstein-Inspired Notation
 
 [![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml)
 [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://einx.readthedocs.io)
 [![PyPI version](https://badge.fury.io/py/einx.svg)](https://badge.fury.io/py/einx)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
 
-einx is a notation and Python library that provides a universal interface to formulate tensor operations in frameworks such as Numpy, PyTorch, Jax, Tensorflow, and MLX.
+einx is a Python library that provides a universal interface to formulate tensor operations in frameworks such as Numpy, PyTorch, Jax and Tensorflow. The design is based on the following principles:
 
-* [Quickstart](#quickstart)
-* [What does einx look like?](#what-does-einx-look-like)
-* [How does the notation work?](#how-does-the-notation-work)
-* [How are einx operations implemented?](#how-are-einx-operations-implemented)
-* [Which operations are supported?](#which-operations-are-supported)
+1. **Provide a set of elementary tensor operations** following Numpy-like naming: `einx.{sum|max|where|add|dot|flip|get_at|...}`
+2. **Use einx notation to express vectorization of the elementary operations.** einx notation is inspired by [einops](https://github.com/arogozhnikov/einops), but introduces several novel concepts such as `[]`-bracket notation and full composability that allow using it as a universal language for tensor operations.
 
-## Quickstart
+einx can be integrated and mixed with existing code seamlessly. All operations are [just-in-time compiled](https://einx.readthedocs.io/en/stable/more/jit.html) into regular Python functions using Python's [exec()](https://docs.python.org/3/library/functions.html#exec) and invoke operations from the respective framework.
 
-**Installation:**
+**Getting started:**
+
+* [Tutorial](https://einx.readthedocs.io/en/stable/gettingstarted/tutorial_overview.html)
+* [Example: GPT-2 with einx](https://einx.readthedocs.io/en/stable/gettingstarted/gpt2.html)
+* [How is einx different from einops?](https://einx.readthedocs.io/en/stable/faq/einops.html)
+* [How is einx notation universal?](https://einx.readthedocs.io/en/stable/faq/universal.html)
+* [API reference](https://einx.readthedocs.io/en/stable/api.html)
+
+## Installation
 
 ```python
 pip install einx
 ```
 
-**Example code:**
-
-```python
-import einx
-import numpy as np
-
-x = np.ones((10, 20, 30)) # Create some tensor (numpy/torch/jax/tensorflow/mlx/...)
-
-y = einx.sum("a [b] c", x) # Call an einx operation
-
-print(y.shape)
-```
-
-**Documentation and tutorials:** [https://einx.readthedocs.io](https://einx.readthedocs.io)
+See [Installation](https://einx.readthedocs.io/en/stable/gettingstarted/installation.html) for more information.
 
 ## What does einx look like?
 
+#### Tensor manipulation
+
 ```python
-z = einx.id("a (b c) -> (b a) c", x, b=2)             # Permute and (un)flatten axes
-z = einx.sum("a [b]", x)                              # Sum-reduction along second axis
-z = einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
-z = einx.mean("b [...] c", x)                         # Spatial mean-pooling
-z = einx.multiply("a..., b... -> (a b)...", x, y)     # Kronecker product
-z = einx.sum("b (s [ds])... c", x, ds=(2, 2))         # Sum-pooling with 2x2 kernel
-z = einx.add("a, b -> a b", x, y)                     # Outer sum
-z = einx.dot("a [b], [b] c -> a c", x, y)             # Matrix multiplication
-z = einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
-z = einx.id("b (q + k) -> b q, b k", x, q=2)          # Split
-z = einx.id("b c, -> b (c + 1)", x, 42)               # Append number to each channel
+import einx
+x = {np.asarray|torch.as_tensor|jnp.asarray|...}(...) # Create some tensor
+
+einx.sum("a [b]", x)                              # Sum-reduction along second axis
+einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
+einx.mean("b [...] c", x)                         # Spatial mean-pooling
+einx.multiply("a..., b... -> (a b)...", x, y)     # Kronecker product
+einx.sum("b (s [ds])... c", x, ds=(2, 2))         # Sum-pooling with 2x2 kernel
+einx.add("a, b -> a b", x, y)                     # Outer sum
+einx.dot("a [b], [b] c -> a c", x, y)             # Matmul
+
+einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
+
+einx.rearrange("b (q + k) -> b q, b k", x, q=2)   # Split
+einx.rearrange("b c, 1 -> b (c + 1)", x, [42])    # Append number to each channel
+
+                                                  # Apply custom operations:
+einx.vmap("b [s...] c -> b c", x, op=np.mean)     # Spatial mean-pooling
+einx.vmap("a [b], [b] c -> a c", x, y, op=np.dot) # Matmul
 ```
 
-See the [documentation](https://einx.readthedocs.io/en/stable/more/operations.html) for more examples.
-
-## How does the notation work?
-
-An einx operation consists of (1) an elementary operation and (2) an einx expression that describes how the elementary operation is vectorized. For example,
-the code
+#### Common neural network operations
 
 ```python
-z = einx.{OP}("[c d] a, b -> a [e] b", x, y)
+# Layer normalization
+mean = einx.mean("b... [c]", x, keepdims=True)
+var = einx.var("b... [c]", x, keepdims=True)
+x = (x - mean) * torch.rsqrt(var + epsilon)
+
+# Prepend class token
+einx.rearrange("b s... c, c -> b (1 + (s...)) c", x, cls_token)
+
+# Multi-head attention
+attn = einx.dot("b q (h c), b k (h c) -> b q k h", q, k, h=8)
+attn = einx.softmax("b q [k] h", attn)
+x = einx.dot("b q k h, b k (h c) -> b q (h c)", attn, v)
+
+# Matmul in linear layers
+einx.dot("b...      [c1->c2]",  x, w)              # - Regular
+einx.dot("b...   (g [c1->c2])", x, w)              # - Grouped: Same weights per group
+einx.dot("b... ([g c1->g c2])", x, w)              # - Grouped: Different weights per group
+einx.dot("b  [s...->s2]  c",    x, w)              # - Spatial mixing as in MLP-mixer
 ```
 
-vectorizes the elementary operation ``{OP}`` according to the expression ``"[c d] a, b -> a [e] b"``.
+See [Common neural network ops](https://einx.readthedocs.io/en/stable/gettingstarted/commonnnops.html) for more examples.
 
-The meaning of the string expression is defined by analogy with loop notation as follows. The full operation ``einx.{OP}`` will yield the same output as if the elementary
-operation ``{OP}`` were invoked in an analogous loop expression:
+#### Optional: Deep learning modules
 
 ```python
-for a in range(...):
-    for b in range(...):
-        z[a, :, b] = {OP}(x[:, :, a], y[b])
+import einx.nn.{torch|flax|haiku|equinox|keras} as einn
+
+batchnorm       = einn.Norm("[b...] c", decay_rate=0.9)
+layernorm       = einn.Norm("b... [c]") # as used in transformers
+instancenorm    = einn.Norm("b [s...] c")
+groupnorm       = einn.Norm("b [s...] (g [c])", g=8)
+rmsnorm         = einn.Norm("b... [c]", mean=False, bias=False)
+
+channel_mix     = einn.Linear("b... [c1->c2]", c2=64)
+spatial_mix1    = einn.Linear("b [s...->s2] c", s2=64)
+spatial_mix2    = einn.Linear("b [s2->s...] c", s=(64, 64))
+patch_embed     = einn.Linear("b (s [s2->])... [c1->c2]", s2=4, c2=64)
+
+dropout         = einn.Dropout("[...]",       drop_rate=0.2)
+spatial_dropout = einn.Dropout("[b] ... [c]", drop_rate=0.2)
+droppath        = einn.Dropout("[b] ...",     drop_rate=0.2)
 ```
 
-See the [tutorial](https://einx.readthedocs.io/en/stable/gettingstarted/basics.html) for how an einx expression is mapped to the analogous loop expression.
+See `examples/train_{torch|flax|haiku|equinox|keras}.py` for example trainings on CIFAR10, [GPT-2](https://einx.readthedocs.io/en/stable/gettingstarted/gpt2.html) and [Mamba](https://github.com/fferflo/weightbridge/blob/master/examples/mamba2flax.py) for working example implementations of language models using einx, and [Tutorial: Neural networks](https://einx.readthedocs.io/en/stable/gettingstarted/tutorial_neuralnetworks.html) for more details.
 
-## How are einx operations implemented?
+#### Just-in-time compilation
 
-The analogy with loop notation is used only to define what the output of an operation will be. Internally, einx operations are compiled to Python code snippet that invoke operations from the respective tensor framework, rather than using for loops.
-
-The compiled code snippet can be inspected by passing `graph=True` to the einx operation. For example:
+einx traces the required backend operations for a given call into graph representation and just-in-time compiles them into a regular Python function using Python's [`exec()`](https://docs.python.org/3/library/functions.html#exec). This reduces overhead to a single cache lookup and allows inspecting the generated function. For example:
 
 ```python
->>> x = np.zeros((2, 3))
->>> y = np.zeros((3, 4))
->>> code = einx.add("a b, b c -> c b a", x, y, graph=True)
->>> print(code)
-
+>>> x = np.zeros((3, 10, 10))
+>>> graph = einx.sum("... (g [c])", x, g=2, graph=True)
+>>> print(graph)
 import numpy as np
-def op(a, b):
-    a = np.transpose(a, (1, 0))
-    a = np.reshape(a, (1, 3, 2))
-    b = np.transpose(b, (1, 0))
-    b = np.reshape(b, (4, 3, 1))
-    c = np.add(a, b)
-    return c
+def op0(i0):
+    x0 = np.reshape(i0, (3, 10, 2, 5))
+    x1 = np.sum(x0, axis=3)
+    return x1
 ```
 
-Different [backends](https://einx.readthedocs.io/en/stable/gettingstarted/backends.html) may be used to compile an operation to different implementations, for example following Numpy-like notation, vmap-based notation, or einsum notation.
-
-## Which operations are supported?
-
-**Operations in the API:** einx supports a large set of tensor operations in the namespace ``einx.*``, including reduction, scalar, indexing, some shape-preserving operations, identity map and dot-product. See the [documentation](https://einx.readthedocs.io/en/stable/api/operations.html) for a complete list.
-
-**Operations *not* in the API:** einx additionally allows adapting custom Python functions to einx notation using einx adapters. For example:
-
-```python
-# Define a custom elementary operation
-def myoperation(x, y):
-    x = 2 * x
-    z = x + torch.sum(y)
-    return z
-
-# Adapt the operation to einx notation
-einmyoperation = einx.torch.adapt_with_vmap(myoperation)
-
-# Invoke as einx operation
-z = einmyoperation("a [c], b [c] -> a b [c]", x, y)
-```
-
-This will yield the same output as if ``myoperation`` were invoked in loop notation:
-
-```python
-for a in range(...):
-    for b in range(...):
-        z[a, b, :] = myoperation(x[a, :], y[b, :])
-```
-
-The interface of ``einmyoperation`` matches that of other einx operations. For example, the compiled code snippet can be inspected using ``graph=True``:
-
-```python
->>> code = einmyoperation("a [c], b [c] -> a b [c]", x, y, graph=True)
->>> print(code)
-# Constant const1: <function myoperation at 0x49e9aa3cd8a0>
-import torch
-def op(a, b):
-    def c(d, e):
-        f = const1(d, e)
-        assert isinstance(f, torch.Tensor), "Expected 1st return value of the adapted function to be a tensor"
-        assert (tuple(f.shape) == (3,)), "Expected 1st return value of the adapted function to be a tensor with shape (3,)"
-        return f
-    c = torch.vmap(c, in_dims=(None, 0), out_dims=0)
-    c = torch.vmap(c, in_dims=(0, None), out_dims=0)
-    g = c(a, b)
-    return g
-```
-
-See the [documentation](https://einx.readthedocs.io/en/stable/api/adapters.html) for a list of supported adapters.
+See [Just-in-time compilation](https://einx.readthedocs.io/en/stable/more/jit.html) for more details.
