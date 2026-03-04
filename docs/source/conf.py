@@ -44,9 +44,9 @@ html_theme = "sphinx_book_theme"
 html_theme_options = {"show_toc_level": 1, "repository_url": "https://github.com/fferflo/einx", "use_repository_button": True}
 
 
-def run(app):
-    subprocess.check_call([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "generate_compiled_code.py")])
+# def run(app):
+#     subprocess.check_call([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "generate_compiled_code.py")])
 
 
-def setup(app):
-    app.connect("builder-inited", run)
+# def setup(app):
+#     app.connect("builder-inited", run)
