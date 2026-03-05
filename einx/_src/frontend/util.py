@@ -53,7 +53,7 @@ def _solve(description, tensor_shapes, parameters, reraise, cse):
     try:
         exprs_in, exprs_out = _parse_op(f"{description} ->", el_op=None, invocation=invocation, allow_concat=True)
         exprs_in, exprs_out = _solve2(exprs_in, exprs_out, tensor_shapes, invocation, parameters, cse_concat=True, cse=cse)
-    except:
+    except Exception:
         if reraise:
             raise
         else:
