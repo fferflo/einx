@@ -279,7 +279,7 @@ if torch_is_available():
     has_gpu = torch.cuda.is_available()
     version = tuple(int(i) for i in torch.__version__.split(".")[:2])
 
-    torch_dtypes = {"float32": torch.float32, "int64": torch.int64, "bool": torch.bool}
+    torch_dtypes = {"float32": torch.float32, "int64": torch.int64, "bool": torch.bool, "int32": torch.int32}
 
     def make_setup(device):
         exceptions = []
@@ -378,7 +378,7 @@ if mlx_is_available():
 
     classical = adapter.classical_from_mlx.ops(mlx)
 
-    mlx_dtypes = {"float32": mx.float32, "int64": mx.int64, "bool": mx.bool_}
+    mlx_dtypes = {"float32": mx.float32, "int64": mx.int64, "bool": mx.bool_, "int32": mx.int32}
     setup = types.SimpleNamespace(
         full=lambda shape, value=1, dtype="float32": mx.full(shape, value, dtype=mlx_dtypes[dtype]),
         to_tensor=mx.array,

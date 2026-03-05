@@ -834,6 +834,11 @@ def test_shape_index(setup_backend):
         with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
             op("b [h w] c, p [2], p c -> b [w h] c", x, y[0], z[0])
 
+    x = setup.full((4, 16, 17, 3))
+    y = setup.full((4, 128, 2), dtype="int32")
+    with suppress((OperationNotSupportedError, *setup.exceptions)):
+        assert einx.get_at("b [h w] c, b p [2] -> b p c", x, y).shape == (4, 128, 3)
+
     x = setup.full((4, 16, 16, 3))
     y = setup.full((4, 128, 2), dtype="int64")
     z = setup.full((4, 128, 3))
