@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1]
+
+### Fixed
+
+- In ``einx.get_at`` with PyTorch, fix support for indexing tensors with a dtype other than int64/long.
+
+
+
 ## [0.4.0] Fully embrace vectorization!
 
 ### Summary
