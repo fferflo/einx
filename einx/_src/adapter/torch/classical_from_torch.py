@@ -4,6 +4,7 @@ from .._util import _axis_to_axistuple
 from .._util import _to_tensor, _has_type
 from einx._src.util.functools import use_name_of
 import einx._src.adapter as adapter
+import einx._src.tracer as tracer
 
 
 def reduce(op, to_tensor, no_none_axis=False, no_axis_tuple=False, scalar_op=None):
@@ -143,7 +144,10 @@ class ops:
             y = _to_tensor(asarray_with_device, forward=[torch.Tensor, "scalar"], convert=["numpy"])(y)
             return x, y
 
-        self.get_at = adapter.classical_from_numpy.get_at(torch.Tensor.__getitem__, torch.take, to_tensor=to_tensor_get_at)
+        def take(x, y):
+            return tracer.signature.classical.getitem()(x, y)
+
+        self.get_at = adapter.classical_from_numpy.get_at(torch.Tensor.__getitem__, take, reshape=self.reshape, to_tensor=to_tensor_get_at)
         self.set_at = adapter.classical_from_numpy.update_at(
             lambda x, indices, updates: torch.index_put_(x, indices, updates, accumulate=False), to_tensor=to_tensor_all, broadcast=self.broadcast_to
         )
