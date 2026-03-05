@@ -7,11 +7,11 @@ import numpy as np
 def _idx_to_ordinal(idx, n):
     if n <= 0:
         return ""
-    if idx % 100 == 0:
+    if idx == 0:
         return "1st "
-    elif idx % 100 == 1:
+    elif idx == 1:
         return "2nd "
-    elif idx % 100 == 2:
+    elif idx == 2:
         return "3rd "
     else:
         return f"{idx + 1}th "
