@@ -115,6 +115,15 @@ def test_values(setup_backend):
             setup=setup,
         )
 
+    with suppress((OperationNotSupportedError, *setup.exceptions)):
+        x = setup.to_tensor(einx.id("h, w -> b h w (1 + 1)", np.arange(4), np.arange(5), b=3, c=6))
+        y = setup.to_tensor(np.asarray([[3, 4], [2, 1]]).astype("int32"))  # p 2
+        assert_allclose(
+            einx.get_at("b [h w] c, p [2] -> b p c", x, y)[0],
+            y,
+            setup=setup,
+        )
+
     if not ("torch" in setup.name and "compile" in setup.name):
         with suppress((OperationNotSupportedError, *setup.exceptions)):
             x = setup.to_tensor(np.zeros((3,)).astype("float32"))
