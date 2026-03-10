@@ -15,3 +15,4 @@ from .parse import parse_arg
 from .transform import map
 from .transform import remove
 from .transform import is_in_brackets
+from .transform import split_concatenated_axes

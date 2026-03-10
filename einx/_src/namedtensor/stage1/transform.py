@@ -78,3 +78,35 @@ def any_parent_is(expr, pred, include_self=True):
 
 def is_in_brackets(expr):
     return any_parent_is(expr, lambda expr: isinstance(expr, Brackets))
+
+
+def _product(*iterables):
+    if not iterables:
+        yield ()
+    else:
+        first, *rest = iterables
+        for item in first:
+            for prod in _product(*rest):
+                yield (item,) + prod
+
+
+def split_concatenated_axes(expr):
+    if isinstance(expr, ConcatenatedAxis):
+        for child in expr.children:
+            yield from split_concatenated_axes(child)
+    elif isinstance(expr, Axis):
+        yield expr
+    elif isinstance(expr, Ellipsis):
+        for inner in split_concatenated_axes(expr.inner):
+            yield Ellipsis.create(inner, expr.begin_pos, expr.end_pos, expr.ellipsis_id)
+    elif isinstance(expr, FlattenedAxis):
+        for inner in split_concatenated_axes(expr.inner):
+            yield FlattenedAxis.create(inner, expr.begin_pos, expr.end_pos)
+    elif isinstance(expr, Brackets):
+        for inner in split_concatenated_axes(expr.inner):
+            yield Brackets.create(inner, expr.begin_pos, expr.end_pos)
+    elif isinstance(expr, List):
+        for children in _product(*[list(split_concatenated_axes(child)) for child in expr.children]):
+            yield List.create(children, expr.begin_pos, expr.end_pos)
+    else:
+        raise TypeError(f"Invalid expression type {type(expr)}")

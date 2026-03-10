@@ -154,6 +154,34 @@ def test_values(setup_backend):
             setup=setup,
         )
 
+    if "torch.vmap" not in setup.name and "mlx.vmap" not in setup.name:
+        x = setup.full((2, 3), dtype="int32", value=0)
+        y = setup.full((2, 3), dtype="int32", value=1)
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            z = einx.id("a b1, a b2 -> a (b1 + b2)", x, y)
+            assert_allclose(
+                z[:, :3],
+                np.zeros((2, 3)),
+                setup=setup,
+            )
+            assert_allclose(
+                z[:, 3:],
+                np.ones((2, 3)),
+                setup=setup,
+            )
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            z = einx.id("b1 a, b2 a -> a (b1 + b2)", x, y)
+            assert_allclose(
+                z[:, :2],
+                np.zeros((3, 2)),
+                setup=setup,
+            )
+            assert_allclose(
+                z[:, 2:],
+                np.ones((3, 2)),
+                setup=setup,
+            )
+
 
 @pytest.mark.computes_values
 def test_compare_backends(setup_backend):

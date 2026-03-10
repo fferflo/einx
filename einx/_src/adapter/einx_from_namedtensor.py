@@ -281,16 +281,17 @@ def _parse_op(description, el_op, invocation, allow_concat=False, implicit_outpu
 
         exprs_in = [stage1.map(expr_in, lambda expr: stage1.Brackets(expr) if _mark(expr) else None, include_children=False) for expr_in in exprs_in]
 
-    # Check that no two vectorized axes in any output have the same name
+    # Check that no two vectorized axes in any (unconcatenated) output have the same name
     for expr_out in exprs_out:
-        axis_names = [expr.name for expr in expr_out.nodes() if isinstance(expr, stage1.Axis) and not stage1.is_in_brackets(expr)]
-        if len(axis_names) != len(set(axis_names)):
-            duplicates = {name for name in axis_names if axis_names.count(name) > 1}
-            raise SemanticError(
-                invocation=invocation,
-                pos=invocation.indicator.get_pos_for_axisnames([expr_out], duplicates),
-                message="The output expression must not contain multiple vectorized axes with the same name.\n%EXPR%",
-            )
+        for expr_out in stage1.split_concatenated_axes(expr_out):
+            axis_names = [expr.name for expr in expr_out.nodes() if isinstance(expr, stage1.Axis) and not stage1.is_in_brackets(expr)]
+            if len(axis_names) != len(set(axis_names)):
+                duplicates = {name for name in axis_names if axis_names.count(name) > 1}
+                raise SemanticError(
+                    invocation=invocation,
+                    pos=invocation.indicator.get_pos_for_axisnames([expr_out], duplicates),
+                    message="The output expression must not contain multiple vectorized axes with the same name (after splitting concatenated axes).\n%EXPR%",
+                )
 
     if not allow_duplicate_el_axes:
         # Check that no two marked axes in any tensor have the same name
