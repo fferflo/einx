@@ -2,7 +2,7 @@
 
 [![pytest](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml/badge.svg)](https://github.com/fferflo/einx/actions/workflows/run_pytest.yml)
 [![Documentation](https://img.shields.io/badge/documentation-link-blue.svg)](https://einx.readthedocs.io)
-[![PyPI version](https://badge.fury.io/py/einx.svg)](https://badge.fury.io/py/einx)
+[![PyPI version](https://img.shields.io/pypi/v/einx.svg?color=blue)](https://pypi.org/project/einx/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 
 einx is a notation and Python library that provides a universal interface to formulate tensor operations in frameworks such as Numpy, PyTorch, Jax, Tensorflow, and MLX.
