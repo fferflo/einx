@@ -517,9 +517,9 @@ def tinygrad_is_available():
         return False
 
 
+os.environ["PYTHON"] = "1"
 tinygrad_backends = ["tinygrad.numpylike", "tinygrad.einsum", "tinygrad", None]
 if tinygrad_is_available():
-    os.environ["PYTHON"] = "1"
     import tinygrad
 
     classical = adapter.classical_from_tinygrad.ops(tinygrad)
