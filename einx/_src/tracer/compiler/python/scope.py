@@ -72,7 +72,7 @@ class Map:
             elif scope2.is_predecessor_of(scope):
                 pass
             else:
-                assert False
+                raise ValueError(f"Scopes {scope} and {scope2} are not in a predecessor relationship, cannot determine common scope.")
         return scope
 
     def __getitem__(self, x):
@@ -106,7 +106,7 @@ def get_scopes(x):
     def _get_required_scopes(x):
         if x not in required_scopes:
             if isinstance(x, tracer.Tracer) and x.origin is None:
-                assert False
+                raise ValueError(f"Tracer {x} has no origin, cannot determine required scopes.")
             elif isinstance(x, tracer.Tracer) and x.origin is not None:
                 input_scopes = [scope for input in x.origin.inputs for scope in _get_required_scopes(input)] + [global_scope]
                 result = list({id(s): s for s in input_scopes}.values())
@@ -169,7 +169,7 @@ def get_scopes(x):
             elif _is_predecessor_of(scope2, scope):
                 pass
             else:
-                assert False
+                raise ValueError(f"Scopes {scope} and {scope2} are not in a predecessor relationship, cannot determine common scope.")
         return scope
 
     for scope in scopes:

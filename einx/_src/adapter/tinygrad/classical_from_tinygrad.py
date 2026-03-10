@@ -88,7 +88,7 @@ class ops:
                 op = partial(tinygrad.Tensor.scatter_reduce, reduce="sum")
                 updates = self.negative(updates)
             else:
-                assert False
+                raise ValueError(f"Unsupported op: {op}")
             assert x.ndim == 1
             assert indices.ndim == 2
             assert indices.shape[1] == 1

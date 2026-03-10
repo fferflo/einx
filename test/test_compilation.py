@@ -7,7 +7,7 @@ def get_line_of(code, search):
     for idx, line in enumerate(lines):
         if search in line:
             return idx
-    assert False
+    raise ValueError(f"'{search}' not found in code")
 
 
 def test_compilation():

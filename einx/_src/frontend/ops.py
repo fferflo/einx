@@ -232,7 +232,7 @@ def _make_elwise_doc(op, line1, output, nargs):
     # raises an exception due to ambiguous output expression
 """
     else:
-        assert False
+        raise ValueError("Invalid nargs")
 
     return f"""{line1}.
 

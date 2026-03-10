@@ -113,7 +113,7 @@ def _parse_op(description, el_op, invocation, allow_concat=False, implicit_outpu
         el_op = el_op(el_subop)
         el_op = stage1.parse_op(el_op)
     else:
-        assert False
+        raise ValueError(f"Invalid type for el_op: {type(el_op)}.")
     assert len(el_op.children) == 2
 
     # Check number of input and output expressions
@@ -209,7 +209,7 @@ def _parse_op(description, el_op, invocation, allow_concat=False, implicit_outpu
         elif implicit_output is None:
             raise SemanticError(invocation=invocation, message="The operation expects an output expression, but no '->' was found.\n%EXPR%")
         else:
-            assert False, f"Invalid value for implicit_output: {implicit_output}"
+            raise ValueError(f"Invalid value for implicit_output: {implicit_output}")
     else:
         exprs_out = op.children[1].children
     op = stage1.Op([stage1.Args(exprs_in), stage1.Args(exprs_out)])

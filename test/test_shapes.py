@@ -270,6 +270,7 @@ def test_shape_id(setup_backend):
     with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
         einx.id("a b1, a b2 -> a ((a b1) + b2)", x, x)
 
+
 @use_backend
 def test_shape_dot(setup_backend):
     einx, setup = setup_backend.einx, setup_backend
@@ -695,7 +696,7 @@ def test_shape_elementwise(setup_backend):
         elif dtype == "bool":
             return True
         else:
-            assert False
+            raise ValueError(f"Unsupported dtype: {dtype}")
 
     for op, dtypes in ops:
         tensor_args = [setup.full((3,), dtype=dtype, value=1) for dtype in dtypes]

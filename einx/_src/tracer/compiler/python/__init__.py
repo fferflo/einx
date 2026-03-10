@@ -210,7 +210,7 @@ def _debug_value_to_code(x):
     elif isinstance(x, Inlined):
         return x.to_code(_debug_value_to_code)
     else:
-        assert False
+        raise ValueError(f"Got {x} of type {type(x)}.")
 
 
 def compile(object, return_code=False):
@@ -625,7 +625,7 @@ def compile(object, return_code=False):
         elif isinstance(x, Inlined):
             return x.to_code(value_to_code)
         else:
-            assert False, f"Got {x} of type {type(x)}."
+            raise ValueError(f"Got {x} of type {type(x)}.")
 
     exec_code = code.to_code(value_to_code)
     exec_code = "\n".join(exec_code)  # Used to run the code
