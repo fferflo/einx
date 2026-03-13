@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2]
+
+### Fixed
+
+- In ``einx.id``, raise error for duplicate vectorized output axes only for each unconcatenated expression. Both of these are allowed:
+  ```python
+  z = einx.id("a b , a b  -> a (b  + b )", x, y)
+  z = einx.id("a b1, a b2 -> a (b1 + b2)", x, y)
+  ```
+
+
+
 ## [0.4.1]
 
 ### Fixed
