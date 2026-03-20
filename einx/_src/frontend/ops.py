@@ -2,7 +2,7 @@ from .api import api
 from .types import Tensor
 from .backend import Backend
 import numpy.typing as npt
-from typing import Union
+from typing import Any
 import warnings
 
 
@@ -25,7 +25,7 @@ Returns:
 
 
 @api
-def id(description: str, *tensors: Tensor, backend: Backend | str | None = None, **parameters: npt.ArrayLike) -> Tensor | tuple[Tensor, ...]:
+def id(description: str, *tensors: Tensor, backend: Backend | str | None = None, **parameters: npt.ArrayLike) -> Any:  # Tensor | tuple[Tensor, ...]:
     return backend.id(description, *tensors, **parameters)
 
 
@@ -718,6 +718,4 @@ def argmin(description: str, tensor: Tensor, *, backend: Backend | str | None = 
 argmin.__doc__ = _make_argfind_doc("argmin", "minimum")
 
 
-ops = [
-    globals()[name] for name in dir() if name[0].islower() and name not in ["api", "npt", "Backend", "Tensor", "Union", "Tuple"] and callable(globals()[name])
-]
+ops = [globals()[name] for name in dir() if name[0].islower() and name not in ["api", "npt"] and callable(globals()[name])]
