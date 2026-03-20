@@ -33,3 +33,6 @@ mlx = ["mlx"]
 Homepage = "https://github.com/fferflo/einx"
 Source = "https://github.com/fferflo/einx"
 Documentation = "https://einx.readthedocs.io"
+
+[tool.setuptools.package-data]
+einx = ["py.typed"]
