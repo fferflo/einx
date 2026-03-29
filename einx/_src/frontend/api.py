@@ -1,14 +1,21 @@
 import functools
 import inspect
-from .types import Tensor
-import einx._src.tracer as tracer
-from einx._src.util.lru_cache import lru_cache
-from .backend import registry
-import numpy as np
-from functools import partial
-import types
 import traceback
+import types
+from collections.abc import Callable
+from functools import partial
+from typing import Any, TypeVar, overload
+
+import numpy as np
+
+import einx._src.tracer as tracer
 from einx._src.frontend.errors import CallOperationError
+from einx._src.util.lru_cache import lru_cache
+
+from .backend import registry
+from .types import Tensor
+
+_F = TypeVar("_F", bound=Callable[..., Any])
 
 
 class TensorArg:
@@ -217,6 +224,10 @@ def _api_withbackend(func, backend, signature):
     return inner
 
 
+@overload
+def api(func: _F) -> _F: ...
+@overload
+def api(func: None = None, backend: Any = None, signature: Any = None) -> Callable[[_F], _F]: ...
 def api(func=None, backend=None, signature=None):
     if func is None:
         return partial(api, backend=backend, signature=signature)
