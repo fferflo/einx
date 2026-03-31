@@ -61,7 +61,7 @@ for a given backend, and some custom operation in Python that internally uses ``
         return sum(x, axis=0)
         # output has shape (d)
 
-Manually vectorizing this operation with loop notation over a new leading dimension of length 4
+Manually vectorizing the operation ``op`` with loop notation over a new leading dimension of length 4
 (*i.e.* with input shape ``(b, c, d)`` and ``b = 4``) results in the following invocations of the primitive ``sum``:
 
 ..  code-block:: python
@@ -72,7 +72,7 @@ Manually vectorizing this operation with loop notation over a new leading dimens
     y[2] = sum(x[2, :, :], axis=0)
     y[3] = sum(x[3, :, :], axis=0)
 
-In contrast, vmap pushes the vectorization into the primitive operation ``sum`` itself by using its vectorization interface, *i.e.* the ``axis`` parameter:
+In contrast, vmap pushes the vectorization into the primitive operation ``sum`` itself by adapting its vectorization interface, *i.e.* the ``axis`` parameter:
 
 ..  code-block:: python
 
@@ -91,7 +91,7 @@ To support vmap, a tensor framework implements this behavior for all of its prim
 vmap as a universal notation
 ****************************
 
-vmap allows expressing the vectorization of arbitrary tensor operations, with the exception of axis compositions and vectorized axes that appear only on the input side.
+vmap allows expressing the vectorization of any tensor operation (although with no support for composed axes, and limited support for edge cases in some frameworks).
 Using vmap as a universal notation for tensor operations, however, typically results in verbose, obscure and error-prone expressions that are
 difficult to read and write in all but few cases. For instance, the operation expressed in einx notation as
 

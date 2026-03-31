@@ -1,10 +1,12 @@
 Is this Einstein notation?
 ##########################
 
+No, but let's start from the beginning.
+
 What is Einstein notation?
 ==========================
 
-Einstein introduced what is now known as *Einstein's summation convention* (or: *Einstein notation*) for the mathematical notation of tensor contractions
+Albert Einstein introduced what is now known as *Einstein's summation convention* (or: *Einstein notation*) for the mathematical notation of tensor contractions
 in `The Foundation of the General Theory of Relativity <https://onlinelibrary.wiley.com/doi/epdf/10.1002/andp.19163540702>`_ (page 781):
 
     *German original*: "Es ist deshalb moglich, ohne die Klarheit zu beeintrachtigen, die Summenzeichen wegzulassen. Dafür führen wir die Vorschrift ein:

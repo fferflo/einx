@@ -11,7 +11,7 @@ are identified by their position in the shape (e.g., the 1st, 2nd or 3rd dimensi
 
 ..  code-block:: python
 
-    # Classical tensor
+    # Classical, positional-style tensor
     x = create_tensor((32, 128, 128))
     y = sum(x, axis=2)
 
@@ -216,7 +216,7 @@ This is done by (1) vectorizing all axes that are not explicitly specified in an
     # z has dimensions {"a", "c"}
 
 **Pro: More concise.** Hiding vectorized dimensions leads to more concise expressions when invoking operations. For example,
-the line ``z = x + y`` represents *all* possible vectorizations of the scalar addition.
+the line ``z = x + y`` represents *all* possible vectorizations of the scalar addition with named tensors.
 
 **Con: Less self-documenting.** Hiding vectorized dimensions leads to less self-documenting code, especially if used in sequences of multiple operations.
 In these cases, the user often has to trace through earlier parts of the code to understand which axes a given tensor is defined with.
@@ -259,7 +259,7 @@ while still allowing to hide additional vectorized dimensions (such as ``"batch"
         weights = einx.dot("[channel], key [channel] -> key", query, key)
         # This also tells us immediately which axes are available in weights:
         weights = einx.softmax("[key]", weights)
-        # And this tells us that the operation returns a scalar as output
+        # This tells us that the operation returns a scalar as output
         return einx.dot("[key], [key] ->", weights, value)
 
 **Con: Undefined axis ordering.** Hiding vectorized dimensions also removes the ability to explicitly specify the order of axes, which may among others impact performance. For example:
@@ -303,5 +303,5 @@ Compatibility with Python ecosystem
 To use functions from these libraries with named tensors, one of two options has to be followed:
 
 *   The operation is adapted by the user to support named tensors. This has to be done for each operation in a given library, as well as for each new operation that might be added
-    down the line.
+    in the future.
 *   The named tensor is converted to a positional tensor before the operation, and then converted back to a named tensor after the operation. This leads to more verbose, less readable code.

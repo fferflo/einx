@@ -106,7 +106,7 @@ Implicit outputs
 Some einx functions allow omitting the arrow and output expression and infer the output from the input expression instead.
 This behavior is indicated in a function's documentation. Implicit outputs are supported among others in the following cases:
 
-*   Functions that do not change the dimensionality of a single input determine the output by copying the input expression:
+*   Functions that do not change the dimensionality of a single input determine the output by replicating the input expression:
 
     ..  code-block:: python
 
@@ -416,8 +416,29 @@ Lastly, einx allows writing anonymous ellipses without a preceding expression. I
     Ellipses in einx are motivated by their role in programming languages such as Java, C++ and Swift: In these languages, an ellipsis
     is placed after a parameter to indicate that the function or template accepts a variable number of
     arguments of that type. The actual number is determined from how many arguments are provided at
-    a given call site. Similarly, in einx an ellipsis indicates that an operation accepts a variable number of axes of a certain type,
-    and the actual number is determined from the constraints provided at a given call site.
+    a given call site. For example, in Java:
+
+    .. code-block:: java
+
+        // "String..." accepts a variable number of arguments that match the type "String"
+        void printAll(String... values) {
+            for (String v : values) {
+                System.out.println(v);
+            }
+        }
+
+        printAll("a", "b", "c");
+        printAll("a");
+
+    Similarly, in einx an ellipsis indicates that an operation accepts a variable number of axes of a certain type,
+    and the actual number is determined from the constraints provided at a given call site:
+
+    .. code-block:: python
+
+        # "s..." accepts a variable number of axes that match the sub-expression "s"
+        y = einx.sum("s... [c] -> s...", np.random.randn(10, 20, 30, 40))
+        y = einx.sum("s... [c] -> s...", np.random.randn(10, 20))
+
 
 
 Nested ``,`` and ``->``
@@ -451,7 +472,6 @@ For example:
 
 ..  code-block:: python
 
-    # x has shape (10, 20)
     noise = lambda shape: np.random.normal(size=shape)
 
     # Add random noise to x

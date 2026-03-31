@@ -137,7 +137,7 @@ This improves clarity and readability of the expressions, as shown in the follow
 ..  code-block:: python
 
     # Which axes are contracted?
-    z = einsum("b q k h, b k h c -> b q h c", x, y)
+    z = einsum("bqkh,bkhc->bqhc", x, y)
 
     # Only k is contracted!
     z = einx.dot("b q [k] h, b [k] h c -> b q h c", x, y)
@@ -432,8 +432,8 @@ Short introduction
 ==================
 
 In addition to the four main functions described above, einops also introduces ``einops.pack`` and ``einops.unpack`` for concatenation
-and splitting of tensors. The notation uses a single expression to represent the shapes of all input and output tensors, and the ``*`` symbol
-to represent the concatenated axis: All axes across inputs tensors at the ``*`` are first flattened and then concatenated along this axis
+and splitting of tensors following a new type of notation. The notation uses a single expression to represent the shapes of all input and output tensors, and the ``*`` symbol
+to represent the concatenated axis. All axes across inputs tensors at the ``*`` are first flattened and then concatenated along this axis
 in the output.
 
 For instance, the following operation flattens all but the first two dimensions of the input tensors and
