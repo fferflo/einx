@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.3]
+
+### Fixed
+
+- Annotate tensor parameters with ``typing.Any`` instead of ``typing.TypeVar``.
+
+  Previously, a ``typing.TypeVar`` was used for all input and output tensors of an operation. However, this typing constraint
+  does not always hold (*e.g.*, operations accept mixed-type input tensors, Python scalars and tensor factories, and output tensor types depend on dynamic factors such as the selected backend).
+  Tensor type annotations now use ``typing.Any`` to reflect the actual behavior.
+- Fix typing to also work with [ty](https://docs.astral.sh/ty/) (https://github.com/fferflo/einx/pull/30).
+- Add missing py.typed marker to comply with [PEP 561](https://peps.python.org/pep-0561/) (https://github.com/fferflo/einx/pull/29).
+
+
+
 ## [0.4.2]
 
 ### Fixed

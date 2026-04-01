@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "einx"
-version = "0.4.2"
+version = "0.4.3"
 requires-python = ">=3.10"
 authors = [
     { name="Florian Fervers", email="florian.fervers@gmail.com" },
