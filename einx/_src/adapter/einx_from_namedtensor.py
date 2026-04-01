@@ -635,8 +635,6 @@ def op(
         else:
             return tensors.value
 
-        return tensor
-
     inner.__name__ = op.__name__
     inner.__qualname__ = op.__qualname__
     inner.__doc__ = op.__doc__
