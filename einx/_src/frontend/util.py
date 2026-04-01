@@ -12,6 +12,7 @@ from .api import _is_scalar
 from .types import Tensor
 import einx._src.tracer as tracer
 import types
+import warnings
 
 
 def _exprs_to_axes(exprs):
