@@ -1,0 +1,45 @@
+name: Test type checkers
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  PIP_ROOT_USER_ACTION: ignore
+
+permissions:
+  contents: read
+
+jobs:
+  test_pyright:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.13"
+    - uses: actions/checkout@v5
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyright ty mypy
+        pip install .
+    - name: Run type checkers
+      run: |
+
+        ty check test_typechecking/pass.py
+        output=$(ty check test_typechecking/fail.py || true)
+        echo "$output"
+        echo "$output" | grep -q "^Found 3 diagnostics"
+
+        pyright test_typechecking/pass.py
+        output=$(pyright test_typechecking/fail.py || true)
+        echo "$output"
+        echo "$output" | grep -q "^3 errors, 0 warnings, 0 informations"
+
+        mypy --follow-imports=silent test_typechecking/pass.py
+        output=$(mypy --follow-imports=silent test_typechecking/fail.py || true)
+        echo "$output"
+        echo "$output" | grep -q "^Found 3 errors in 1 file (checked 1 source file)"
