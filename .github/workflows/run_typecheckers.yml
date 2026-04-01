@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  test_pyright:
+  test_typecheckers:
     runs-on: ubuntu-latest
     steps:
     - name: Set up python 3.13
