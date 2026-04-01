@@ -1,3 +1,6 @@
+from typing import ParamSpec, TypeVar, Concatenate, cast
+from collections.abc import Callable
+
 import einx._src.tracer as tracer
 import einx._src.adapter as adapter
 from ..api import api
@@ -42,7 +45,11 @@ def _get_backend_kwargs():
     return {"optimizations": optimizations, "compiler": tracer.compiler.python, "is_supported_tensor": is_supported_tensor, "get_shape": get_shape}
 
 
-def adapt_with_vmap(op, signature=None):
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def adapt_with_vmap(op: Callable[P, R], signature=None) -> Callable[Concatenate[str, P], R]:
     iskwarg = _make_iskwarg(op)
     jax = tracer.signature.jax()
 
@@ -55,7 +62,7 @@ def adapt_with_vmap(op, signature=None):
     op = adapter.namedtensor_calltensorfactory.op(op, expected_type=jax.numpy.ndarray)
     op = adapter.einx_from_namedtensor.op(op, iskwarg=iskwarg, el_op=signature, implicit_output="bijective")
 
-    return api(op, backend=types.SimpleNamespace(**_get_backend_kwargs()))
+    return cast(Callable[Concatenate[str, P], R], api(op, backend=types.SimpleNamespace(**_get_backend_kwargs())))
 
 
 adapt_with_vmap.__doc__ = _make_doc_adapt_with_vmap("jax", "``jax.vmap``")

@@ -1,3 +1,6 @@
+from typing import ParamSpec, TypeVar, Concatenate, cast
+from collections.abc import Callable
+
 import einx._src.tracer as tracer
 import einx._src.adapter as adapter
 from ..api import api
@@ -62,7 +65,11 @@ def _get_backend_kwargs():
     return {"optimizations": optimizations, "compiler": tracer.compiler.python, "is_supported_tensor": is_supported_tensor, "get_shape": get_shape}
 
 
-def adapt_with_vmap(op, signature=None):
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def adapt_with_vmap(op: Callable[P, R], signature=None) -> Callable[Concatenate[str, P], R]:
     _raise_on_invalid_version()
     iskwarg = _make_iskwarg(op)
 
@@ -85,7 +92,7 @@ def adapt_with_vmap(op, signature=None):
 
     torch.compiler.allow_in_graph(op)
 
-    return op
+    return cast(Callable[Concatenate[str, P], R], op)
 
 
 adapt_with_vmap.__doc__ = _make_doc_adapt_with_vmap("torch", "``torch.vmap``")
