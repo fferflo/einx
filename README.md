@@ -13,6 +13,8 @@ einx is a notation and Python library that provides a universal interface to for
 * [How are einx operations implemented?](#how-are-einx-operations-implemented)
 * [Which operations are supported?](#which-operations-are-supported)
 
+*Update:* einx has been accepted at ICLR 2026 as an oral ([paper](https://openreview.net/pdf?id=QqvQ3iAdpC)).
+
 ## Quickstart
 
 **Installation:**
@@ -40,6 +42,8 @@ print(y.shape)
 
 ```python
 z = einx.id("a (b c) -> (b a) c", x, b=2)             # Permute and (un)flatten axes
+z = einx.id("b (q + k) -> b q, b k", x, q=2)          # Split
+z = einx.id("b c, -> b (c + 1)", x, 42)               # Append number to each channel
 z = einx.sum("a [b]", x)                              # Sum-reduction along second axis
 z = einx.flip("... (g [c])", x, c=2)                  # Flip pairs of values along the last axis
 z = einx.mean("b [...] c", x)                         # Spatial mean-pooling
@@ -48,8 +52,6 @@ z = einx.sum("b (s [ds])... c", x, ds=(2, 2))         # Sum-pooling with 2x2 ker
 z = einx.add("a, b -> a b", x, y)                     # Outer sum
 z = einx.dot("a [b], [b] c -> a c", x, y)             # Matrix multiplication
 z = einx.get_at("b [h w] c, b i [2] -> b i c", x, y)  # Gather values at coordinates
-z = einx.id("b (q + k) -> b q, b k", x, q=2)          # Split
-z = einx.id("b c, -> b (c + 1)", x, 42)               # Append number to each channel
 ```
 
 See the [documentation](https://einx.readthedocs.io/en/latest/more/operations.html) for more examples.
@@ -102,38 +104,38 @@ Different [backends](https://einx.readthedocs.io/en/latest/gettingstarted/backen
 
 ## Which operations are supported?
 
-**Operations in the API:** einx supports a large set of tensor operations in the namespace ``einx.*``, including reduction, scalar, indexing, some shape-preserving operations, identity map and dot-product. See the [documentation](https://einx.readthedocs.io/en/latest/api/operations.html) for a complete list.
+**Built-in operations:** einx supports a large set of tensor operations in the namespace ``einx.*``, including reduction, scalar, indexing, some shape-preserving operations, identity map and dot-product. See the [documentation](https://einx.readthedocs.io/en/latest/api/operations.html) for a complete list.
 
-**Operations *not* in the API:** einx additionally allows adapting custom Python functions to einx notation using einx adapters. For example:
+**User-defined operations:** einx additionally allows adapting custom Python functions to einx notation using einx adapters. For example:
 
 ```python
-# Define a custom elementary operation
-def myoperation(x, y):
+# Define a custom operation
+def foo(x, y):
     x = 2 * x
     z = x + torch.sum(y)
     return z
 
 # Adapt the operation to einx notation
-einmyoperation = einx.torch.adapt_with_vmap(myoperation)
+einfoo = einx.torch.adapt_with_vmap(foo)
 
 # Invoke as einx operation
-z = einmyoperation("a [c], b [c] -> a b [c]", x, y)
+z = einfoo("a [c], b [c] -> a b [c]", x, y)
 ```
 
-This will yield the same output as if ``myoperation`` were invoked in loop notation:
+This will yield the same output as if ``foo`` were invoked in loop notation:
 
 ```python
 for a in range(...):
     for b in range(...):
-        z[a, b, :] = myoperation(x[a, :], y[b, :])
+        z[a, b, :] = foo(x[a, :], y[b, :])
 ```
 
-The interface of ``einmyoperation`` matches that of other einx operations. For example, the compiled code snippet can be inspected using ``graph=True``:
+The interface of ``einfoo`` matches that of other einx operations. For example, the compiled code snippet can be inspected using ``graph=True``:
 
 ```python
->>> code = einmyoperation("a [c], b [c] -> a b [c]", x, y, graph=True)
+>>> code = einfoo("a [c], b [c] -> a b [c]", x, y, graph=True)
 >>> print(code)
-# Constant const1: <function myoperation at 0x49e9aa3cd8a0>
+# Constant const1: <function foo at 0x49e9aa3cd8a0>
 import torch
 def op(a, b):
     def c(d, e):
