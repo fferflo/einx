@@ -22,7 +22,6 @@ readme = "README.md"
 dependencies = [
     "numpy",
     "sympy",
-    "frozendict",
 ]
 
 [project.optional-dependencies]

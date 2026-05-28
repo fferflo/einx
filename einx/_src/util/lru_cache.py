@@ -5,7 +5,6 @@ import inspect
 from collections import defaultdict
 import numpy as np
 from functools import partial
-import frozendict
 import types
 
 _thread_local = threading.local()
@@ -20,7 +19,7 @@ def _freeze_value(x):
     elif isinstance(x, list | tuple):
         return tuple(_freeze_value(x) for x in x)
     elif isinstance(x, dict):
-        return frozendict.frozendict({k: _freeze_value(v) for k, v in x.items()})
+        return tuple((k, _freeze_value(v)) for k, v in x.items())
     elif isinstance(x, types.SimpleNamespace):
         return _freeze_value(vars(x))
     elif isinstance(x, inspect.Parameter):
