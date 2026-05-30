@@ -84,6 +84,8 @@ jobs:
       run: |
         pip install .
 
+        pip install --upgrade "torch==2.11"
+        pytest test
         pip install --upgrade "torch==2.10"
         pytest test
         pip install --upgrade "torch==2.9"
