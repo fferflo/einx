@@ -12,6 +12,8 @@ class ops:
             to_tensor_one = _to_tensor(tinygrad.Tensor, forward=[tinygrad.Tensor], convert=["numpy", "scalar"])
             return [to_tensor_one(arg) for arg in args]
 
+        idiv = partial(tinygrad.Tensor.div, rounding_mode="floor")
+
         self.reshape = adapter.classical_from_numpy.reshape(tinygrad.Tensor.reshape, to_tensor=to_tensor_all)
         self.transpose = adapter.classical_from_numpy.transpose(tinygrad.Tensor.permute, to_tensor=to_tensor_all)
         self.broadcast_to = adapter.classical_from_numpy.broadcast_to(tinygrad.Tensor.expand, to_tensor=to_tensor_all)
@@ -22,7 +24,7 @@ class ops:
         self.subtract = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.sub, to_tensor=to_tensor_all)
         self.multiply = adapter.classical_from_numpy.elementwise(_associative_binary_to_nary(tinygrad.Tensor.mul), to_tensor=to_tensor_all)
         self.true_divide = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.div, to_tensor=to_tensor_all)
-        self.floor_divide = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.idiv, to_tensor=to_tensor_all)
+        self.floor_divide = adapter.classical_from_numpy.elementwise(idiv, to_tensor=to_tensor_all)
         self.divide = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.div, to_tensor=to_tensor_all)
         self.logaddexp = adapter.classical_from_classical.logaddexp(
             self
@@ -43,7 +45,7 @@ class ops:
         self.negative = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.neg, to_tensor=to_tensor_all)
 
         def divmod(x, y):
-            q = tinygrad.Tensor.idiv(x, y)
+            q = idiv(x, y)
             r = tinygrad.Tensor.sub(x, tinygrad.Tensor.mul(q, y))
             return q, r
 

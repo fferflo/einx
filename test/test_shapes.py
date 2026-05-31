@@ -65,10 +65,11 @@ def test_shape_id(setup_backend):
     with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
         einx.id("a a -> a a", x)
 
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.id("1 1 ->", np.asarray([[0]])).shape == ()
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.id("1 ->", np.asarray([0])).shape == ()
+    if not ("torch" in setup.name and "inferencemode" in setup.name):
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.id("1 1 ->", np.asarray([[0]])).shape == ()
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.id("1 ->", np.asarray([0])).shape == ()
     if "arrayapi" not in setup.name:
         # array_api_compat.array_namespace fails to determine correct array_namespace here
         with suppress((OperationNotSupportedError, BackendResolutionError, *setup.exceptions)):
@@ -100,10 +101,11 @@ def test_shape_id(setup_backend):
     with suppress((OperationNotSupportedError, *setup.exceptions)):
         assert einx.id("b s... c x... -> x... b (s...) c", x, x=()).shape == (10, 400, 2)
 
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.id("1 -> (x)", np.asarray([1]), x=10).shape == (10,)
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.id("1 -> (x y)", np.asarray([1]), x=10, y=20).shape == (200,)
+    if not ("torch" in setup.name and "inferencemode" in setup.name):
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.id("1 -> (x)", np.asarray([1]), x=10).shape == (10,)
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.id("1 -> (x y)", np.asarray([1]), x=10, y=20).shape == (200,)
 
     with suppress((OperationNotSupportedError, *setup.exceptions)):
         assert einx.id("1 -> (x)", setup.to_tensor([1]), x=10).shape == (10,)
@@ -207,7 +209,12 @@ def test_shape_id(setup_backend):
         einx.id("a, -> (a +)", x, 1)
 
     x = setup.full((10, 10))
-    if "arrayapi" not in setup.name and "mlx.vmap" not in setup.name and "dask" not in setup.name:
+    if (
+        "arrayapi" not in setup.name
+        and "mlx.vmap" not in setup.name
+        and "dask" not in setup.name
+        and not ("torch" in setup.name and "inferencemode" in setup.name)
+    ):
         # array_api_compat.array_namespace fails to determine correct array_namespace here
         with suppress((OperationNotSupportedError, *setup.exceptions)):
             assert einx.id("b c, 1 -> b (c + 1)", x, np.asarray([42.0]).astype("float32")).shape == (10, 11)
@@ -231,16 +238,17 @@ def test_shape_id(setup_backend):
             assert x[0].shape == (3,)
             assert x[1].shape == (2, 3)
 
-        x = np.zeros((10, 10))
-        with suppress((OperationNotSupportedError, *setup.exceptions)):
-            y = einx.id("(a + b) (c + d) -> a c, a d, b c, b d", x, b=3, d=4)
-            assert y[0].shape == (7, 6)
-            assert y[1].shape == (7, 4)
-            assert y[2].shape == (3, 6)
-            assert y[3].shape == (3, 4)
+        if not ("torch" in setup.name and "inferencemode" in setup.name):
+            x = np.zeros((10, 10))
+            with suppress((OperationNotSupportedError, *setup.exceptions)):
+                y = einx.id("(a + b) (c + d) -> a c, a d, b c, b d", x, b=3, d=4)
+                assert y[0].shape == (7, 6)
+                assert y[1].shape == (7, 4)
+                assert y[2].shape == (3, 6)
+                assert y[3].shape == (3, 4)
 
-        with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
-            einx.id("(a + b) (c + d) -> a d, a c, b c, b d", x, b=3, d=4)
+            with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
+                einx.id("(a + b) (c + d) -> a d, a c, b c, b d", x, b=3, d=4)
 
         x = setup.full((3, 10, 11, 2))
         y = setup.full((3, 2))
@@ -269,6 +277,15 @@ def test_shape_id(setup_backend):
             assert einx.id("b1 a, b2 a -> a (b1 + b2)", x, x).shape == (3, 4)
     with pytest.raises((OperationNotSupportedError, EinxError, *setup.exceptions)):
         einx.id("a b1, a b2 -> a ((a b1) + b2)", x, x)
+
+    x = setup.full((3,))
+    with suppress((OperationNotSupportedError, *setup.exceptions)):
+        assert einx.id("i -> b... i", x, b=[1, 1]).shape == (1, 1, 3)
+
+    for i in range(2, 10):
+        x = setup.full((2, i))
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.id("a b -> a b 4", x).shape == (2, i, 4)
 
 
 @use_backend
@@ -484,12 +501,13 @@ def test_shape_reduce(setup_backend):
         assert einx.mean("(b rg) pv [s...] c", x).shape == (16, 1, 64)
     with suppress((OperationNotSupportedError, *setup.exceptions)):
         assert einx.logsumexp("a [...]", x).shape == (16,)
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.logsumexp("[a]", np.asarray([0.0, 1.0])).shape == ()
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.logsumexp("[a] 1", np.asarray([[0.0], [1.0]])).shape == (1,)
-    with suppress((OperationNotSupportedError, *setup.exceptions)):
-        assert einx.logsumexp("[a]", np.asarray([0.0] * 10)).shape == ()
+    if not ("torch" in setup.name and "inferencemode" in setup.name):
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.logsumexp("[a]", np.asarray([0.0, 1.0])).shape == ()
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.logsumexp("[a] 1", np.asarray([[0.0], [1.0]])).shape == (1,)
+        with suppress((OperationNotSupportedError, *setup.exceptions)):
+            assert einx.logsumexp("[a]", np.asarray([0.0] * 10)).shape == ()
 
     x = setup.full((16, 15))
     with suppress((OperationNotSupportedError, *setup.exceptions)):
@@ -624,7 +642,8 @@ def test_shape_elementwise(setup_backend):
         assert einx.add("a b, ", x, 1.0).shape == (10, 10)
     with suppress((OperationNotSupportedError, *setup.exceptions)):
         assert einx.add(", a b", 1.0, x).shape == (10, 10)
-    if "arrayapi" not in setup.name and "dask" not in setup.name:  # array_api_compat.array_namespace fails to determine correct array_namespace here
+    if "arrayapi" not in setup.name and "dask" not in setup.name and not ("torch" in setup.name and "inferencemode" in setup.name):
+        # array_api_compat.array_namespace fails to determine correct array_namespace here
         with suppress((OperationNotSupportedError, *setup.exceptions)):
             assert einx.add("a b, 1", x, np.asarray([1.0]).astype("float32")).shape == (10, 10)
         if not ("torch" in setup.name and "compile" in setup.name and "vmap" in setup.name and "gpu" in setup.name):

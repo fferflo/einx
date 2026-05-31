@@ -4,6 +4,7 @@ from ..api import api
 import types
 import inspect
 import functools
+import os
 from functools import partial
 from ..backend import registry
 from ..backend import Backend
@@ -23,21 +24,27 @@ def _raise_on_invalid_version():
         raise ImportBackendError(f"einx with PyTorch requires PyTorch version >= 2.2, but found {torch.__version__}. einx functions are disabled for PyTorch.")
 
 
+# These environment variable might be changed or removed in future versions.
+_allow_ops_in_graph = os.environ.get("EINX_TORCH_ALLOW_OPS_IN_GRAPH", "1").lower() in ("1", "true", "yes")
+_disable_compile_on_graph_construction = os.environ.get("EINX_TORCH_DISABLE_COMPILE_ON_GRAPH_CONSTRUCTION", "0").lower() in ("1", "true", "yes")
+
 _has_allowed_in_graph = False
 _has_allowed_in_graph_lock = threading.Lock()
 
 
-def _allow_ops_in_graph():
-    global _has_allowed_in_graph
-    if not _has_allowed_in_graph:
-        with _has_allowed_in_graph_lock:
-            if not _has_allowed_in_graph:
-                import torch
-                from einx._src.frontend.ops import ops
+def _apply_allow_in_graph():
+    if _allow_ops_in_graph:
+        global _has_allowed_in_graph
+        if not _has_allowed_in_graph:
+            with _has_allowed_in_graph_lock:
+                if not _has_allowed_in_graph:
+                    import torch
 
-                for op in ops:
-                    torch.compiler.allow_in_graph(op)
-                _has_allowed_in_graph = True
+                    from einx._src.frontend.ops import ops
+
+                    for op in ops:
+                        torch.compiler.allow_in_graph(op)
+                    _has_allowed_in_graph = True
 
 
 def _get_backend_kwargs():
@@ -59,7 +66,13 @@ def _get_backend_kwargs():
     def get_shape(tensor):
         return tuple(int(x) for x in tensor.shape)
 
-    return {"optimizations": optimizations, "compiler": tracer.compiler.python, "is_supported_tensor": is_supported_tensor, "get_shape": get_shape}
+    return {
+        "optimizations": optimizations,
+        "compiler": tracer.compiler.python,
+        "is_supported_tensor": is_supported_tensor,
+        "get_shape": get_shape,
+        "wrap_construct_graph": torch.compiler.disable if _disable_compile_on_graph_construction else lambda x: x,
+    }
 
 
 def adapt_with_vmap(op, signature=None):
@@ -81,9 +94,11 @@ def adapt_with_vmap(op, signature=None):
     op = adapter.einx_from_namedtensor.op(op, iskwarg=iskwarg, el_op=signature, implicit_output="bijective")
 
     op = api(op, backend=types.SimpleNamespace(**_get_backend_kwargs()))
-    import torch
 
-    torch.compiler.allow_in_graph(op)
+    if _allow_ops_in_graph:
+        import torch
+
+        torch.compiler.allow_in_graph(op)
 
     return op
 
@@ -109,9 +124,11 @@ def adapt_numpylike_reduce(op):
     op = adapter.einx_from_namedtensor.reduce(op, iskwarg=iskwarg)
 
     op = api(op, backend=types.SimpleNamespace(**_get_backend_kwargs()))
-    import torch
 
-    torch.compiler.allow_in_graph(op)
+    if _allow_ops_in_graph:
+        import torch
+
+        torch.compiler.allow_in_graph(op)
 
     return op
 
@@ -137,9 +154,11 @@ def adapt_numpylike_elementwise(op):
     op = adapter.einx_from_namedtensor.elementwise(op, iskwarg=iskwarg)
 
     op = api(op, backend=types.SimpleNamespace(**_get_backend_kwargs()))
-    import torch
 
-    torch.compiler.allow_in_graph(op)
+    if _allow_ops_in_graph:
+        import torch
+
+        torch.compiler.allow_in_graph(op)
 
     return op
 
@@ -150,7 +169,7 @@ adapt_numpylike_elementwise.__doc__ = _make_doc_adapt_numpylike_elementwise()
 def _backend_creator(create):
     def new_create():
         _raise_on_invalid_version()
-        _allow_ops_in_graph()
+        _apply_allow_in_graph()
 
         device_stack = adapter.TorchDeviceStack()
 
