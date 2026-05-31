@@ -520,6 +520,7 @@ def tinygrad_is_available():
 
 
 os.environ["PYTHON"] = "1"
+os.environ["DEV"] = "PYTHON"
 tinygrad_backends = ["tinygrad.numpylike", "tinygrad.einsum", "tinygrad", None]
 if tinygrad_is_available():
     import tinygrad
