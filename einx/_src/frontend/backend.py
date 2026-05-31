@@ -38,7 +38,7 @@ class InvalidBackend:
 
 
 class Backend:
-    def __init__(self, ops, name, priority, optimizations, compiler, is_supported_tensor, get_shape):
+    def __init__(self, ops, name, priority, optimizations, compiler, is_supported_tensor, get_shape, wrap_construct_graph=lambda x: x):
         self.ops = ops
         self.name = name
         self.priority = priority
@@ -46,6 +46,7 @@ class Backend:
         self.compiler = compiler
         self.is_supported_tensor = is_supported_tensor
         self.get_shape = get_shape
+        self.wrap_construct_graph = wrap_construct_graph
 
     def __getattr__(self, name):
         def op(*args, **kwargs):

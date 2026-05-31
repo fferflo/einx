@@ -119,15 +119,11 @@ def _to_tracer(x, backend, name):
         return x
 
 
-def _construct_graph(args, kwargs, func, backend=None):
-    if backend is None:
-        backend = kwargs["backend"]
-
+def _construct_graph_unwrapped(args, kwargs, func, backend):
     # Trace function with the given tracer objects
     input_tracers = [x for x in list(args) + list(kwargs.values()) if isinstance(x, tracer.Tracer)]
-    with tracer.depend_on(
-        *input_tracers
-    ):  # Ensure that no constant tensors are allocated at graph construction time -> all functions must be invoked inside the compiled function
+    with tracer.depend_on(*input_tracers):
+        # Ensure that no constant tensors are allocated at graph construction time -> all functions must be invoked inside the compiled function
         output_tracer = func(*args, **kwargs)
 
     # Create graph object
@@ -148,6 +144,13 @@ def _construct_graph(args, kwargs, func, backend=None):
     function, code = backend.compiler.compile(graph, return_code=True)
 
     return function, code
+
+
+def _construct_graph(args, kwargs, func, backend=None):
+    if backend is None:
+        backend = kwargs["backend"]
+
+    return backend.wrap_construct_graph(_construct_graph_unwrapped)(args, kwargs, func, backend=backend)
 
 
 def to_ord_str(x):

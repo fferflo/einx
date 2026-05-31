@@ -30,7 +30,13 @@ def _get_backend_kwargs():
     def get_shape(tensor):
         return tuple(int(x) for x in tensor.shape)
 
-    return {"optimizations": optimizations, "compiler": tracer.compiler.python, "is_supported_tensor": is_supported_tensor, "get_shape": get_shape}
+    return {
+        "optimizations": optimizations,
+        "compiler": tracer.compiler.python,
+        "is_supported_tensor": is_supported_tensor,
+        "get_shape": get_shape,
+        "wrap_construct_graph": lambda x: x,
+    }
 
 
 def adapt_with_vmap(op, signature=None):
