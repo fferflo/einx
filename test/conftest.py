@@ -323,6 +323,18 @@ if torch_is_available():
 
     wraps.append((wrap_torchstaticcompile, ".compile(dynamic=False)"))
 
+    def wrap_torchcompile_inferencemode(op):
+        torch.compiler.reset()
+        op = torch.compile(op)
+
+        def op2(*args, **kwargs):
+            with torch.inference_mode():
+                return op(*args, **kwargs)
+
+        return op2
+
+    wraps.append((wrap_torchcompile_inferencemode, ".compile.inferencemode"))
+
     for backend_name in torch_backends:
         for wrap_fn, wrap_name in wraps:
             for device, device_name in devices:
