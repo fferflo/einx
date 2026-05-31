@@ -42,7 +42,6 @@ class Tensor(tracer.Tracer):
         self.sub = signature.classical.elementwise(Tensor.sub, num_outputs=1)
         self.mul = signature.classical.elementwise(Tensor.mul, num_outputs=1)
         self.div = signature.classical.elementwise(Tensor.div, num_outputs=1)
-        self.idiv = signature.classical.elementwise(Tensor.idiv, num_outputs=1)
         self.where = signature.classical.elementwise(Tensor.where, num_outputs=1)
         self.maximum = signature.classical.elementwise(Tensor.maximum, num_outputs=1)
         self.minimum = signature.classical.elementwise(Tensor.minimum, num_outputs=1)

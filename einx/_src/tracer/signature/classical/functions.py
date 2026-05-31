@@ -122,7 +122,7 @@ def reduce(op, argname_axis="axis", argname_keepdims="keepdims"):
 
 def elementwise(op, num_outputs=1):
     @use_name_of(op)
-    def inner(*xs):
+    def inner(*xs, **kwargs):
         shape = None
         for a in xs:
             if hasattr(a, "shape"):
@@ -138,7 +138,7 @@ def elementwise(op, num_outputs=1):
         if shape is None:
             raise ValueError("elementwise operation requires at least one tensor as argument")
 
-        x = op(*xs)
+        x = op(*xs, **kwargs)
 
         if num_outputs == 1:
             output = partial(tracer.signature.classical.Tensor, shape=shape)
