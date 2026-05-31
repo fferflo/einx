@@ -60,12 +60,14 @@ def default_is_static_kwarg(k, v):
 
 def wrap_einx_function(op_no, wrap, is_static_arg=default_is_static_arg, is_static_kwarg=default_is_static_kwarg):
     def op_all(*all_args, **all_kwargs):
+        # Replace dynamic arguments with DYNAMIC marker, and store them separately
         dynamic_args = [a for a in all_args if not is_static_arg(a)]
         dynamic_kwargs = {k: v for k, v in all_kwargs.items() if not is_static_kwarg(k, v)}
         all_args = [a if is_static_arg(a) else DYNAMIC for a in all_args]
         all_kwargs = {k: v if is_static_kwarg(k, v) else DYNAMIC for k, v in all_kwargs.items()}
 
         def op_some(*dynamic_args, **dynamic_kwargs):
+            # Reinsert dynamic arguments into their original positions
             dynamic_args = list(dynamic_args)
             all_args2 = [dynamic_args.pop(0) if (isinstance(a, type) and a == DYNAMIC) else a for a in all_args]
             all_kwargs2 = {**all_kwargs, **dynamic_kwargs}
