@@ -54,11 +54,11 @@ def default_is_static_arg(x):
     return "shape" not in dir(x) or isinstance(x, np.ndarray)
 
 
-def default_is_static_kwargs(k, v):
+def default_is_static_kwarg(k, v):
     return True
 
 
-def wrap_einx_function(op_no, wrap, is_static_arg=default_is_static_arg, is_static_kwarg=default_is_static_kwargs):
+def wrap_einx_function(op_no, wrap, is_static_arg=default_is_static_arg, is_static_kwarg=default_is_static_kwarg):
     def op_all(*all_args, **all_kwargs):
         dynamic_args = [a for a in all_args if not is_static_arg(a)]
         dynamic_kwargs = {k: v for k, v in all_kwargs.items() if not is_static_kwarg(k, v)}
