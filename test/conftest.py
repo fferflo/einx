@@ -59,6 +59,9 @@ def default_is_static_kwarg(k, v):
 
 
 def wrap_einx_function(op_no, wrap, is_static_arg=default_is_static_arg, is_static_kwarg=default_is_static_kwarg):
+    if wrap is None:
+        wrap = lambda x: x
+
     def op_all(*all_args, **all_kwargs):
         # Replace dynamic arguments with DYNAMIC marker, and store them separately
         dynamic_args = [a for a in all_args if not is_static_arg(a)]
@@ -113,9 +116,6 @@ def in_new_thread(op):
     return inner
 
 
-einx_multithread = WrappedEinx(in_new_thread)
-
-
 # def in_new_process(op):
 #     def inner(*args, **kwargs):
 #         result = multiprocessing.Queue()
@@ -136,9 +136,6 @@ einx_multithread = WrappedEinx(in_new_thread)
 #             return result.get()
 
 #     return inner
-
-
-# einx_multiprocess = WrappedEinx(in_new_process)
 
 
 setup_backend = []
@@ -169,21 +166,31 @@ setup = types.SimpleNamespace(
     version=to_version(np.__version__),
 )
 
+wraps = []
+wraps.append((None, ""))
+wraps.append((in_new_thread, ".in_new_thread"))
+
 for backend_name in numpy_backends:
-    backend = einx.backend.get(backend_name) if backend_name is not None else None
+    for wrap_fn, wrap_name in wraps:
+        setup_backend.append(
+            types.SimpleNamespace(
+                name=f"numpy.{backend_name}{wrap_name}",
+                **setup.__dict__,
+                einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                backend=einx.backend.get(backend_name) if backend_name is not None else None,
+            )
+        )
 
-    setup_backend.append(types.SimpleNamespace(name=f"numpy.{backend_name}", **setup.__dict__, einx=einx, backend=backend))
-    setup_backend.append(types.SimpleNamespace(name=f"numpy.{backend_name}.in_new_thread", **setup.__dict__, einx=einx_multithread, backend=backend))
-
-setup_adapt.append(
-    types.SimpleNamespace(
-        name="numpy",
-        **setup.__dict__,
-        wrap=lambda x: x,
-        adapt_numpylike_elementwise=einx.numpy.adapt_numpylike_elementwise,
-        adapt_numpylike_reduce=einx.numpy.adapt_numpylike_reduce,
+for wrap_fn, wrap_name in wraps:
+    setup_adapt.append(
+        types.SimpleNamespace(
+            name=f"numpy{wrap_name}",
+            **setup.__dict__,
+            wrap=partial(wrap_einx_function, wrap=wrap_fn),
+            adapt_numpylike_elementwise=einx.numpy.adapt_numpylike_elementwise,
+            adapt_numpylike_reduce=einx.numpy.adapt_numpylike_reduce,
+        )
     )
-)
 
 
 def jax_is_available():
@@ -206,11 +213,14 @@ if jax_is_available():
     import jax.numpy as jnp
 
     classical = adapter.classical_from_jax.ops(jax)
+
+    devices = []
+    devices.append(("cpu", ".cpu"))
     try:
         jax.devices("gpu")
-        has_gpu = True
+        devices.append(("gpu", ".gpu"))
     except:
-        has_gpu = False
+        pass
 
     def make_setup(device):
         return types.SimpleNamespace(
@@ -223,39 +233,29 @@ if jax_is_available():
             version=to_version(jax.__version__),
         )
 
-    setup_cpu = make_setup("cpu")
-    if has_gpu:
-        setup_gpu = make_setup("gpu")
-
-    einx_jit = WrappedEinx(jax.jit)
+    wraps = []
+    wraps.append((None, ""))
+    wraps.append((jax.jit, ".jit"))
 
     for backend_name in jax_backends:
-        backend = einx.backend.get(backend_name) if backend_name is not None else None
+        for wrap_fn, wrap_name in wraps:
+            for device, device_name in devices:
+                setup_backend.append(
+                    types.SimpleNamespace(
+                        name=f"jax.{backend_name}{device_name}{wrap_name}",
+                        **make_setup(device).__dict__,
+                        einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                        backend=einx.backend.get(backend_name) if backend_name is not None else None,
+                    )
+                )
 
-        setup_backend.append(types.SimpleNamespace(name=f"jax.{backend_name}.cpu", **setup_cpu.__dict__, backend=backend, einx=einx))
-        setup_backend.append(types.SimpleNamespace(name=f"jax.{backend_name}.cpu.jit", **setup_cpu.__dict__, einx=einx_jit, backend=backend))
-
-        if has_gpu:
-            setup_backend.append(types.SimpleNamespace(name=f"jax.{backend_name}.gpu", **setup_gpu.__dict__, einx=einx, backend=backend))
-            setup_backend.append(types.SimpleNamespace(name=f"jax.{backend_name}.gpu.jit", **setup_gpu.__dict__, einx=einx_jit, backend=backend))
-
-    for wrap in [lambda x: x, jax.jit]:
-        setup_adapt.append(
-            types.SimpleNamespace(
-                name="jax.cpu",
-                **setup_cpu.__dict__,
-                wrap=partial(wrap_einx_function, wrap=wrap),
-                adapt_with_vmap=einx.jax.adapt_with_vmap,
-                adapt_numpylike_elementwise=einx.jax.adapt_numpylike_elementwise,
-                adapt_numpylike_reduce=einx.jax.adapt_numpylike_reduce,
-            )
-        )
-        if has_gpu:
+    for wrap_fn, wrap_name in wraps:
+        for device, device_name in devices:
             setup_adapt.append(
                 types.SimpleNamespace(
-                    name="jax.gpu",
-                    **setup_gpu.__dict__,
-                    wrap=partial(wrap_einx_function, wrap=wrap),
+                    name=f"jax{device_name}{wrap_name}",
+                    **make_setup(device).__dict__,
+                    wrap=partial(wrap_einx_function, wrap=wrap_fn),
                     adapt_with_vmap=einx.jax.adapt_with_vmap,
                     adapt_numpylike_elementwise=einx.jax.adapt_numpylike_elementwise,
                     adapt_numpylike_reduce=einx.jax.adapt_numpylike_reduce,
@@ -278,12 +278,15 @@ torch_backends = ["torch.numpylike", "torch.vmap", "torch.einsum", "torch", None
 if torch_is_available():
     import torch
 
-    has_gpu = torch.cuda.is_available()
     version = tuple(int(i) for i in torch.__version__.split(".")[:2])
 
-    torch_dtypes = {"float32": torch.float32, "int64": torch.int64, "bool": torch.bool, "int32": torch.int32}
+    devices = []
+    devices.append(("cpu", ".cpu"))
+    if torch.cuda.is_available():
+        devices.append(("cuda", ".gpu"))
 
     def make_setup(device):
+        torch_dtypes = {"float32": torch.float32, "int64": torch.int64, "bool": torch.bool, "int32": torch.int32}
         exceptions = []
         try:
             exceptions.append(torch._dynamo.exc.TorchRuntimeError)
@@ -303,56 +306,41 @@ if torch_is_available():
             version=to_version(torch.__version__),
         )
 
-    setup_cpu = make_setup("cpu")
-    if has_gpu:
-        setup_gpu = make_setup("cuda")
+    wraps = []
+    wraps.append((None, ""))
 
     def wrap_torchcompile(op):
         torch.compiler.reset()
-        return torch.compile(op)
+        op = torch.compile(op)
+        return op
 
-    einx_torchcompile = WrappedEinx(wrap_torchcompile)
+    wraps.append((wrap_torchcompile, ".compile"))
 
     def wrap_torchstaticcompile(op):
         torch.compiler.reset()
-        return torch.compile(op, dynamic=False)
+        op = torch.compile(op, dynamic=False)
+        return op
 
-    einx_torchstaticcompile = WrappedEinx(wrap_torchstaticcompile)
+    wraps.append((wrap_torchstaticcompile, ".compile(dynamic=False)"))
 
     for backend_name in torch_backends:
-        backend = einx.backend.get(backend_name) if backend_name is not None else None
-        setup_backend.append(types.SimpleNamespace(name=f"torch.{backend_name}.cpu", **setup_cpu.__dict__, backend=backend, einx=einx))
-        setup_backend.append(
-            types.SimpleNamespace(name=f"torch.{backend_name}.cpu.compile(dynamic=False)", **setup_cpu.__dict__, backend=backend, einx=einx_torchstaticcompile)
-        )
-        setup_backend.append(types.SimpleNamespace(name=f"torch.{backend_name}.cpu.compile", **setup_cpu.__dict__, backend=backend, einx=einx_torchcompile))
-
-        if has_gpu:
-            setup_backend.append(types.SimpleNamespace(name=f"torch.{backend_name}.gpu", **setup_gpu.__dict__, backend=backend, einx=einx))
-            setup_backend.append(
-                types.SimpleNamespace(
-                    name=f"torch.{backend_name}.gpu.compile(dynamic=False)", **setup_gpu.__dict__, backend=backend, einx=einx_torchstaticcompile
+        for wrap_fn, wrap_name in wraps:
+            for device, device_name in devices:
+                setup_backend.append(
+                    types.SimpleNamespace(
+                        name=f"torch.{backend_name}{device_name}{wrap_name}",
+                        **make_setup(device).__dict__,
+                        backend=einx.backend.get(backend_name) if backend_name is not None else None,
+                        einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                    )
                 )
-            )
-            setup_backend.append(types.SimpleNamespace(name=f"torch.{backend_name}.gpu.compile", **setup_gpu.__dict__, backend=backend, einx=einx_torchcompile))
 
-    wraps = [(lambda x: x, ""), (wrap_torchcompile, ".compile"), (wrap_torchstaticcompile, ".compile(dynamic=False)")]
     for wrap_fn, wrap_name in wraps:
-        setup_adapt.append(
-            types.SimpleNamespace(
-                name=f"torch.cpu{wrap_name}",
-                **setup_cpu.__dict__,
-                wrap=partial(wrap_einx_function, wrap=wrap_fn),
-                adapt_with_vmap=einx.torch.adapt_with_vmap,
-                adapt_numpylike_elementwise=einx.torch.adapt_numpylike_elementwise,
-                adapt_numpylike_reduce=einx.torch.adapt_numpylike_reduce,
-            )
-        )
-        if has_gpu:
+        for device, device_name in devices:
             setup_adapt.append(
                 types.SimpleNamespace(
-                    name=f"torch.gpu{wrap_name}",
-                    **setup_gpu.__dict__,
+                    name=f"torch.{device_name}{wrap_name}",
+                    **make_setup(device).__dict__,
                     wrap=partial(wrap_einx_function, wrap=wrap_fn),
                     adapt_with_vmap=einx.torch.adapt_with_vmap,
                     adapt_numpylike_elementwise=einx.torch.adapt_numpylike_elementwise,
@@ -391,15 +379,21 @@ if mlx_is_available():
         version=to_version(mx.__version__),
     )
 
-    einx_compile = WrappedEinx(mx.compile)
+    wraps = []
+    wraps.append((None, ""))
+    wraps.append((mx.compile, ".compile"))
 
     for backend_name in mlx_backends:
-        backend = einx.backend.get(backend_name) if backend_name is not None else None
+        for wrap_fn, wrap_name in wraps:
+            setup_backend.append(
+                types.SimpleNamespace(
+                    name=f"mlx.{backend_name}{wrap_name}",
+                    **setup.__dict__,
+                    backend=einx.backend.get(backend_name) if backend_name is not None else None,
+                    einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                )
+            )
 
-        setup_backend.append(types.SimpleNamespace(name=f"mlx.{backend_name}", **setup.__dict__, backend=backend, einx=einx))
-        setup_backend.append(types.SimpleNamespace(name=f"mlx.{backend_name}.compile", **setup.__dict__, backend=backend, einx=einx_compile))
-
-    wraps = [(lambda x: x, ""), (mx.compile, ".compile")]
     for wrap_fn, wrap_name in wraps:
         setup_adapt.append(
             types.SimpleNamespace(
@@ -425,9 +419,9 @@ def tf_is_available():
         return False
 
 
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 tf_backends = ["tensorflow.numpylike", "tensorflow.einsum", "tensorflow", None]
 if tf_is_available():
-    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     import tensorflow as tf
     import tensorflow.experimental.numpy as tnp
 
@@ -440,15 +434,23 @@ if tf_is_available():
         exceptions=(),
         classical=classical,
         dtypes=types.SimpleNamespace(int="int32", float="float32"),
-        version=to_version(mx.__version__),
+        version=to_version(tf.__version__),
     )
 
+    wraps = []
+    wraps.append((None, ""))
+
     for backend_name in tf_backends:
-        backend = einx.backend.get(backend_name) if backend_name is not None else None
+        for wrap_fn, wrap_name in wraps:
+            setup_backend.append(
+                types.SimpleNamespace(
+                    name=f"tensorflow.{backend_name}{wrap_name}",
+                    **setup.__dict__,
+                    backend=einx.backend.get(backend_name) if backend_name is not None else None,
+                    einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                )
+            )
 
-        setup_backend.append(types.SimpleNamespace(name=f"tensorflow.{backend_name}", **setup.__dict__, backend=backend, einx=einx))
-
-    wraps = [(lambda x: x, "")]
     for wrap_fn, wrap_name in wraps:
         setup_adapt.append(
             types.SimpleNamespace(
@@ -490,13 +492,21 @@ if dask_is_available() and arrayapi_is_available():
         version=to_version(dask.__version__),
     )
 
+    wraps = []
+    wraps.append((None, ""))
+
     for backend_name in dask_backends:
-        backend = einx.backend.get(backend_name) if backend_name is not None else None
+        for wrap_fn, wrap_name in wraps:
+            setup_backend.append(
+                types.SimpleNamespace(
+                    name=f"dask.{backend_name}{wrap_name}",
+                    **setup.__dict__,
+                    backend=einx.backend.get(backend_name) if backend_name is not None else None,
+                    einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                )
+            )
 
-        setup_backend.append(types.SimpleNamespace(name=f"dask.{backend_name}", **setup.__dict__, backend=backend, einx=einx))
-
-    warps = [(lambda x: x, "")]
-    for wrap_fn, wrap_name in warps:
+    for wrap_fn, wrap_name in wraps:
         setup_adapt.append(
             types.SimpleNamespace(
                 name=f"dask{wrap_name}",
@@ -537,12 +547,20 @@ if tinygrad_is_available():
         version=to_version("0.0.0"),
     )
 
+    wraps = []
+    wraps.append((None, ""))
+
     for backend_name in tinygrad_backends:
-        backend = einx.backend.get(backend_name) if backend_name is not None else None
+        for wrap_fn, wrap_name in wraps:
+            setup_backend.append(
+                types.SimpleNamespace(
+                    name=f"tinygrad.{backend_name}{wrap_name}",
+                    **setup.__dict__,
+                    backend=einx.backend.get(backend_name) if backend_name is not None else None,
+                    einx=WrappedEinx(wrap_fn) if wrap_fn is not None else einx,
+                )
+            )
 
-        setup_backend.append(types.SimpleNamespace(name=f"tinygrad.{backend_name}", **setup.__dict__, backend=backend, einx=einx))
-
-    wraps = [(lambda x: x, "")]
     for wrap_fn, wrap_name in wraps:
         setup_adapt.append(
             types.SimpleNamespace(
