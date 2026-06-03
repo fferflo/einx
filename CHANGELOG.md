@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Remove the ``frozendict`` dependency, replacing it with a stdlib-only hashable ``dict`` subclass used to build ``lru_cache`` keys. This drops the last LGPL-3.0 dependency from einx without changing caching behaviour (https://github.com/fferflo/einx/pull/35).
+
 ## [0.4.3]
 
 ### Fixed
