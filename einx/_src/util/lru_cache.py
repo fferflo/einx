@@ -5,7 +5,6 @@ import inspect
 from collections import defaultdict
 import numpy as np
 from functools import partial
-import frozendict
 import types
 
 _thread_local = threading.local()
@@ -14,13 +13,22 @@ warn_on_retrace_num = int(os.environ.get("EINX_WARN_ON_RETRACE", 0))
 max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
 
 
+class _FrozenDict(dict):
+    # A hashable dict used to build lru_cache keys. It still behaves like a
+    # mapping, since the frozen value is read back via key access downstream,
+    # but is hashable. Hashing is order-independent so that two equal dicts
+    # always produce the same cache key.
+    def __hash__(self):
+        return hash(frozenset(self.items()))
+
+
 def _freeze_value(x):
     if isinstance(x, np.ndarray):
         return _freeze_value(x.tolist())
     elif isinstance(x, list | tuple):
         return tuple(_freeze_value(x) for x in x)
     elif isinstance(x, dict):
-        return frozendict.frozendict({k: _freeze_value(v) for k, v in x.items()})
+        return _FrozenDict((k, _freeze_value(v)) for k, v in x.items())
     elif isinstance(x, types.SimpleNamespace):
         return _freeze_value(vars(x))
     elif isinstance(x, inspect.Parameter):
