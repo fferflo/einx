@@ -24,31 +24,52 @@ if max_cache_size != "inf":
         max_cache_size = "inf"
 
 
-class _FrozenDict(dict):
-    # A hashable dict used to build cache keys. It still behaves like a
-    # mapping, since the frozen value is read back via key access downstream,
-    # but is hashable. Hashing is order-independent so that two equal dicts
-    # always produce the same cache key.
-    def __hash__(self):
-        return hash(frozenset(self.items()))
-
-
 def _freeze_value(x):
     if isinstance(x, np.ndarray):
-        return _freeze_value(x.tolist())
-    elif isinstance(x, list | tuple):
-        return tuple(_freeze_value(x) for x in x)
+        return (0, _freeze_value(x.tolist()))
+    elif isinstance(x, list):
+        return (1, tuple(_freeze_value(xi) for xi in x))
+    elif isinstance(x, tuple):
+        return (2, tuple(_freeze_value(xi) for xi in x))
     elif isinstance(x, dict):
-        return _FrozenDict((k, _freeze_value(v)) for k, v in x.items())
+        return (3, tuple((k, _freeze_value(v)) for k, v in sorted(x.items())))
     elif isinstance(x, types.SimpleNamespace):
-        return _freeze_value(vars(x))
+        return (4, _freeze_value(vars(x)))
     elif isinstance(x, inspect.Parameter):
-        return _freeze_value((x.name, x.default, x.annotation, x.kind))
+        return (5, _freeze_value((x.name, x.default, x.annotation, x.kind)))
     else:
-        return x
+        return (6, x)
 
 
-def _freeze_args(func):
+def _unfreeze_value(x):
+    if x[0] == 0:
+        return np.asarray(_unfreeze_value(x[1]))
+    elif x[0] == 1:
+        return [_unfreeze_value(xi) for xi in x[1]]
+    elif x[0] == 2:
+        return tuple(_unfreeze_value(xi) for xi in x[1])
+    elif x[0] == 3:
+        return {k: _unfreeze_value(v) for k, v in x[1]}
+    elif x[0] == 4:
+        return types.SimpleNamespace(**_unfreeze_value(x[1]))
+    elif x[0] == 5:
+        name, default, annotation, kind = _unfreeze_value(x[1])
+        return inspect.Parameter(name, kind, default=default, annotation=annotation)
+    else:
+        return x[1]
+
+
+def _unfreeze_args_in_function(func):
+    @functools.wraps(func)
+    def func_unfrozen(*args, **kwargs):
+        args = [_unfreeze_value(a) for a in args]
+        kwargs = {k: _unfreeze_value(v) for k, v in kwargs.items()}
+        return func(*args, **kwargs)
+
+    return func_unfrozen
+
+
+def _freeze_args_in_function(func):
     @functools.wraps(func)
     def func_frozen(*args, **kwargs):
         args = [_freeze_value(a) for a in args]
@@ -121,10 +142,11 @@ def cache(func):
         return func
     func = _with_retrace_warning(func)
 
+    func = _unfreeze_args_in_function(func)
     if max_cache_size == "inf":
         func = functools.cache(func)
     elif max_cache_size > 0:
         func = functools.lru_cache(maxsize=max_cache_size)(func)
-    func = _freeze_args(func)
+    func = _freeze_args_in_function(func)
 
     return func
