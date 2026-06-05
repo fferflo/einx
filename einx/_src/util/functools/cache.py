@@ -14,7 +14,7 @@ max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
 
 
 class _FrozenDict(dict):
-    # A hashable dict used to build lru_cache keys. It still behaves like a
+    # A hashable dict used to build cache keys. It still behaves like a
     # mapping, since the frozen value is read back via key access downstream,
     # but is hashable. Hashing is order-independent so that two equal dicts
     # always produce the same cache key.
@@ -86,7 +86,7 @@ def _with_retrace_warning(func):
                             f"{trace}"
                         )
 
-            # Don't warn in inner functions that also use lru_cache
+            # Don't warn in inner functions that also use cache
             if has_warned:
                 _thread_local.warn = False
                 result = func(*args, **kwargs)
@@ -100,19 +100,19 @@ def _with_retrace_warning(func):
         return func
 
 
-# An LRU-cache that
+# A cache that
 # 1. allows using some mutable objects (np.ndarray, list and dict) as keys
 # 2. warns if there are more than EINX_WARN_ON_RETRACE cache failures from the same call site
-def lru_cache(func):
+def cache(func):
     func = _with_retrace_warning(func)
 
     if max_cache_size > 0:
-        func = functools.lru_cache(maxsize=max_cache_size if max_cache_size > 0 else None)(func)
+        func = functools.cache(maxsize=max_cache_size if max_cache_size > 0 else None)(func)
     elif max_cache_size < 0:
         if "cache" in vars(functools):
             func = functools.cache(func)
         else:
-            func = functools.lru_cache(maxsize=None)(func)
+            func = functools.cache(maxsize=None)(func)
     func = _freeze_args(func)
 
     return func

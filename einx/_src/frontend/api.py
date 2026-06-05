@@ -10,7 +10,7 @@ import numpy as np
 
 import einx._src.tracer as tracer
 from einx._src.frontend.errors import CallOperationError
-from einx._src.util.lru_cache import lru_cache
+from einx._src.util.functools import cache
 
 from .backend import registry
 from .types import Tensor
@@ -168,7 +168,7 @@ def _api_withoutbackend(func, signature):
     if signature is None:
         signature = inspect.signature(func)
 
-    construct_graph_with_cache = lru_cache(partial(_construct_graph, func=func))
+    construct_graph_with_cache = cache(partial(_construct_graph, func=func))
 
     @functools.wraps(func)
     def inner(*args, backend=None, graph=False, **kwargs):
@@ -202,7 +202,7 @@ def _api_withbackend(func, backend, signature):
     if signature is None:
         signature = inspect.signature(func)
 
-    construct_graph_with_cache = lru_cache(partial(_construct_graph, func=func, backend=backend))
+    construct_graph_with_cache = cache(partial(_construct_graph, func=func, backend=backend))
 
     @functools.wraps(func)
     def inner(*args, graph=False, **kwargs):

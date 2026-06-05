@@ -1,6 +1,6 @@
 import einx._src.tracer as tracer
 from functools import partial
-from einx._src.util.lru_cache import _freeze_value
+from einx._src.util.functools.cache import _freeze_value
 
 
 class ConvertibleTensor(tracer.Tracer):
