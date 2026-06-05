@@ -10,6 +10,7 @@ from functools import partial
 import einx._src.adapter as adapter
 from collections import defaultdict
 import functools
+import re
 
 
 def use_backend(func):
@@ -620,11 +621,10 @@ def pytest_generate_tests(metafunc):
             # Run only for the specified backend
             tests = []
             for setup in setup_backend:
-                if (setup.backend is None and backend == "default") or (setup.backend is not None and setup.backend.name == backend):
+                if (setup.backend is None and backend == "default") or (setup.backend is not None and re.fullmatch(backend, setup.backend.name)):
                     tests.append(setup)
 
-            if len(tests) == 0:
-                raise ValueError(f"Backend '{backend}' is not available")
+            assert len(tests) > 0
 
         metafunc.parametrize("setup_backend", tests)
 
@@ -632,3 +632,24 @@ def pytest_generate_tests(metafunc):
         tests = setup_adapt
 
         metafunc.parametrize("setup_adapt", tests)
+
+
+def pytest_sessionstart(session):
+    backend = session.config.getoption("backend")
+
+    if backend is not None:
+        backend_names = set()
+        for setup in setup_backend:
+            if (setup.backend is None and backend == "default") or (setup.backend is not None and re.fullmatch(backend, setup.backend.name)):
+                backend_names.add(setup.backend.name)
+
+        if len(backend_names) == 0:
+            raise ValueError(f"Backend '{backend}' is not available")
+
+        session.config._backend_names = sorted(backend_names)
+
+
+def pytest_report_header(config):
+    if hasattr(config, "_backend_names"):
+        backends = ", ".join(config._backend_names)
+        return [f"The following backends will be tested: {backends}"]
