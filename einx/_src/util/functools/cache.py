@@ -6,11 +6,22 @@ from collections import defaultdict
 import numpy as np
 from functools import partial
 import types
+import warnings
 
 _thread_local = threading.local()
 
 warn_on_retrace_num = int(os.environ.get("EINX_WARN_ON_RETRACE", 0))
-max_cache_size = int(os.environ.get("EINX_CACHE_SIZE", -1))
+max_cache_size = os.environ.get("EINX_CACHE_SIZE", "inf")
+if max_cache_size != "inf":
+    try:
+        max_cache_size = int(max_cache_size)
+    except ValueError:
+        warnings.warn(
+            f"Invalid EINX_CACHE_SIZE={max_cache_size}, using inf instead.",
+            RuntimeWarning,
+            stacklevel=10,
+        )
+        max_cache_size = "inf"
 
 
 class _FrozenDict(dict):
@@ -100,19 +111,20 @@ def _with_retrace_warning(func):
         return func
 
 
-# A cache that
-# 1. allows using some mutable objects (np.ndarray, list and dict) as keys
-# 2. warns if there are more than EINX_WARN_ON_RETRACE cache failures from the same call site
 def cache(func):
+    """A cache decorator that
+    1. allows using some mutable objects as arguments
+    2. follows EINX_CACHE_SIZE environment variable
+    3. warns if there are more than EINX_WARN_ON_RETRACE cache failures from the same call site
+    """
+    if isinstance(max_cache_size, int) and max_cache_size <= 0:
+        return func
     func = _with_retrace_warning(func)
 
-    if max_cache_size > 0:
-        func = functools.cache(maxsize=max_cache_size if max_cache_size > 0 else None)(func)
-    elif max_cache_size < 0:
-        if "cache" in vars(functools):
-            func = functools.cache(func)
-        else:
-            func = functools.cache(maxsize=None)(func)
+    if max_cache_size == "inf":
+        func = functools.cache(func)
+    elif max_cache_size > 0:
+        func = functools.lru_cache(maxsize=max_cache_size)(func)
     func = _freeze_args(func)
 
     return func
