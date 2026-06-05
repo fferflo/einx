@@ -10,7 +10,16 @@ import warnings
 
 _thread_local = threading.local()
 
-warn_on_retrace_num = int(os.environ.get("EINX_WARN_ON_RETRACE", 0))
+warn_on_retrace_num = os.environ.get("EINX_WARN_ON_RETRACE", "0")
+try:
+    warn_on_retrace_num = int(warn_on_retrace_num)
+except ValueError:
+    warnings.warn(
+        f"Invalid EINX_WARN_ON_RETRACE={warn_on_retrace_num}, using 0 instead.",
+        RuntimeWarning,
+        stacklevel=10,
+    )
+    warn_on_retrace_num = 0
 max_cache_size = os.environ.get("EINX_CACHE_SIZE", "inf")
 if max_cache_size != "inf":
     try:
