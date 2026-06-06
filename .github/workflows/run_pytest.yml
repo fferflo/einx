@@ -68,7 +68,7 @@ jobs:
         pip install --upgrade "torch<2" "numpy<2" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
         pytest test/test_invalid_backend_version.py
 
-  test_py312_torch_26_to_210:
+  test_py312_torch_26_to_212:
     runs-on: ubuntu-latest
     steps:
     - name: Set up python 3.12
@@ -85,6 +85,8 @@ jobs:
       run: |
         pip install .
 
+        pip install --upgrade "torch==2.12" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
+        pytest test
         pip install --upgrade "torch==2.11" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
         pytest test
         pip install --upgrade "torch==2.10" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
