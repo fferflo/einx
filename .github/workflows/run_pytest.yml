@@ -8,6 +8,7 @@ on:
 
 env:
   PIP_ROOT_USER_ACTION: ignore
+  PYTHONNOUSERSITE: "1"
 
 permissions:
   contents: read
@@ -23,14 +24,18 @@ jobs:
     - uses: actions/checkout@v5
     - name: Install python dependencies
       run: |
+        python -m venv .venv
+        source .venv/bin/activate
         python -m pip install --upgrade pip
-        pip install --no-cache-dir --upgrade pytest mlx[cpu] jax[cpu] tensorflow dask tinygrad array-api-compat eindex einops scipy flax
-        pip install torch --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
+        python -m pip install --no-cache-dir --upgrade pytest mlx[cpu] jax[cpu] tensorflow dask tinygrad array-api-compat eindex einops scipy flax
+        python -m pip install torch --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
+        python -m pip install .
     - name: Run tests
       run: |
-        pip install .
-        pytest test --disable-mlx-compile-values
-        pytest test/test_invalid_backend.py --noconftest
+        source .venv/bin/activate
+
+        python -m pytest test --disable-mlx-compile-values
+        python -m pytest test/test_invalid_backend.py --noconftest
 
 
 
@@ -38,6 +43,9 @@ jobs:
 
   test_py310_torch_xx_to_25:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        torch: ["2.5", "2.4", "2.3", "2.2", "2.1", "2.0", "1.13"]
     steps:
     - name: Set up python 3.10
       uses: actions/setup-python@v6
@@ -46,30 +54,33 @@ jobs:
     - uses: actions/checkout@v5
     - name: Install python dependencies
       run: |
+        python -m venv .venv
+        source .venv/bin/activate
         python -m pip install --upgrade pip
-        pip install --no-cache-dir --upgrade pytest
+        python -m pip install --no-cache-dir --upgrade pytest
+        python -m pip install .
 
     - name: Run tests
       run: |
-        pip install .
+        source .venv/bin/activate
 
-        pip install --upgrade "torch==2.5" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.4" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.3" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.2" "numpy<2" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.1" "numpy<2" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test/test_invalid_backend_version.py
-        pip install --upgrade "torch==2.0" "numpy<2" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test/test_invalid_backend_version.py
-        pip install --upgrade "torch<2" "numpy<2" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test/test_invalid_backend_version.py
+        if [[ "${{ matrix.torch }}" == "2.2" || "${{ matrix.torch }}" == "2.1" || "${{ matrix.torch }}" == "2.0" || "${{ matrix.torch }}" == "1.13" ]]; then
+          python -m pip install --upgrade "numpy<2"
+        fi
+
+        python -m pip install --upgrade "torch==${{ matrix.torch }}" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
+
+        if [[ "${{ matrix.torch }}" == "2.1" || "${{ matrix.torch }}" == "2.0" || "${{ matrix.torch }}" == "1.13" ]]; then
+          python -m pytest test/test_invalid_backend_version.py
+        else
+          python -m pytest test
+        fi
 
   test_py312_torch_26_to_212:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        torch: ["2.12", "2.11", "2.10", "2.9", "2.8", "2.7", "2.6"]
     steps:
     - name: Set up python 3.12
       uses: actions/setup-python@v6
@@ -78,24 +89,15 @@ jobs:
     - uses: actions/checkout@v5
     - name: Install python dependencies
       run: |
+        python -m venv .venv
+        source .venv/bin/activate
         python -m pip install --upgrade pip
-        pip install --no-cache-dir --upgrade pytest
+        python -m pip install --no-cache-dir --upgrade pytest
+        python -m pip install .
 
     - name: Run tests
       run: |
-        pip install .
+        source .venv/bin/activate
 
-        pip install --upgrade "torch==2.12" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.11" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.10" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.9" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.8" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.7" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
-        pip install --upgrade "torch==2.6" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
-        pytest test
+        python -m pip install --upgrade "torch==${{ matrix.torch }}" --no-cache-dir --index-url https://download.pytorch.org/whl/cpu
+        python -m pytest test
