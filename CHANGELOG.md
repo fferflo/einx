@@ -4,7 +4,17 @@
 
 ### Changed
 
-- Remove the ``frozendict`` dependency, replacing it with a stdlib-only hashable ``dict`` subclass used to build ``lru_cache`` keys. This drops the last LGPL-3.0 dependency from einx without changing caching behaviour (https://github.com/fferflo/einx/pull/35).
+- Remove ``frozendict`` dependency (https://github.com/fferflo/einx/pull/35) which is licensed under LGPL-3.0.
+- Change behavior of environment variable EINX_CACHE_SIZE:
+    - If EINX_CACHE_SIZE=inf, compiled operations are cached using ``functools.cache``.
+    - If EINX_CACHE_SIZE=16, compiled operations are cached using ``functools.lru_cache(maxsize=16)``.
+    - If EINX_CACHE_SIZE=0, caching is disabled and operations are compiled on each invocation.
+
+### Fixed
+
+- Make compatible with tinygrad 0.13.0.
+
+
 
 ## [0.4.3]
 
