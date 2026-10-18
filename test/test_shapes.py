@@ -13,6 +13,27 @@ BackendResolutionError = einx.errors.BackendResolutionError
 
 
 @use_backend
+def test_shape_zero_sized_axes(setup_backend):
+    einx, setup = setup_backend.einx, setup_backend
+
+    x = setup.full((0, 0))
+    assert einx.id("... -> 1 ...", x).shape == (1, 0, 0)
+
+    x = setup.full((0, 3))
+    assert einx.id("a b -> b a", x).shape == (3, 0)
+    assert einx.id("a b -> (a b)", x).shape == (0,)
+    assert einx.id("a b -> 1 a b", x).shape == (1, 0, 3)
+
+    x = setup.full((0,))
+    assert einx.id("(a b) -> a b", x, b=3).shape == (0, 3)
+
+    with pytest.raises((EinxError, *setup.exceptions), match="Failed to uniquely determine"):
+        einx.id("(a b) -> a b", x, a=0)
+    with pytest.raises((EinxError, *setup.exceptions), match="Failed to determine"):
+        einx.id("(a + b) -> a, b", setup.full((3,)), a=5)
+
+
+@use_backend
 def test_shape_id(setup_backend):
     einx, setup = setup_backend.einx, setup_backend
 
