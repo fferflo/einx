@@ -90,12 +90,12 @@ def solve(equations, invocation, verbose=False):
             failed_axes = sorted({str(x) for x in failed_axes})
             raise solver.SolveExceptionTooManySolutions(", ".join(failed_axes))
 
-        # Raise exception on non-positive values
+        # Raise exception on negative values
         failed_exprs = set()
         for root in exprs1 + exprs2:
             if root is not None:
                 for expr in root.nodes():
-                    if isinstance(expr, stage2.Axis) and axis_values[id(expr)] <= 0:
+                    if isinstance(expr, stage2.Axis) and axis_values[id(expr)] < 0:
                         failed_exprs.add(expr)
         if len(failed_exprs) > 0:
             raise solver.SolveExceptionNoSolution()
@@ -130,7 +130,7 @@ def solve(equations, invocation, verbose=False):
     # Map stage2 expressions to stage3 expressions
     def map(expr):
         if isinstance(expr, stage2.Axis):
-            assert id(expr) in axis_values and axis_values[id(expr)] > 0
+            assert id(expr) in axis_values and axis_values[id(expr)] >= 0
             return Axis(expr.name, axis_values[id(expr)], expr.begin_pos, expr.end_pos)
         elif isinstance(expr, stage2.List):
             return List.create([map(child) for child in expr.children], expr.begin_pos, expr.end_pos)
