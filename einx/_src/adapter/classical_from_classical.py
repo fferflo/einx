@@ -10,6 +10,8 @@ def logsumexp(classical):
 
         x_max_keepdims = classical.max(x, axis=axis, keepdims=True)
         x_max_keepdims = classical.stop_gradient(x_max_keepdims)
+        # An infinite shift would turn valid infinite results into NaNs.
+        x_max_keepdims = classical.where(classical.isfinite(x_max_keepdims), x_max_keepdims, classical.zeros_like(x_max_keepdims))
         x_max_dropdims = classical.reshape(x_max_keepdims, tuple(s for i, s in enumerate(x_max_keepdims.shape) if i not in axes))
 
         x = classical.subtract(x, x_max_keepdims)

@@ -23,6 +23,7 @@ class math:
         self.greater_equal = signature.classical.elementwise(math.greater_equal, num_outputs=1)
         self.equal = signature.classical.elementwise(math.equal, num_outputs=1)
         self.not_equal = signature.classical.elementwise(math.not_equal, num_outputs=1)
+        self.is_finite = signature.classical.elementwise(math.is_finite, num_outputs=1)
         self.exp = signature.classical.elementwise(math.exp, num_outputs=1)
         self.log = signature.classical.elementwise(math.log, num_outputs=1)
         self.negative = signature.classical.elementwise(math.negative, num_outputs=1)
@@ -60,6 +61,7 @@ class tensorflow:
         self.concat = signature.classical.concatenate(tf.concat)
         self.split = signature.classical.split(tf.split, cumulative=False)
 
+        self.zeros_like = signature.classical.elementwise(tf.zeros_like, num_outputs=1)
         self.where = signature.classical.elementwise(tf.where, num_outputs=1)
 
         self.tensordot = signature.classical.tensordot(tf.tensordot)

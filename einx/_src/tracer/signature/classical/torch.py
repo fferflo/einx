@@ -42,6 +42,8 @@ class torch:
         self.eq = signature.classical.elementwise(torch.eq, num_outputs=1)
         self.ne = signature.classical.elementwise(torch.ne, num_outputs=1)
         self.logaddexp = signature.classical.elementwise(torch.logaddexp, num_outputs=1)
+        self.isfinite = signature.classical.elementwise(torch.isfinite, num_outputs=1)
+        self.zeros_like = signature.classical.elementwise(torch.zeros_like, num_outputs=1)
         self.exp = signature.classical.elementwise(torch.exp, num_outputs=1)
         self.log = signature.classical.elementwise(torch.log, num_outputs=1)
         self.neg = signature.classical.elementwise(torch.neg, num_outputs=1)

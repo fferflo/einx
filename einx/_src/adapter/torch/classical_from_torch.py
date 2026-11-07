@@ -106,6 +106,8 @@ class ops:
         self.equal = adapter.classical_from_numpy.elementwise(torch.eq, to_tensor=to_tensor_compare)
         self.not_equal = adapter.classical_from_numpy.elementwise(torch.ne, to_tensor=to_tensor_compare)
 
+        self.isfinite = adapter.classical_from_numpy.elementwise(torch.isfinite, to_tensor=to_tensor_all)
+        self.zeros_like = adapter.classical_from_numpy.elementwise(torch.zeros_like, to_tensor=to_tensor_all)
         self.exp = adapter.classical_from_numpy.elementwise(torch.exp, to_tensor=to_tensor_all)
         self.log = adapter.classical_from_numpy.elementwise(torch.log, to_tensor=to_tensor_all)
         self.negative = adapter.classical_from_numpy.elementwise(torch.neg, to_tensor=to_tensor_all)

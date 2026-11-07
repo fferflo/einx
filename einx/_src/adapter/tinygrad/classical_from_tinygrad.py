@@ -40,6 +40,8 @@ class ops:
         self.greater_equal = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.__ge__, to_tensor=to_tensor_all)
         self.equal = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.__eq__, to_tensor=to_tensor_all)
         self.not_equal = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.__ne__, to_tensor=to_tensor_all)
+        self.isfinite = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.isfinite, to_tensor=to_tensor_all)
+        self.zeros_like = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.zeros_like, to_tensor=to_tensor_all)
         self.exp = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.exp, to_tensor=to_tensor_all)
         self.log = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.log, to_tensor=to_tensor_all)
         self.negative = adapter.classical_from_numpy.elementwise(tinygrad.Tensor.neg, to_tensor=to_tensor_all)

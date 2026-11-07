@@ -61,6 +61,8 @@ class ops:
         self.greater_equal = adapter.classical_from_numpy.elementwise(tf.math.greater_equal, to_tensor=to_tensor_elementwise)
         self.equal = adapter.classical_from_numpy.elementwise(tf.math.equal, to_tensor=to_tensor_elementwise)
         self.not_equal = adapter.classical_from_numpy.elementwise(tf.math.not_equal, to_tensor=to_tensor_elementwise)
+        self.isfinite = adapter.classical_from_numpy.elementwise(tf.math.is_finite, to_tensor=to_tensor_all)
+        self.zeros_like = adapter.classical_from_numpy.elementwise(tf.zeros_like, to_tensor=to_tensor_all)
         self.exp = adapter.classical_from_numpy.elementwise(tf.math.exp, to_tensor=to_tensor_elementwise)
         self.log = adapter.classical_from_numpy.elementwise(tf.math.log, to_tensor=to_tensor_elementwise)
         self.negative = adapter.classical_from_numpy.elementwise(tf.math.negative, to_tensor=to_tensor_elementwise)
