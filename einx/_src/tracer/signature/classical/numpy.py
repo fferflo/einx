@@ -37,6 +37,8 @@ class numpy:
         self.equal = signature.classical.elementwise(np.equal, num_outputs=1)
         self.not_equal = signature.classical.elementwise(np.not_equal, num_outputs=1)
         self.logaddexp = signature.classical.elementwise(np.logaddexp, num_outputs=1)
+        self.isfinite = signature.classical.elementwise(np.isfinite, num_outputs=1)
+        self.zeros_like = signature.classical.elementwise(np.zeros_like, num_outputs=1)
         self.exp = signature.classical.elementwise(np.exp, num_outputs=1)
         self.log = signature.classical.elementwise(np.log, num_outputs=1)
         self.negative = signature.classical.elementwise(np.negative, num_outputs=1)

@@ -352,6 +352,8 @@ class ops:
         self.greater_equal = adapter.classical_from_numpy.elementwise(np.greater_equal, to_tensor=to_tensor_forward_all)
         self.equal = adapter.classical_from_numpy.elementwise(np.equal, to_tensor=to_tensor_forward_all)
         self.not_equal = adapter.classical_from_numpy.elementwise(np.not_equal, to_tensor=to_tensor_forward_all)
+        self.isfinite = adapter.classical_from_numpy.elementwise(np.isfinite, to_tensor=to_tensor_forward_all)
+        self.zeros_like = adapter.classical_from_numpy.elementwise(np.zeros_like, to_tensor=to_tensor_forward_all)
         self.exp = adapter.classical_from_numpy.elementwise(np.exp, to_tensor=to_tensor_forward_all)
         self.log = adapter.classical_from_numpy.elementwise(np.log, to_tensor=to_tensor_forward_all)
         self.negative = adapter.classical_from_numpy.elementwise(np.negative, to_tensor=to_tensor_forward_all)

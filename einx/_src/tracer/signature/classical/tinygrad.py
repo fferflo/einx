@@ -52,6 +52,8 @@ class Tensor(tracer.Tracer):
         self.__eq__ = signature.classical.elementwise(getattr(Tensor, "__eq__"), num_outputs=1)
         self.__ne__ = signature.classical.elementwise(getattr(Tensor, "__ne__"), num_outputs=1)
         self.logaddexp = signature.classical.elementwise(Tensor.logaddexp, num_outputs=1)
+        self.isfinite = signature.classical.elementwise(Tensor.isfinite, num_outputs=1)
+        self.zeros_like = signature.classical.elementwise(Tensor.zeros_like, num_outputs=1)
         self.exp = signature.classical.elementwise(Tensor.exp, num_outputs=1)
         self.log = signature.classical.elementwise(Tensor.log, num_outputs=1)
         self.neg = signature.classical.elementwise(Tensor.neg, num_outputs=1)

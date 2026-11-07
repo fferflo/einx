@@ -48,6 +48,8 @@ class arrayapi:
         self.equal = signature.classical.elementwise(xp.equal, num_outputs=1)
         self.not_equal = signature.classical.elementwise(xp.not_equal, num_outputs=1)
         self.logaddexp = signature.classical.elementwise(xp.logaddexp, num_outputs=1)
+        self.isfinite = signature.classical.elementwise(xp.isfinite, num_outputs=1)
+        self.zeros_like = signature.classical.elementwise(xp.zeros_like, num_outputs=1)
         self.exp = signature.classical.elementwise(xp.exp, num_outputs=1)
         self.log = signature.classical.elementwise(xp.log, num_outputs=1)
         self.negative = signature.classical.elementwise(xp.negative, num_outputs=1)
